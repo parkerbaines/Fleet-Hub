@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="authGate" class="auth-gate hidden-panel">
+    <div class="auth-card">
+      <p class="section-label">Fleet Hub</p>
+      <h1>Team Sign In</h1>
+      <p class="auth-copy">Sign in with your shared work email to access the live fleet data.</p>
+      <form id="authForm" class="auth-form">
+        <label>
+          Email
+          <input type="email" id="authEmail" name="email" autocomplete="username" required>
+        </label>
+        <label>
+          Password
+          <input type="password" id="authPassword" name="password" autocomplete="current-password" required>
+        </label>
+        <div class="auth-actions">
+          <button type="submit" class="button-primary">Sign In</button>
+          <button type="button" class="button-secondary" id="createAccountButton">Create Account</button>
+        </div>
+        <p id="authMessage" class="auth-message"></p>
+      </form>
+    </div>
+  </div>
+
+  <div class="app-shell" id="appShell">
+    <div class="cloud-status-bar">
+      <div>
+        <strong id="syncStatusText">Local mode</strong>
+        <span id="syncStatusSubtext">This browser is currently using local saved data.</span>
+      </div>
+      <div class="cloud-status-actions">
+        <span id="currentUserEmail" class="current-user"></span>
+        <button type="button" class="button-secondary hidden-panel" id="signOutButton">Sign Out</button>
+      </div>
+    </div>
+    <div class="app-brand-row">
+      <div>
+        <p class="eyebrow">Fleet Operations</p>
+        <h1>Fleet Hub</h1>
+      </div>
+    </div>
+    <nav class="top-nav" aria-label="Primary">
+      <button class="nav-link active" data-page="dashboard">Dashboard</button>
+      <button class="nav-link" data-page="assets">Assets</button>
+      <button class="nav-link" data-page="technicians">Technicians</button>
+      <button class="nav-link" data-page="inventory">Inventory</button>
+      <button class="nav-link" data-page="maintenance">Maintenance</button>
+      <button class="nav-link" data-page="work-orders">Work Orders</button>
+      <button class="nav-link" data-page="compliance">Compliance</button>
+      <button class="nav-link" data-page="documents">Documents</button>
+    </nav>
+
+    <main>
+      <section class="page active" data-page="dashboard">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Home</p>
+            <h2>Fleet Health Dashboard</h2>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="dashboard-grid">
+            <button class="summary-card accent-blue jump-card" data-target-page="assets">
+              <span>Total Assets</span>
+              <strong id="assetCount">0</strong>
+              <small>Open the asset register</small>
+            </button>
+            <button class="summary-card accent-gold jump-card" data-target-page="work-orders">
+              <span>Open Work Orders</span>
+              <strong id="openWorkOrderCount">0</strong>
+              <small>Go to work order tracking</small>
+            </button>
+            <button class="summary-card accent-green jump-card" data-target-page="maintenance">
+              <span>Maintenance Logs</span>
+              <strong id="maintenanceCount">0</strong>
+              <small>Review service history</small>
+            </button>
+            <button class="summary-card accent-red jump-card" data-target-page="compliance">
+              <span>Compliance Alerts</span>
+              <strong id="alertCount">0</strong>
+              <small>Check expiring items</small>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Quick Access</p>
+              <h2>Open a Section</h2>
+            </div>
+          </div>
+          <div class="quick-links">
+            <button class="quick-link" data-target-page="assets">
+              <strong>Assets</strong>
+              <span>Track trucks, trailers, and equipment</span>
+            </button>
+            <button class="quick-link" data-target-page="technicians">
+              <strong>Technicians</strong>
+              <span>Manage labor rates and assign service work</span>
+            </button>
+            <button class="quick-link" data-target-page="inventory">
+              <strong>Parts & Inventory</strong>
+              <span>Store parts, vendors, UOM, and pricing for work orders</span>
+            </button>
+            <button class="quick-link" data-target-page="maintenance">
+              <strong>Maintenance</strong>
+              <span>Log service and see next due work</span>
+            </button>
+            <button class="quick-link" data-target-page="work-orders">
+              <strong>Work Orders</strong>
+              <span>Manage repairs and active tool box forms</span>
+            </button>
+            <button class="quick-link" data-target-page="compliance">
+              <strong>Compliance</strong>
+              <span>Watch registration, inspection, and insurance dates</span>
+            </button>
+            <button class="quick-link" data-target-page="documents">
+              <strong>Documents</strong>
+              <span>Store insurance cards, PDFs, and registration files</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Action Items</p>
+              <h2>Health Snapshot</h2>
+            </div>
+          </div>
+          <div class="two-column">
+            <div>
+              <h3>Compliance Watchlist</h3>
+              <div id="dashboardAlerts" class="list-stack"></div>
+            </div>
+            <div>
+              <h3>Active Tool Box Forms</h3>
+              <div id="dashboardToolbox" class="list-stack"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" data-page="assets">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Fleet Assets</p>
+            <h2>Asset Register</h2>
+          </div>
+          <button class="button-primary" data-target-page="add-asset">Add New Asset</button>
+        </div>
+        <section class="panel">
+          <div class="asset-toolbar">
+            <div class="segmented-control" id="assetFilterBar">
+              <button class="segment-button active" data-asset-filter="Vehicle">Vehicles</button>
+              <button class="segment-button" data-asset-filter="Equipment">Equipment</button>
+              <button class="segment-button" data-asset-filter="Trailer">Trailers</button>
+            </div>
+            <div class="toolbar-controls">
+              <input id="assetSearchInput" type="search" placeholder="Search assets">
+              <select id="assetStatusFilter">
+                <option value="all">All Statuses</option>
+                <option value="active">Active Only</option>
+                <option value="inactive">Inactive Only</option>
+              </select>
+              <div class="asset-toolbar-copy" id="assetFilterSummary"></div>
+            </div>
+          </div>
+          <div id="assetList" class="list-stack"></div>
+        </section>
+      </section>
+
+      <section class="page" data-page="add-asset">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Fleet Assets</p>
+            <h2>Add New Asset</h2>
+          </div>
+          <button class="button-secondary" data-target-page="assets">Back to Asset Register</button>
+        </div>
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Step 1</p>
+              <h2>Choose Asset Type</h2>
+            </div>
+          </div>
+          <div class="quick-links type-picker">
+            <button class="quick-link type-choice" data-asset-type-choice="Vehicle">
+              <strong>Vehicle</strong>
+              <span>Pickup trucks, SUVs, service trucks, vans, and road vehicles</span>
+            </button>
+            <button class="quick-link type-choice" data-asset-type-choice="Equipment">
+              <strong>Equipment</strong>
+              <span>Skid steers, lifts, compressors, trenchers, and field equipment</span>
+            </button>
+            <button class="quick-link type-choice" data-asset-type-choice="Trailer">
+              <strong>Trailer</strong>
+              <span>Utility trailers, enclosed trailers, office trailers, and specialty trailers</span>
+            </button>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Step 2</p>
+              <h2>Enter Asset Details</h2>
+            </div>
+          </div>
+          <form id="assetForm" class="form-grid">
+            <label class="type-field" data-types="Vehicle">
+              Asset Name
+              <input name="name" id="assetNameInput" placeholder="Truck 12">
+            </label>
+            <label>
+              <span id="assetNumberLabel">Asset #</span>
+              <input name="assetNumber" id="assetNumberInput" required placeholder="158">
+            </label>
+            <label>
+              Asset Type
+              <select name="type" id="assetTypeSelect" required>
+                <option value="">Select asset type</option>
+                <option value="Vehicle">Vehicle</option>
+                <option value="Equipment">Equipment</option>
+                <option value="Trailer">Trailer</option>
+              </select>
+            </label>
+            <label>
+              Category
+              <select name="category" id="assetCategorySelect" required disabled>
+                <option value="">Select asset type first</option>
+              </select>
+            </label>
+            <label id="customCategoryWrap" class="hidden-field">
+              New Category
+              <input name="customCategory" id="customCategoryInput" placeholder="Enter new category">
+            </label>
+            <label>
+              Year
+              <input name="year" placeholder="2022">
+            </label>
+            <label>
+              Make
+              <input name="make" placeholder="Chevrolet">
+            </label>
+            <label>
+              Model
+              <input name="model" placeholder="1500">
+            </label>
+            <label class="type-field" data-types="Equipment">
+              Model #
+              <input name="modelNumber" placeholder="RT450">
+            </label>
+            <label class="type-field" data-types="Trailer">
+              GVWR
+              <input name="gvwr" placeholder="14,000LB">
+            </label>
+            <label class="type-field" data-types="Vehicle,Trailer,Equipment">
+              License Plate
+              <input name="licensePlate" placeholder="7E50520">
+            </label>
+            <label class="type-field" data-types="Vehicle">
+              VIN
+              <input name="vin" placeholder="1HGBH41JXMN109186">
+            </label>
+            <label class="type-field" data-types="Trailer">
+              VIN
+              <input name="trailerVin" placeholder="16V1C2525R4343639">
+            </label>
+            <label class="type-field" data-types="Equipment">
+              VIN / Serial
+              <input name="vinSerial" placeholder="A3NT12950">
+            </label>
+            <label class="type-field" data-types="Equipment">
+              Engine Serial #
+              <input name="engineSerial" placeholder="BJ0050">
+            </label>
+            <label class="type-field" data-types="Equipment">
+              EIN
+              <input name="ein" placeholder="FP4Y96">
+            </label>
+            <label class="type-field" data-types="Trailer,Equipment">
+              Location
+              <input name="location" placeholder="SHOP">
+            </label>
+            <label class="type-field" data-types="Vehicle">
+              Assigned Location
+              <input name="locationVehicle" placeholder="CJF">
+            </label>
+            <label class="full-span">
+              Notes
+              <textarea name="notes" rows="3" placeholder="Special setup, tags, or inspection details"></textarea>
+            </label>
+            <button type="submit" class="button-primary">Save Asset</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="page" data-page="asset-detail">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Fleet Assets</p>
+            <h2 id="assetDetailTitle">Asset Detail</h2>
+          </div>
+          <div class="action-row">
+            <button class="button-primary" id="editAssetButton" type="button">Edit Asset</button>
+            <button class="button-secondary" id="deactivateAssetButton" type="button">Deactivate Asset</button>
+            <button class="button-danger" id="deleteAssetButton" type="button">Delete Asset</button>
+            <button class="button-secondary" data-target-page="assets">Back to Asset Register</button>
+          </div>
+        </div>
+        <section class="panel">
+          <div id="assetDetailCard"></div>
+        </section>
+        <section class="panel panel-wide">
+          <div class="two-column">
+            <div>
+              <h3>Maintenance History</h3>
+              <div id="assetDetailMaintenance" class="list-stack"></div>
+            </div>
+            <div>
+              <h3>Work Orders</h3>
+              <div id="assetDetailWorkOrders" class="list-stack"></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel panel-wide">
+          <div class="two-column">
+            <div>
+              <h3>Compliance Records</h3>
+              <div id="assetDetailCompliance" class="list-stack"></div>
+            </div>
+            <div>
+              <h3>Documents</h3>
+              <div id="assetDetailDocuments" class="list-stack"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" data-page="technicians">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Team</p>
+            <h2>Technician Directory</h2>
+          </div>
+          <button class="button-primary" data-target-page="add-technician">Add New Technician</button>
+        </div>
+        <section class="panel">
+          <div class="asset-toolbar">
+            <div class="asset-toolbar-copy" id="technicianSummary"></div>
+          </div>
+          <div id="technicianList" class="list-stack"></div>
+        </section>
+      </section>
+
+      <section class="page" data-page="add-technician">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Team</p>
+            <h2>Add New Technician</h2>
+          </div>
+          <button class="button-secondary" data-target-page="technicians">Back to Technicians</button>
+        </div>
+        <section class="panel">
+          <form id="technicianForm" class="form-grid">
+            <label>
+              Name
+              <input name="name" required placeholder="Chris Black">
+            </label>
+            <label>
+              Title
+              <input name="title" required placeholder="Lead Technician">
+            </label>
+            <label>
+              Hourly Rate
+              <input name="hourlyRate" required placeholder="$42.00">
+            </label>
+            <button type="submit" class="button-primary">Save Technician</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="page" data-page="inventory">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Parts</p>
+            <h2>Parts & Inventory</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Add Item</p>
+              <h2>New Inventory Item</h2>
+            </div>
+          </div>
+          <form id="inventoryForm" class="form-grid">
+            <label>
+              Item Name
+              <input name="name" required placeholder="Brake Pad Set">
+            </label>
+            <label>
+              Part Number
+              <input name="partNumber" placeholder="BP-4201">
+            </label>
+            <label>
+              Vendor
+              <input name="vendor" placeholder="NAPA">
+            </label>
+            <label>
+              UOM
+              <select name="uom" required>
+                <option value="">Select UOM</option>
+                <option>Qt</option>
+                <option>Gal</option>
+                <option>Ea</option>
+                <option>Pkg</option>
+              </select>
+            </label>
+            <label>
+              Price
+              <input name="price" placeholder="$49.95">
+            </label>
+            <button type="submit" class="button-primary">Save Part</button>
+          </form>
+        </section>
+        <section class="panel">
+          <div class="asset-toolbar">
+            <div class="toolbar-controls toolbar-controls-wide">
+              <input id="inventorySearchInput" type="search" placeholder="Search parts and inventory">
+              <select id="inventoryFilterSelect">
+                <option value="all">All Items</option>
+                <option value="priced">With Price</option>
+                <option value="missing-price">Missing Price</option>
+                <option value="qt">UOM: Qt</option>
+                <option value="gal">UOM: Gal</option>
+                <option value="ea">UOM: Ea</option>
+                <option value="pkg">UOM: Pkg</option>
+              </select>
+              <div class="asset-toolbar-copy" id="inventorySummary"></div>
+            </div>
+          </div>
+          <div id="inventoryList" class="list-stack"></div>
+        </section>
+      </section>
+
+      <section class="page" data-page="maintenance">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Maintenance</p>
+            <h2>Service Logs</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <form id="maintenanceForm" class="form-grid">
+            <label>
+              Asset Type
+              <select name="assetType" required id="maintenanceAssetTypeSelect">
+                <option value="">Select asset type</option>
+                <option value="Vehicle">Vehicle</option>
+                <option value="Equipment">Equipment</option>
+                <option value="Trailer">Trailer</option>
+              </select>
+            </label>
+            <label>
+              Asset #
+              <select name="assetId" required id="maintenanceAssetSelect" disabled>
+                <option value="">Select asset type first</option>
+              </select>
+            </label>
+            <label>
+              Asset Number
+              <input id="maintenanceAssetNumberDisplay" readonly>
+            </label>
+            <label>
+              Year
+              <input id="maintenanceAssetYearDisplay" readonly>
+            </label>
+            <label>
+              Make
+              <input id="maintenanceAssetMakeDisplay" readonly>
+            </label>
+            <label>
+              Model
+              <input id="maintenanceAssetModelDisplay" readonly>
+            </label>
+            <label>
+              License Plate
+              <input id="maintenanceAssetPlateDisplay" readonly>
+            </label>
+            <label>
+              VIN / Serial
+              <input id="maintenanceAssetSerialDisplay" readonly>
+            </label>
+            <label>
+              Category
+              <input id="maintenanceAssetCategoryDisplay" readonly>
+            </label>
+            <label>
+              Service Date
+              <input type="date" name="date" required>
+            </label>
+            <label>
+              Service Type
+              <input name="serviceType" required placeholder="Oil change">
+            </label>
+            <label>
+              Vendor
+              <select name="vendorSelect" id="maintenanceVendorSelect">
+                <option value="">Select vendor</option>
+                <option value="Con J Franke Electric">Con J Franke Electric</option>
+                <option value="Jiffylube">Jiffylube</option>
+                <option value="Les Schwab">Les Schwab</option>
+                <option value="Brannon Tire">Brannon Tire</option>
+                <option value="Larrys Auto">Larrys Auto</option>
+                <option value="__new__">Add new vendor</option>
+              </select>
+            </label>
+            <label>
+              Odometer / Hours
+              <input name="meter" placeholder="84,210 mi">
+            </label>
+            <label class="full-span">
+              Summary
+              <textarea name="summary" rows="3" placeholder="What work was performed?"></textarea>
+            </label>
+            <label>
+              Next Due Date
+              <input type="date" name="nextDueDate">
+            </label>
+            <label>
+              Cost
+              <input name="cost" placeholder="$245.00">
+            </label>
+            <label class="full-span">
+              Attach PDF / Image
+              <input type="file" name="file" accept=".pdf,image/*">
+            </label>
+            <button type="submit" class="button-primary">Save Maintenance Log</button>
+          </form>
+          <p class="helper-text">Maintenance attachments are stored in your browser for this version, so smaller PDFs and images work best.</p>
+          <div id="maintenanceList" class="list-stack"></div>
+        </section>
+      </section>
+
+      <section class="page" data-page="maintenance-detail">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Maintenance</p>
+            <h2 id="maintenanceDetailTitle">Maintenance Log Detail</h2>
+          </div>
+          <div class="action-row">
+            <button class="button-primary" id="editMaintenanceButton" type="button">Edit Log</button>
+            <button class="button-danger" id="deleteMaintenanceButton" type="button">Delete Log</button>
+            <button class="button-secondary" data-target-page="maintenance">Back to Maintenance</button>
+          </div>
+        </div>
+        <section class="panel">
+          <div id="maintenanceDetailCard"></div>
+        </section>
+      </section>
+
+      <section class="page" data-page="work-orders">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Work Orders</p>
+            <h2>Repairs and Tool Box Forms</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <form id="workOrderForm" class="form-grid">
+            <label>
+              Asset Type
+              <select name="assetType" required id="workOrderAssetTypeSelect">
+                <option value="">Select asset type</option>
+                <option value="Vehicle">Vehicle</option>
+                <option value="Equipment">Equipment</option>
+                <option value="Trailer">Trailer</option>
+              </select>
+            </label>
+            <label>
+              Asset #
+              <select name="assetId" required id="workOrderAssetSelect" disabled>
+                <option value="">Select asset type first</option>
+              </select>
+            </label>
+            <label>
+              Title
+              <input name="title" required placeholder="Brake inspection">
+            </label>
+            <label>
+              Priority
+              <select name="priority">
+                <option>Low</option>
+                <option selected>Medium</option>
+                <option>High</option>
+                <option>Critical</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select name="status">
+                <option selected>Not Yet Started</option>
+                <option>In Progress</option>
+                <option>Waiting on Parts</option>
+                <option>Complete</option>
+              </select>
+            </label>
+            <label>
+              Assigned To
+              <select name="assignedTo" id="workOrderTechnicianSelect">
+                <option value="">Unassigned</option>
+              </select>
+            </label>
+            <label>
+              Due Date
+              <input type="date" name="dueDate">
+            </label>
+            <label class="full-span">
+              Asset Number
+              <input name="assetNumberDisplay" id="workOrderAssetNumberDisplay" placeholder="Will fill automatically" readonly>
+            </label>
+            <label>
+              Year
+              <input name="assetYearDisplay" id="workOrderAssetYearDisplay" placeholder="Will fill automatically" readonly>
+            </label>
+            <label>
+              Make
+              <input name="assetMakeDisplay" id="workOrderAssetMakeDisplay" placeholder="Will fill automatically" readonly>
+            </label>
+            <label>
+              Model
+              <input name="assetModelDisplay" id="workOrderAssetModelDisplay" placeholder="Will fill automatically" readonly>
+            </label>
+            <label>
+              License Plate
+              <input name="assetPlateDisplay" id="workOrderAssetPlateDisplay" placeholder="Will fill automatically" readonly>
+            </label>
+            <label>
+              VIN / Serial
+              <input name="assetSerialDisplay" id="workOrderAssetSerialDisplay" placeholder="Will fill automatically" readonly>
+            </label>
+            <label>
+              Category
+              <input name="assetCategoryDisplay" id="workOrderAssetCategoryDisplay" placeholder="Will fill automatically" readonly>
+            </label>
+            <label class="full-span">
+              Complaint / Requested Work
+              <textarea name="description" rows="3" placeholder="Issue, repair request, or inspection notes"></textarea>
+            </label>
+            <label class="full-span checkbox-row">
+              <input type="checkbox" name="toolboxActive">
+              Add this to the active tool box forms area
+            </label>
+            <button type="submit" class="button-primary">Create Work Order</button>
+          </form>
+        </section>
+        <section class="panel panel-wide">
+          <div class="dashboard-grid">
+            <div>
+              <h3>Active Work Orders</h3>
+              <div id="workOrderList" class="list-stack"></div>
+            </div>
+            <div>
+              <h3>Tool Box Active Forms</h3>
+              <div id="toolboxList" class="list-stack"></div>
+            </div>
+            <div class="panel-wide">
+              <h3>Completed / Past Work Orders</h3>
+              <div id="completedWorkOrderList" class="list-stack"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" data-page="work-order-detail">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Work Orders</p>
+            <h2 id="workOrderDetailTitle">Work Order Detail</h2>
+          </div>
+          <div class="action-row">
+            <button class="button-primary" id="printWorkOrderButton" type="button">Print / Save PDF</button>
+            <button class="button-danger" id="deleteWorkOrderButton" type="button">Delete Work Order</button>
+            <button class="button-secondary" data-target-page="work-orders">Back to Work Orders</button>
+          </div>
+        </div>
+        <div id="workOrderStatusActions" class="status-chip-row"></div>
+        <section id="printWorkOrderSheet" class="print-sheet"></section>
+        <section class="panel">
+          <div id="workOrderDetailSummary"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Labor</p>
+              <h2>Time Tracking</h2>
+            </div>
+          </div>
+          <div class="two-column">
+            <form id="manualTimeEntryForm" class="form-grid">
+              <label>
+                Technician
+                <select name="technicianName" id="workOrderDetailTechnicianSelect">
+                  <option value="">Unassigned</option>
+                </select>
+              </label>
+              <label>
+                Hourly Rate
+                <input name="technicianRate" id="workOrderDetailTechnicianRate" placeholder="$42.00" readonly>
+              </label>
+              <label>
+                Timer Status
+                <input name="timerDisplay" id="workOrderTimerDisplay" value="00:00:00" readonly>
+              </label>
+              <div class="full-span timer-toolbar">
+                <button class="button-secondary" id="startTimerButton" type="button">Start Timer</button>
+                <button class="button-secondary" id="stopTimerButton" type="button">Stop Timer</button>
+              </div>
+              <label>
+                Entry Date
+                <input type="date" name="entryDate">
+              </label>
+              <label>
+                Hours
+                <input name="hours" placeholder="1.5">
+              </label>
+              <label class="full-span">
+                Note
+                <input name="note" placeholder="Brake inspection and fluid check">
+              </label>
+              <button type="submit" class="button-primary">Add Time Entry</button>
+            </form>
+            <div>
+              <h3>Time Entries</h3>
+              <div id="workOrderTimeEntryList" class="list-stack"></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel panel-wide">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Service Form</p>
+              <h2>Technician Detail</h2>
+            </div>
+          </div>
+          <form id="workOrderDetailForm" class="form-grid">
+            <label>
+              Service Date
+              <input type="date" name="serviceDate">
+            </label>
+            <label>
+              Odometer / Hours
+              <input name="meterReading" placeholder="84,210 mi / 1,255 hrs">
+            </label>
+            <label>
+              Hourly Rate
+              <input name="hourlyRate" placeholder="$42.00" readonly>
+            </label>
+            <label>
+              Labor Cost
+              <input name="laborCostDisplay" id="laborCostDisplay" readonly placeholder="Calculated automatically">
+            </label>
+            <div class="full-span work-order-section">
+              <p class="section-label">Brake Life / Status</p>
+              <div class="inspection-grid four-column">
+                <label><span>LF Brakes (mm)</span><select name="brakeLfMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+                <label><span>RF Brakes (mm)</span><select name="brakeRfMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+                <label><span>LR Brakes (mm)</span><select name="brakeLrMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+                <label><span>RR Brakes (mm)</span><select name="brakeRrMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+                <label class="full-span"><span>Brake Notes</span><input name="brakeNotes" placeholder="Optional notes"></label>
+              </div>
+            </div>
+            <div class="full-span work-order-section">
+              <p class="section-label">Tire Life / Status</p>
+              <div class="inspection-grid four-column">
+                <label><span>LF Tire (32nds)</span><select name="tireLf32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+                <label><span>RF Tire (32nds)</span><select name="tireRf32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+                <label><span>LR Tire (32nds)</span><select name="tireLr32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+                <label><span>RR Tire (32nds)</span><select name="tireRr32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
+              </div>
+              <label class="full-span"><span>Tire Notes</span><input name="tireNotes" placeholder="Optional notes"></label>
+            </div>
+            <div class="full-span work-order-section">
+              <p class="section-label">Fluids</p>
+              <div class="fluid-grid">
+                <div class="fluid-row">
+                  <label><span>Engine Oil</span><select name="fluidEngineOil" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidEngineOilAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidEngineOilAdded"><span>Amount Added</span><input name="fluidEngineOilAmount" placeholder="1 qt"></label>
+                </div>
+                <div class="fluid-row">
+                  <label><span>Coolant</span><select name="fluidCoolant" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidCoolantAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidCoolantAdded"><span>Amount Added</span><input name="fluidCoolantAmount" placeholder="1 qt"></label>
+                </div>
+                <div class="fluid-row">
+                  <label><span>Brake Fluid</span><select name="fluidBrake" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidBrakeAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidBrakeAdded"><span>Amount Added</span><input name="fluidBrakeAmount" placeholder="8 oz"></label>
+                </div>
+                <div class="fluid-row">
+                  <label><span>Transmission Fluid</span><select name="fluidTransmission" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidTransmissionAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidTransmissionAdded"><span>Amount Added</span><input name="fluidTransmissionAmount" placeholder="1 qt"></label>
+                </div>
+                <div class="fluid-row">
+                  <label><span>Power Steering</span><select name="fluidPowerSteering" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidPowerSteeringAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidPowerSteeringAdded"><span>Amount Added</span><input name="fluidPowerSteeringAmount" placeholder="8 oz"></label>
+                </div>
+                <div class="fluid-row">
+                  <label><span>Hydraulic Fluid</span><select name="fluidHydraulic" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option><option>N/A</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidHydraulicAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidHydraulicAdded"><span>Amount Added</span><input name="fluidHydraulicAmount" placeholder="1 qt"></label>
+                </div>
+                <div class="fluid-row">
+                  <label><span>Windshield Washer</span><select name="fluidWasher" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidWasherAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidWasherAdded"><span>Amount Added</span><input name="fluidWasherAmount" placeholder="1 gal"></label>
+                </div>
+                <div class="fluid-row">
+                  <label><span>DEF</span><select name="fluidDef" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option><option>N/A</option></select></label>
+                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidDefAdded" value="yes"></label>
+                  <label class="fluid-amount" data-fluid-amount-for="fluidDefAdded"><span>Amount Added</span><input name="fluidDefAmount" placeholder="2 gal"></label>
+                </div>
+                <label class="full-span"><span>Fluid Notes</span><input name="fluidNotes" placeholder="Optional notes"></label>
+              </div>
+            </div>
+            <div class="full-span work-order-section">
+              <p class="section-label">Lighting</p>
+              <div class="inspection-grid">
+                <label><span>Headlights</span><select name="lightHeadlights" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Brake Lights</span><select name="lightBrakeLights" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Turn Signals</span><select name="lightTurnSignals" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Marker / Tail Lights</span><select name="lightMarkers" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Reverse Lights</span><select name="lightReverse" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Interior / Dash Lights</span><select name="lightInterior" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label class="full-span"><span>Lighting Notes</span><input name="lightingNotes" placeholder="Optional notes"></label>
+              </div>
+            </div>
+            <div class="full-span work-order-section">
+              <p class="section-label">Body Components</p>
+              <div class="inspection-grid">
+                <label><span>Windshield / Glass</span><select name="bodyGlass" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Mirrors</span><select name="bodyMirrors" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Doors / Latches</span><select name="bodyDoors" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Hood / Panels</span><select name="bodyPanels" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Bumpers / Exterior</span><select name="bodyExterior" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label><span>Seats / Belts</span><select name="bodySeatsBelts" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
+                <label class="full-span"><span>Body Notes</span><input name="bodyNotes" placeholder="Optional notes"></label>
+              </div>
+            </div>
+            <label class="full-span">
+              Findings
+              <textarea name="findings" rows="3" placeholder="Inspection findings"></textarea>
+            </label>
+            <label class="full-span">
+              Work Performed
+              <textarea name="workPerformed" rows="3" placeholder="Repairs or service completed"></textarea>
+            </label>
+            <div class="full-span work-order-section">
+              <div class="panel-heading">
+                <div>
+                  <p class="section-label">Parts</p>
+                  <h3>Work Order Parts</h3>
+                </div>
+              </div>
+              <div class="action-row form-actions">
+                <button type="button" id="addWorkOrderPartButton" class="button-primary">Add Parts</button>
+              </div>
+              <div id="workOrderPartComposer" class="list-stack"></div>
+              <div id="workOrderPartList" class="list-stack"></div>
+            </div>
+            <label class="full-span">
+              Follow-Up / Recommendations
+              <textarea name="recommendations" rows="2" placeholder="Recommended next steps"></textarea>
+            </label>
+            <div class="action-row form-actions">
+              <button type="submit" class="button-primary">Save Work Order Detail</button>
+              <span id="workOrderAutoSaveStatus" class="helper-text autosave-status">Saved</span>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <section class="page" data-page="compliance">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Compliance</p>
+            <h2>Registrations, Insurance, and Inspections</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <form id="complianceForm" class="form-grid">
+            <label>
+              Asset
+              <select name="assetId" required id="complianceAssetSelect"></select>
+            </label>
+            <label>
+              Requirement Type
+              <select name="requirementType">
+                <option>Registration</option>
+                <option>Insurance</option>
+                <option>Inspection</option>
+                <option>Permit</option>
+                <option>Certification</option>
+              </select>
+            </label>
+            <label>
+              Provider / Agency
+              <input name="provider" placeholder="DMV / Insurer">
+            </label>
+            <label>
+              Policy / Reference
+              <input name="reference" placeholder="Policy or document number">
+            </label>
+            <label>
+              Effective Date
+              <input type="date" name="effectiveDate">
+            </label>
+            <label>
+              Expiration Date
+              <input type="date" name="expirationDate" required>
+            </label>
+            <label class="full-span">
+              Notes
+              <textarea name="notes" rows="3" placeholder="Coverage, renewal reminders, or special terms"></textarea>
+            </label>
+            <button type="submit" class="button-primary">Save Compliance Record</button>
+          </form>
+          <div id="complianceList" class="list-stack"></div>
+        </section>
+      </section>
+
+      <section class="page" data-page="documents">
+        <div class="page-heading">
+          <div>
+            <p class="section-label">Documents</p>
+            <h2>Stored Files</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <form id="documentForm" class="form-grid">
+            <label>
+              Asset
+              <select name="assetId" required id="documentAssetSelect"></select>
+            </label>
+            <label>
+              Document Title
+              <input name="title" required placeholder="Insurance card">
+            </label>
+            <label>
+              Category
+              <select name="category">
+                <option>Registration</option>
+                <option>Insurance</option>
+                <option>Inspection</option>
+                <option>Maintenance</option>
+                <option>Manual</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label class="full-span">
+              Choose File
+              <input type="file" name="file" id="documentFile">
+            </label>
+            <label class="full-span">
+              Notes
+              <textarea name="notes" rows="3" placeholder="Optional details about this document"></textarea>
+            </label>
+            <button type="submit" class="button-primary">Save Document</button>
+          </form>
+          <p class="helper-text">Files are stored in your browser for this first version, so smaller PDFs and images work best.</p>
+          <div id="documentList" class="list-stack"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <template id="emptyStateTemplate">
+    <div class="empty-state">No records yet.</div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
