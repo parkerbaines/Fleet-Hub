@@ -1,1003 +1,1077 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fleet Hub</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>FleetOps</title>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="FleetOps"/>
+<meta name="theme-color" content="#0f1117"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0f1117;color:#e2e8f0}
+#root{height:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2a3048;border-radius:2px}
+
+/* Layout */
+.shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;flex-shrink:0;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column}
+.sidebar-logo{padding:18px 20px 14px;border-bottom:0.5px solid #2a3048}
+.sidebar-logo h1{font-size:15px;font-weight:600;color:#e2e8f0;letter-spacing:-0.02em}
+.sidebar-logo p{font-size:11px;color:#6b7a9f;margin-top:2px}
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10px}
+.nav-section{font-size:10px;color:#6b7a9f;text-transform:uppercase;letter-spacing:.08em;padding:10px 10px 4px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:13px;color:#6b7a9f;cursor:pointer;margin-bottom:1px;transition:all .15s;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{color:#e2e8f0;background:#1e2333}
+.nav-item.active{background:rgba(59,126,255,.15);color:#3b7eff;font-weight:500}
+.nav-badge{margin-left:auto;background:rgba(239,68,68,.2);color:#f87171;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.mobile-bar{display:none;align-items:center;padding:12px 16px;border-bottom:0.5px solid #2a3048;background:#181c27}
+.mobile-bar span{font-size:14px;font-weight:500;margin-left:12px}
+.menu-btn{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex}
+.menu-btn:hover{color:#e2e8f0}
+.page{flex:1;overflow-y:auto;padding:20px 24px}
+.overlay{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6)}
+.overlay.open{display:flex}
+.drawer{width:260px;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column;position:relative;z-index:1}
+
+/* Cards & Components */
+.card{background:#1e2333;border:0.5px solid #2a3048;border-radius:12px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.metric{background:#181c27;border-radius:8px;padding:14px 16px;cursor:default}
+.metric.clickable{cursor:pointer;transition:border .15s}
+.metric.clickable:hover{border:0.5px solid rgba(59,126,255,.5)}
+.metric-label{font-size:11px;color:#6b7a9f;margin-bottom:6px}
+.metric-value{font-size:26px;font-weight:600;color:#e2e8f0;line-height:1}
+.metric-sub{font-size:11px;color:#6b7a9f;margin-top:4px}
+.metric-sub.warn{color:#f59e0b}
+.metric-sub.danger{color:#ef4444}
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:0.5px solid #2a3048}
+.card-title{font-size:13px;font-weight:500;color:#e2e8f0}
+.card-link{font-size:11px;color:#3b7eff;cursor:pointer;background:none;border:none}
+.card-link:hover{text-decoration:underline}
+.divide-row{border-bottom:0.5px solid #2a3048;display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .1s}
+.divide-row:last-child{border-bottom:none}
+.divide-row:hover{background:rgba(255,255,255,.03)}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-green{background:#22c55e}
+.dot-amber{background:#f59e0b}
+.dot-red{background:#ef4444}
+.dot-gray{background:#6b7a9f}
+
+/* Badges */
+.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;display:inline-block}
+.b-urgent{background:rgba(239,68,68,.2);color:#f87171}
+.b-high{background:rgba(245,158,11,.2);color:#fbbf24}
+.b-normal{background:rgba(59,126,255,.2);color:#60a5fa}
+.b-low{background:rgba(107,122,159,.2);color:#94a3b8}
+.b-open{background:rgba(245,158,11,.2);color:#fbbf24}
+.b-in_progress{background:rgba(59,126,255,.2);color:#60a5fa}
+.b-on_hold{background:rgba(107,122,159,.2);color:#94a3b8}
+.b-completed{background:rgba(34,197,94,.2);color:#4ade80}
+.b-cancelled{background:rgba(239,68,68,.2);color:#f87171}
+.b-active{background:rgba(34,197,94,.2);color:#4ade80}
+.b-in_shop{background:rgba(245,158,11,.2);color:#fbbf24}
+.b-down{background:rgba(239,68,68,.2);color:#f87171}
+.b-retired{background:rgba(107,122,159,.2);color:#94a3b8}
+
+/* Buttons */
+.btn{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-primary{background:#3b7eff;color:#fff;border:none}
+.btn-primary:hover{background:#5a94ff}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#94a3b8;border:0.5px solid #2a3048}
+.btn-ghost:hover{background:#1e2333;color:#e2e8f0}
+.btn-danger{background:transparent;color:#f87171;border:0.5px solid rgba(239,68,68,.3)}
+.btn-danger:hover{background:rgba(239,68,68,.1)}
+.btn-row{display:flex;gap:8px;align-items:center}
+.btn-icon{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex;transition:color .15s}
+.btn-icon:hover{color:#e2e8f0}
+
+/* Forms */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:11px;color:#6b7a9f;margin-bottom:6px;font-weight:500}
+.form-input,.form-select,.form-textarea{width:100%;background:#181c27;border:0.5px solid #2a3048;border-radius:8px;padding:8px 12px;font-size:13px;color:#e2e8f0;font-family:inherit;transition:border .15s;outline:none}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:#3b7eff}
+.form-input::placeholder{color:#6b7a9f}
+.form-textarea{resize:vertical}
+.form-select{appearance:none;cursor:pointer}
+.form-grid{display:grid;gap:12px}
+.form-grid-2{grid-template-columns:1fr 1fr}
+.form-grid-3{grid-template-columns:1fr 1fr 1fr}
+.error-box{background:rgba(239,68,68,.1);border:0.5px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;color:#f87171;font-size:13px;margin-bottom:16px}
+
+/* Page headers */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.page-header h2{font-size:18px;font-weight:600;color:#e2e8f0}
+.page-header p{font-size:12px;color:#6b7a9f;margin-top:2px}
+
+/* Tables */
+.table-wrap{overflow-x:auto}
+table{width:100%;font-size:13px;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:500;color:#6b7a9f;padding:10px 16px;border-bottom:0.5px solid #2a3048}
+td{padding:11px 16px;border-bottom:0.5px solid #2a3048;color:#e2e8f0}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7a9f}
+
+/* Alert */
+.alert{display:flex;align-items:center;gap:10px;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px}
+.alert-danger{background:rgba(239,68,68,.1);border:0.5px solid rgba(239,68,68,.3);color:#fca5a5}
+.alert-warn{background:rgba(245,158,11,.1);border:0.5px solid rgba(245,158,11,.3);color:#fcd34d}
+
+/* Filters bar */
+.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7a9f;pointer-events:none}
+.search-input{padding-left:34px !important}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:640px){.modal-overlay{align-items:center}}
+.modal{background:#1e2333;border:0.5px solid #2a3048;border-radius:16px 16px 0 0;width:100%;max-width:520px;padding:20px;max-height:90vh;overflow-y:auto}
+@media(min-width:640px){.modal{border-radius:16px}}
+.modal h3{font-size:16px;font-weight:500;color:#e2e8f0;margin-bottom:16px}
+
+/* Fleet cards */
+.asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.asset-card{background:#1e2333;border:0.5px solid #2a3048;border-radius:12px;padding:16px;cursor:pointer;transition:border-color .15s}
+.asset-card:hover{border-color:rgba(59,126,255,.4)}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;background:#181c27;border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content}
+.tab{padding:6px 14px;border-radius:7px;font-size:13px;color:#6b7a9f;cursor:pointer;border:none;background:none;transition:all .15s;font-family:inherit}
+.tab.active{background:#1e2333;color:#e2e8f0;font-weight:500}
+
+/* Workload bar */
+.workload-row{margin-bottom:12px}
+.workload-info{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.workload-bar-bg{height:6px;background:#181c27;border-radius:3px}
+.workload-bar{height:6px;background:#3b7eff;border-radius:3px;transition:width .3s}
+
+/* Detail page */
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+.detail-field label{font-size:11px;color:#6b7a9f;display:block;margin-bottom:3px}
+.detail-field p{font-size:13px;color:#e2e8f0}
+.back-btn{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex;margin-right:8px}
+.back-btn:hover{color:#e2e8f0}
+
+/* Quick actions */
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quick-btn{text-align:left;padding:12px;border-radius:10px;border:0.5px solid #2a3048;background:transparent;cursor:pointer;transition:all .15s;font-family:inherit}
+.quick-btn:hover{border-color:rgba(59,126,255,.4);background:rgba(59,126,255,.05)}
+.quick-btn .q-title{font-size:13px;font-weight:500;color:#e2e8f0}
+.quick-btn .q-sub{font-size:11px;color:#6b7a9f;margin-top:2px}
+
+/* Type selector */
+.type-select{display:flex;gap:8px;margin-bottom:16px}
+.type-btn{flex:1;padding:8px;border-radius:8px;border:0.5px solid #2a3048;background:transparent;color:#6b7a9f;font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;text-transform:capitalize}
+.type-btn.active{border-color:#3b7eff;background:rgba(59,126,255,.1);color:#3b7eff;font-weight:500}
+
+/* Tech avatar */
+.avatar{width:40px;height:40px;border-radius:50%;background:rgba(59,126,255,.2);color:#60a5fa;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+
+/* Responsive */
+@media(max-width:1024px){
+  .sidebar{display:none}
+  .mobile-bar{display:flex}
+  .metrics{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+  .page{padding:16px}
+}
+@media(max-width:640px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .form-grid-3{grid-template-columns:1fr 1fr}
+  .form-grid-2{grid-template-columns:1fr}
+  .detail-grid{grid-template-columns:1fr 1fr}
+  table{display:none}
+  .table-mobile{display:block}
+}
+@media(min-width:641px){.table-mobile{display:none}}
+</style>
 </head>
 <body>
-  <div id="authGate" class="auth-gate hidden-panel">
-    <div class="auth-card">
-      <p class="section-label">Fleet Hub</p>
-      <h1>Team Sign In</h1>
-      <p class="auth-copy">Sign in with your shared work email to access the live fleet data.</p>
-      <form id="authForm" class="auth-form">
-        <label>
-          Email
-          <input type="email" id="authEmail" name="email" autocomplete="username" required>
-        </label>
-        <label>
-          Password
-          <input type="password" id="authPassword" name="password" autocomplete="current-password" required>
-        </label>
-        <div class="auth-actions">
-          <button type="submit" class="button-primary">Sign In</button>
-          <button type="button" class="button-secondary" id="createAccountButton">Create Account</button>
-        </div>
-        <p id="authMessage" class="auth-message"></p>
-      </form>
-    </div>
-  </div>
+<div id="root"></div>
+<script>
+const {createElement:h,useState,useEffect,useCallback,useRef,Fragment} = React;
 
-  <div class="app-shell" id="appShell">
-    <div class="cloud-status-bar">
-      <div>
-        <strong id="syncStatusText">Local mode</strong>
-        <span id="syncStatusSubtext">This browser is currently using local saved data.</span>
-      </div>
-      <div class="cloud-status-actions">
-        <span id="currentUserEmail" class="current-user"></span>
-        <button type="button" class="button-secondary hidden-panel" id="signOutButton">Sign Out</button>
-      </div>
-    </div>
-    <div class="app-brand-row">
-      <div>
-        <p class="eyebrow">Fleet Operations</p>
-        <h1>Fleet Hub</h1>
-      </div>
-    </div>
-    <nav class="top-nav" aria-label="Primary">
-      <button class="nav-link active" data-page="dashboard">Dashboard</button>
-      <button class="nav-link" data-page="assets">Assets</button>
-      <button class="nav-link" data-page="technicians">Technicians</button>
-      <button class="nav-link" data-page="inventory">Inventory</button>
-      <button class="nav-link" data-page="maintenance">Maintenance</button>
-      <button class="nav-link" data-page="work-orders">Work Orders</button>
-      <button class="nav-link" data-page="compliance">Compliance</button>
-      <button class="nav-link" data-page="documents">Documents</button>
-    </nav>
+// ── Supabase ──────────────────────────────────────────────────────────────────
+const SUPA_URL = 'https://zmxynphetgelskqnadbg.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpteHlucGhldGdlbHNrcW5hZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Mzg5ODgsImV4cCI6MjA5MDIxNDk4OH0.BDHe4XsGCvHY0sIxN5ncIV7-EYEj4lq-nuxFfvySZgU';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-    <main>
-      <section class="page active" data-page="dashboard">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Home</p>
-            <h2>Fleet Health Dashboard</h2>
-          </div>
-        </div>
+function useQuery(fn, deps=[]) {
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState(null);
+  const refetch=useCallback(async()=>{
+    setLoading(true);setError(null);
+    try{const r=await fn();if(r.error)throw r.error;setData(r.data);}
+    catch(e){setError(e.message);}
+    finally{setLoading(false);}
+  },deps);
+  useEffect(()=>{refetch();},[refetch]);
+  return {data,loading,error,refetch};
+}
 
-        <section class="panel">
-          <div class="dashboard-grid">
-            <button class="summary-card accent-blue jump-card" data-target-page="assets">
-              <span>Total Assets</span>
-              <strong id="assetCount">0</strong>
-              <small>Open the asset register</small>
-            </button>
-            <button class="summary-card accent-gold jump-card" data-target-page="work-orders">
-              <span>Open Work Orders</span>
-              <strong id="openWorkOrderCount">0</strong>
-              <small>Go to work order tracking</small>
-            </button>
-            <button class="summary-card accent-green jump-card" data-target-page="maintenance">
-              <span>Maintenance Logs</span>
-              <strong id="maintenanceCount">0</strong>
-              <small>Review service history</small>
-            </button>
-            <button class="summary-card accent-red jump-card" data-target-page="compliance">
-              <span>Compliance Alerts</span>
-              <strong id="alertCount">0</strong>
-              <small>Check expiring items</small>
-            </button>
-          </div>
-        </section>
+// ── Icons ─────────────────────────────────────────────────────────────────────
+const svg=(d,opts={})=>h('svg',{viewBox:'0 0 20 20',width:16,height:16,fill:'none',stroke:'currentColor',strokeWidth:1.5,...opts},
+  typeof d==='string'?h('path',{d}):d);
+const IMenu=()=>svg([h('path',{d:'M3 6h14M3 10h14M3 14h14',key:'m'})]);
+const IClose=()=>svg([h('path',{d:'M5 5l10 10M15 5L5 15',key:'x',strokeWidth:2})]);
+const IPlus=()=>svg([h('path',{d:'M10 4v12M4 10h12',key:'p',strokeWidth:2})]);
+const IBack=()=>svg([h('path',{d:'M12 5l-5 5 5 5',key:'b',strokeWidth:2})]);
+const IEdit=()=>svg([h('path',{d:'M11.5 3.5l5 5L7 18H2v-5L11.5 3.5z',key:'e'})]);
+const ITrash=()=>svg([h('path',{d:'M3 5h14M8 5V3h4v2M5 5l1 12h8l1-12',key:'t'})]);
+const ISearch=()=>svg([h('circle',{cx:8.5,cy:8.5,r:5.5,key:'c'}),h('path',{d:'M13 13l4 4',key:'l'})]);
+const IAlert=()=>svg([h('path',{d:'M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495z',fill:'currentColor',key:'a'}),h('path',{d:'M10 7v4M10 13v.5',stroke:'#0f1117',strokeWidth:1.5,key:'b'})],{fill:'currentColor',stroke:'none'});
+const IDash=()=>svg([h('rect',{x:2,y:2,width:6,height:6,rx:1,fill:'currentColor',key:'a'}),h('rect',{x:10,y:2,width:6,height:6,rx:1,fill:'currentColor',key:'b'}),h('rect',{x:2,y:10,width:6,height:6,rx:1,fill:'currentColor',key:'c'}),h('rect',{x:10,y:10,width:6,height:6,rx:1,fill:'currentColor',key:'d'})],{fill:'none',stroke:'none'});
+const IWO=()=>svg([h('rect',{x:3,y:3,width:14,height:14,rx:2,key:'r'}),h('path',{d:'M7 7h6M7 10h6M7 13h4',key:'l'})]);
+const IFleet=()=>svg([h('rect',{x:1,y:7,width:13,height:9,rx:1.5,key:'b'}),h('path',{d:'M4 7V5.5A1.5 1.5 0 015.5 4h4A1.5 1.5 0 0111 5.5V7',key:'t'}),h('circle',{cx:4.5,cy:16,r:1.5,key:'w1'}),h('circle',{cx:10.5,cy:16,r:1.5,key:'w2'}),h('path',{d:'M14 11h3a1 1 0 011 1v2a1 1 0 01-1 1h-3',key:'h'})]);
+const IParts=()=>svg([h('rect',{x:2,y:2,width:7,height:7,rx:1,key:'a'}),h('rect',{x:11,y:2,width:7,height:4,rx:1,key:'b'}),h('rect',{x:2,y:11,width:7,height:7,rx:1,key:'c'}),h('path',{d:'M11 10v8l2.5-2 2.5 2v-8',key:'d'})]);
+const ITech=()=>svg([h('circle',{cx:8,cy:6,r:3,key:'h'}),h('path',{d:'M2 18c0-3.3 2.7-6 6-6s6 2.7 6 6',key:'b'}),h('path',{d:'M14 8l1.5 1.5L18 7',key:'c'})]);
+const ILogs=()=>svg([h('rect',{x:2,y:2,width:16,height:16,rx:2,key:'r'}),h('path',{d:'M6 7h8M6 10.5h8M6 14h5',key:'l'})]);
 
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-label">Quick Access</p>
-              <h2>Open a Section</h2>
-            </div>
-          </div>
-          <div class="quick-links">
-            <button class="quick-link" data-target-page="assets">
-              <strong>Assets</strong>
-              <span>Track trucks, trailers, and equipment</span>
-            </button>
-            <button class="quick-link" data-target-page="technicians">
-              <strong>Technicians</strong>
-              <span>Manage labor rates and assign service work</span>
-            </button>
-            <button class="quick-link" data-target-page="inventory">
-              <strong>Parts & Inventory</strong>
-              <span>Store parts, vendors, UOM, and pricing for work orders</span>
-            </button>
-            <button class="quick-link" data-target-page="maintenance">
-              <strong>Maintenance</strong>
-              <span>Log service and see next due work</span>
-            </button>
-            <button class="quick-link" data-target-page="work-orders">
-              <strong>Work Orders</strong>
-              <span>Manage repairs and active tool box forms</span>
-            </button>
-            <button class="quick-link" data-target-page="compliance">
-              <strong>Compliance</strong>
-              <span>Watch registration, inspection, and insurance dates</span>
-            </button>
-            <button class="quick-link" data-target-page="documents">
-              <strong>Documents</strong>
-              <span>Store insurance cards, PDFs, and registration files</span>
-            </button>
-          </div>
-        </section>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const PBadge=({cls,label})=>h('span',{className:`badge ${cls}`},label);
+const priorityCls={urgent:'b-urgent',high:'b-high',normal:'b-normal',low:'b-low'};
+const statusLabel={open:'Open',in_progress:'In Progress',on_hold:'On Hold',completed:'Completed',cancelled:'Cancelled'};
+const statusCls={open:'b-open',in_progress:'b-in_progress',on_hold:'b-on_hold',completed:'b-completed',cancelled:'b-cancelled'};
+const assetStatusCls={active:'b-active',in_shop:'b-in_shop',down:'b-down',retired:'b-retired'};
+const dotCls={active:'dot-green',in_shop:'dot-amber',down:'dot-red',retired:'dot-gray'};
+const fmtDate=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+const fmtCurrency=v=>v?`$${parseFloat(v).toFixed(2)}`:'—';
+const initials=name=>{const p=name.trim().split(' ');return(p.length>=2?p[0][0]+p[p.length-1][0]:p[0].slice(0,2)).toUpperCase();};
 
-        <section class="panel panel-wide">
-          <div class="panel-heading">
-            <div>
-              <p class="section-label">Action Items</p>
-              <h2>Health Snapshot</h2>
-            </div>
-          </div>
-          <div class="two-column">
-            <div>
-              <h3>Compliance Watchlist</h3>
-              <div id="dashboardAlerts" class="list-stack"></div>
-            </div>
-            <div>
-              <h3>Active Tool Box Forms</h3>
-              <div id="dashboardToolbox" class="list-stack"></div>
-            </div>
-          </div>
-        </section>
-      </section>
+// ── Nav ───────────────────────────────────────────────────────────────────────
+const NAV=[
+  {id:'dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},
+  {id:'workorders',label:'Work Orders',Icon:IWO,section:'Operations',badge:'wo'},
+  {id:'servicelogs',label:'Service Logs',Icon:ILogs,section:'Operations'},
+  {id:'fleet',label:'Fleet',Icon:IFleet,section:'Assets'},
+  {id:'parts',label:'Parts Inventory',Icon:IParts,section:'Resources',badge:'parts'},
+  {id:'technicians',label:'Technicians',Icon:ITech,section:'Resources'},
+];
 
-      <section class="page" data-page="assets">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Fleet Assets</p>
-            <h2>Asset Register</h2>
-          </div>
-          <button class="button-primary" data-target-page="add-asset">Add New Asset</button>
-        </div>
-        <section class="panel">
-          <div class="asset-toolbar">
-            <div class="segmented-control" id="assetFilterBar">
-              <button class="segment-button active" data-asset-filter="Vehicle">Vehicles</button>
-              <button class="segment-button" data-asset-filter="Equipment">Equipment</button>
-              <button class="segment-button" data-asset-filter="Trailer">Trailers</button>
-            </div>
-            <div class="toolbar-controls">
-              <input id="assetSearchInput" type="search" placeholder="Search assets">
-              <select id="assetStatusFilter">
-                <option value="all">All Statuses</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
-              <div class="asset-toolbar-copy" id="assetFilterSummary"></div>
-            </div>
-          </div>
-          <div id="assetList" class="list-stack"></div>
-        </section>
-      </section>
+function SidebarNav({page,setPage,badges,onClose}){
+  const sections=[...new Set(NAV.map(n=>n.section))];
+  return h(Fragment,null,
+    h('div',{className:'sidebar-logo'},
+      h('h1',null,'FleetOps'),
+      h('p',null,'Maintenance Platform')
+    ),
+    h('nav',{className:'sidebar-nav'},
+      sections.map(sec=>h('div',{key:sec},
+        h('div',{className:'nav-section'},sec),
+        NAV.filter(n=>n.section===sec).map(({id,label,Icon,badge})=>
+          h('button',{key:id,className:`nav-item${page===id?' active':''}`,onClick:()=>{setPage(id);onClose&&onClose();}},
+            h(Icon),
+            label,
+            badge&&badges[badge]>0&&h('span',{className:'nav-badge'},badges[badge])
+          )
+        )
+      ))
+    )
+  );
+}
 
-      <section class="page" data-page="add-asset">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Fleet Assets</p>
-            <h2>Add New Asset</h2>
-          </div>
-          <button class="button-secondary" data-target-page="assets">Back to Asset Register</button>
-        </div>
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-label">Step 1</p>
-              <h2>Choose Asset Type</h2>
-            </div>
-          </div>
-          <div class="quick-links type-picker">
-            <button class="quick-link type-choice" data-asset-type-choice="Vehicle">
-              <strong>Vehicle</strong>
-              <span>Pickup trucks, SUVs, service trucks, vans, and road vehicles</span>
-            </button>
-            <button class="quick-link type-choice" data-asset-type-choice="Equipment">
-              <strong>Equipment</strong>
-              <span>Skid steers, lifts, compressors, trenchers, and field equipment</span>
-            </button>
-            <button class="quick-link type-choice" data-asset-type-choice="Trailer">
-              <strong>Trailer</strong>
-              <span>Utility trailers, enclosed trailers, office trailers, and specialty trailers</span>
-            </button>
-          </div>
-        </section>
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-label">Step 2</p>
-              <h2>Enter Asset Details</h2>
-            </div>
-          </div>
-          <form id="assetForm" class="form-grid">
-            <label class="type-field" data-types="Vehicle">
-              Asset Name
-              <input name="name" id="assetNameInput" placeholder="Truck 12">
-            </label>
-            <label>
-              <span id="assetNumberLabel">Asset #</span>
-              <input name="assetNumber" id="assetNumberInput" required placeholder="158">
-            </label>
-            <label>
-              Asset Type
-              <select name="type" id="assetTypeSelect" required>
-                <option value="">Select asset type</option>
-                <option value="Vehicle">Vehicle</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Trailer">Trailer</option>
-              </select>
-            </label>
-            <label>
-              Category
-              <select name="category" id="assetCategorySelect" required disabled>
-                <option value="">Select asset type first</option>
-              </select>
-            </label>
-            <label id="customCategoryWrap" class="hidden-field">
-              New Category
-              <input name="customCategory" id="customCategoryInput" placeholder="Enter new category">
-            </label>
-            <label>
-              Year
-              <input name="year" placeholder="2022">
-            </label>
-            <label>
-              Make
-              <input name="make" placeholder="Chevrolet">
-            </label>
-            <label>
-              Model
-              <input name="model" placeholder="1500">
-            </label>
-            <label class="type-field" data-types="Equipment">
-              Model #
-              <input name="modelNumber" placeholder="RT450">
-            </label>
-            <label class="type-field" data-types="Trailer">
-              GVWR
-              <input name="gvwr" placeholder="14,000LB">
-            </label>
-            <label class="type-field" data-types="Vehicle,Trailer,Equipment">
-              License Plate
-              <input name="licensePlate" placeholder="7E50520">
-            </label>
-            <label class="type-field" data-types="Vehicle">
-              VIN
-              <input name="vin" placeholder="1HGBH41JXMN109186">
-            </label>
-            <label class="type-field" data-types="Trailer">
-              VIN
-              <input name="trailerVin" placeholder="16V1C2525R4343639">
-            </label>
-            <label class="type-field" data-types="Equipment">
-              VIN / Serial
-              <input name="vinSerial" placeholder="A3NT12950">
-            </label>
-            <label class="type-field" data-types="Equipment">
-              Engine Serial #
-              <input name="engineSerial" placeholder="BJ0050">
-            </label>
-            <label class="type-field" data-types="Equipment">
-              EIN
-              <input name="ein" placeholder="FP4Y96">
-            </label>
-            <label class="type-field" data-types="Trailer,Equipment">
-              Location
-              <input name="location" placeholder="SHOP">
-            </label>
-            <label class="type-field" data-types="Vehicle">
-              Assigned Location
-              <input name="locationVehicle" placeholder="CJF">
-            </label>
-            <label class="full-span">
-              Notes
-              <textarea name="notes" rows="3" placeholder="Special setup, tags, or inspection details"></textarea>
-            </label>
-            <button type="submit" class="button-primary">Save Asset</button>
-          </form>
-        </section>
-      </section>
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+function Dashboard({setPage}){
+  const {data:assets,loading:al}=useQuery(()=>sb.from('assets').select('*').neq('status','retired'));
+  const {data:wos,loading:wl}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').in('status',['open','in_progress']).order('created_at',{ascending:false}));
+  const {data:parts}=useQuery(()=>sb.from('parts').select('*'));
 
-      <section class="page" data-page="asset-detail">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Fleet Assets</p>
-            <h2 id="assetDetailTitle">Asset Detail</h2>
-          </div>
-          <div class="action-row">
-            <button class="button-primary" id="editAssetButton" type="button">Edit Asset</button>
-            <button class="button-secondary" id="deactivateAssetButton" type="button">Deactivate Asset</button>
-            <button class="button-danger" id="deleteAssetButton" type="button">Delete Asset</button>
-            <button class="button-secondary" data-target-page="assets">Back to Asset Register</button>
-          </div>
-        </div>
-        <section class="panel">
-          <div id="assetDetailCard"></div>
-        </section>
-        <section class="panel panel-wide">
-          <div class="two-column">
-            <div>
-              <h3>Maintenance History</h3>
-              <div id="assetDetailMaintenance" class="list-stack"></div>
-            </div>
-            <div>
-              <h3>Work Orders</h3>
-              <div id="assetDetailWorkOrders" class="list-stack"></div>
-            </div>
-          </div>
-        </section>
-        <section class="panel panel-wide">
-          <div class="two-column">
-            <div>
-              <h3>Compliance Records</h3>
-              <div id="assetDetailCompliance" class="list-stack"></div>
-            </div>
-            <div>
-              <h3>Documents</h3>
-              <div id="assetDetailDocuments" class="list-stack"></div>
-            </div>
-          </div>
-        </section>
-      </section>
+  const openWOs=wos||[];
+  const urgent=openWOs.filter(w=>w.priority==='urgent').length;
+  const down=(assets||[]).filter(a=>a.status==='down').length;
+  const inShop=(assets||[]).filter(a=>a.status==='in_shop').length;
+  const lowParts=(parts||[]).filter(p=>p.quantity_on_hand<=p.reorder_point);
+  const outOfStock=lowParts.filter(p=>p.quantity_on_hand===0);
 
-      <section class="page" data-page="technicians">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Team</p>
-            <h2>Technician Directory</h2>
-          </div>
-          <button class="button-primary" data-target-page="add-technician">Add New Technician</button>
-        </div>
-        <section class="panel">
-          <div class="asset-toolbar">
-            <div class="asset-toolbar-copy" id="technicianSummary"></div>
-          </div>
-          <div id="technicianList" class="list-stack"></div>
-        </section>
-      </section>
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),
+      h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')
+    ),
+    urgent>0&&h('div',{className:'alert alert-danger',style:{marginBottom:16}},
+      h(IAlert),`${urgent} urgent work order${urgent>1?'s':''} need immediate attention`,
+      h('button',{className:'card-link',style:{marginLeft:'auto'},onClick:()=>setPage('workorders')},'View →')
+    ),
+    h('div',{className:'metrics'},
+      h('div',{className:'metric'},h('div',{className:'metric-label'},'Total Assets'),h('div',{className:'metric-value'},al?'—':(assets||[]).length),h('div',{className:'metric-sub'},'Vehicles, trailers & equipment')),
+      h('div',{className:'metric clickable',onClick:()=>setPage('workorders')},h('div',{className:'metric-label'},'Open Work Orders'),h('div',{className:'metric-value'},wl?'—':openWOs.length),h('div',{className:`metric-sub${urgent>0?' warn':''}`},urgent>0?`${urgent} urgent`:'All normal priority')),
+      h('div',{className:'metric'},h('div',{className:'metric-label'},'Assets Down / In Shop'),h('div',{className:'metric-value'},al?'—':down+inShop),h('div',{className:`metric-sub${down>0?' warn':''}`},`${down} down · ${inShop} in shop`)),
+      h('div',{className:'metric clickable',onClick:()=>setPage('parts')},h('div',{className:'metric-label'},'Parts Low / Out'),h('div',{className:'metric-value'},lowParts.length),h('div',{className:`metric-sub${outOfStock.length>0?' danger':' warn'}`},outOfStock.length>0?`${outOfStock.length} out of stock`:`${lowParts.length} below reorder`)),
+    ),
+    h('div',{className:'grid2'},
+      h('div',{className:'card'},
+        h('div',{className:'card-header'},h('span',{className:'card-title'},'Open work orders'),h('button',{className:'card-link',onClick:()=>setPage('workorders')},'View all →')),
+        wl?h('div',{style:{padding:'24px',textAlign:'center',color:'#6b7a9f'}},'Loading...'):
+        openWOs.length===0?h('div',{style:{padding:'24px',textAlign:'center',color:'#6b7a9f'}},'No open work orders'):
+        openWOs.slice(0,6).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},
+          h('span',{className:'mono',style:{width:56,flexShrink:0}},wo.order_number),
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title),
+            h('div',{style:{fontSize:11,color:'#6b7a9f',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(wo.asset?.name||'No asset')+' · '+(wo.technician?.name||'Unassigned'))
+          ),
+          h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority}),
+          h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]})
+        ))
+      ),
+      h('div',{className:'card'},
+        h('div',{className:'card-header'},h('span',{className:'card-title'},'Fleet status'),h('button',{className:'card-link',onClick:()=>setPage('fleet')},'View all →')),
+        al?h('div',{style:{padding:'24px',textAlign:'center',color:'#6b7a9f'}},'Loading...'):
+        (assets||[]).slice(0,8).map(a=>h('div',{key:a.id,className:'divide-row',onClick:()=>setPage('asset-'+a.id)},
+          h('span',{className:`status-dot ${dotCls[a.status]}`}),
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name),
+            h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.asset_number)
+          ),
+          h('span',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize',flexShrink:0}},a.status.replace('_',' '))
+        ))
+      )
+    ),
+    h('div',{className:'grid2'},
+      h('div',{className:'card'},
+        h('div',{className:'card-header'},h('span',{className:'card-title'},'Parts — low stock alerts'),h('button',{className:'card-link',onClick:()=>setPage('parts')},'Inventory →')),
+        lowParts.length===0
+          ?h('div',{style:{padding:'20px',textAlign:'center',color:'#6b7a9f',fontSize:13}},'All parts well stocked')
+          :lowParts.map(p=>h('div',{key:p.id,className:'divide-row',style:{cursor:'default'}},
+            h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0'}},p.name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},p.part_number)),
+            h('span',{style:{fontSize:13,fontWeight:500,color:p.quantity_on_hand===0?'#f87171':'#fbbf24'}},p.quantity_on_hand===0?'Out of stock':`${p.quantity_on_hand} left`)
+          ))
+      ),
+      h('div',{className:'card',style:{padding:16}},
+        h('div',{className:'card-title',style:{marginBottom:14}},'Quick actions'),
+        h('div',{className:'quick-grid'},
+          [{label:'New Work Order',sub:'Log a repair or PM',page:'wo-new'},
+           {label:'Add Asset',sub:'Vehicle, trailer or equipment',page:'asset-new'},
+           {label:'Add Part',sub:'Update inventory',page:'parts'},
+           {label:'Log Service',sub:'Record completed work',page:'servicelogs'}
+          ].map(a=>h('button',{key:a.label,className:'quick-btn',onClick:()=>setPage(a.page)},h('div',{className:'q-title'},a.label),h('div',{className:'q-sub'},a.sub)))
+        )
+      )
+    )
+  );
+}
 
-      <section class="page" data-page="add-technician">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Team</p>
-            <h2>Add New Technician</h2>
-          </div>
-          <button class="button-secondary" data-target-page="technicians">Back to Technicians</button>
-        </div>
-        <section class="panel">
-          <form id="technicianForm" class="form-grid">
-            <label>
-              Name
-              <input name="name" required placeholder="Chris Black">
-            </label>
-            <label>
-              Title
-              <input name="title" required placeholder="Lead Technician">
-            </label>
-            <label>
-              Hourly Rate
-              <input name="hourlyRate" required placeholder="$42.00">
-            </label>
-            <button type="submit" class="button-primary">Save Technician</button>
-          </form>
-        </section>
-      </section>
+// ── Work Orders ───────────────────────────────────────────────────────────────
+function WorkOrders({setPage}){
+  const [search,setSearch]=useState('');
+  const [statusF,setStatusF]=useState('');
+  const [priorityF,setPriorityF]=useState('');
+  const {data:wos,loading,refetch}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('created_at',{ascending:false}));
 
-      <section class="page" data-page="inventory">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Parts</p>
-            <h2>Parts & Inventory</h2>
-          </div>
-        </div>
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-label">Add Item</p>
-              <h2>New Inventory Item</h2>
-            </div>
-          </div>
-          <form id="inventoryForm" class="form-grid">
-            <label>
-              Item Name
-              <input name="name" required placeholder="Brake Pad Set">
-            </label>
-            <label>
-              Part Number
-              <input name="partNumber" placeholder="BP-4201">
-            </label>
-            <label>
-              Vendor
-              <input name="vendor" placeholder="NAPA">
-            </label>
-            <label>
-              UOM
-              <select name="uom" required>
-                <option value="">Select UOM</option>
-                <option>Qt</option>
-                <option>Gal</option>
-                <option>Ea</option>
-                <option>Pkg</option>
-              </select>
-            </label>
-            <label>
-              Price
-              <input name="price" placeholder="$49.95">
-            </label>
-            <button type="submit" class="button-primary">Save Part</button>
-          </form>
-        </section>
-        <section class="panel">
-          <div class="asset-toolbar">
-            <div class="toolbar-controls toolbar-controls-wide">
-              <input id="inventorySearchInput" type="search" placeholder="Search parts and inventory">
-              <select id="inventoryFilterSelect">
-                <option value="all">All Items</option>
-                <option value="priced">With Price</option>
-                <option value="missing-price">Missing Price</option>
-                <option value="qt">UOM: Qt</option>
-                <option value="gal">UOM: Gal</option>
-                <option value="ea">UOM: Ea</option>
-                <option value="pkg">UOM: Pkg</option>
-              </select>
-              <div class="asset-toolbar-copy" id="inventorySummary"></div>
-            </div>
-          </div>
-          <div id="inventoryList" class="list-stack"></div>
-        </section>
-      </section>
+  const filtered=(wos||[]).filter(wo=>{
+    if(statusF&&wo.status!==statusF)return false;
+    if(priorityF&&wo.priority!==priorityF)return false;
+    if(search){const q=search.toLowerCase();return wo.title?.toLowerCase().includes(q)||wo.order_number?.toLowerCase().includes(q)||wo.asset?.name?.toLowerCase().includes(q)||wo.technician?.name?.toLowerCase().includes(q);}
+    return true;
+  });
 
-      <section class="page" data-page="maintenance">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Maintenance</p>
-            <h2>Service Logs</h2>
-          </div>
-        </div>
-        <section class="panel">
-          <form id="maintenanceForm" class="form-grid">
-            <label>
-              Asset Type
-              <select name="assetType" required id="maintenanceAssetTypeSelect">
-                <option value="">Select asset type</option>
-                <option value="Vehicle">Vehicle</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Trailer">Trailer</option>
-              </select>
-            </label>
-            <label>
-              Asset #
-              <select name="assetId" required id="maintenanceAssetSelect" disabled>
-                <option value="">Select asset type first</option>
-              </select>
-            </label>
-            <label>
-              Asset Number
-              <input id="maintenanceAssetNumberDisplay" readonly>
-            </label>
-            <label>
-              Year
-              <input id="maintenanceAssetYearDisplay" readonly>
-            </label>
-            <label>
-              Make
-              <input id="maintenanceAssetMakeDisplay" readonly>
-            </label>
-            <label>
-              Model
-              <input id="maintenanceAssetModelDisplay" readonly>
-            </label>
-            <label>
-              License Plate
-              <input id="maintenanceAssetPlateDisplay" readonly>
-            </label>
-            <label>
-              VIN / Serial
-              <input id="maintenanceAssetSerialDisplay" readonly>
-            </label>
-            <label>
-              Category
-              <input id="maintenanceAssetCategoryDisplay" readonly>
-            </label>
-            <label>
-              Service Date
-              <input type="date" name="date" required>
-            </label>
-            <label>
-              Service Type
-              <input name="serviceType" required placeholder="Oil change">
-            </label>
-            <label>
-              Vendor
-              <select name="vendorSelect" id="maintenanceVendorSelect">
-                <option value="">Select vendor</option>
-                <option value="Con J Franke Electric">Con J Franke Electric</option>
-                <option value="Jiffylube">Jiffylube</option>
-                <option value="Les Schwab">Les Schwab</option>
-                <option value="Brannon Tire">Brannon Tire</option>
-                <option value="Larrys Auto">Larrys Auto</option>
-                <option value="__new__">Add new vendor</option>
-              </select>
-            </label>
-            <label>
-              Odometer / Hours
-              <input name="meter" placeholder="84,210 mi">
-            </label>
-            <label class="full-span">
-              Summary
-              <textarea name="summary" rows="3" placeholder="What work was performed?"></textarea>
-            </label>
-            <label>
-              Next Due Date
-              <input type="date" name="nextDueDate">
-            </label>
-            <label>
-              Cost
-              <input name="cost" placeholder="$245.00">
-            </label>
-            <label class="full-span">
-              Attach PDF / Image
-              <input type="file" name="file" accept=".pdf,image/*">
-            </label>
-            <button type="submit" class="button-primary">Save Maintenance Log</button>
-          </form>
-          <p class="helper-text">Maintenance attachments are stored in your browser for this version, so smaller PDFs and images work best.</p>
-          <div id="maintenanceList" class="list-stack"></div>
-        </section>
-      </section>
+  const handleStatusChange=async(e,wo)=>{
+    e.stopPropagation();
+    const updates={status:e.target.value,updated_at:new Date().toISOString()};
+    if(e.target.value==='completed')updates.completed_at=new Date().toISOString();
+    await sb.from('work_orders').update(updates).eq('id',wo.id);
+    refetch();
+  };
 
-      <section class="page" data-page="maintenance-detail">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Maintenance</p>
-            <h2 id="maintenanceDetailTitle">Maintenance Log Detail</h2>
-          </div>
-          <div class="action-row">
-            <button class="button-primary" id="editMaintenanceButton" type="button">Edit Log</button>
-            <button class="button-danger" id="deleteMaintenanceButton" type="button">Delete Log</button>
-            <button class="button-secondary" data-target-page="maintenance">Back to Maintenance</button>
-          </div>
-        </div>
-        <section class="panel">
-          <div id="maintenanceDetailCard"></div>
-        </section>
-      </section>
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'Work Orders'),h('p',null,`${filtered.length} orders`)),
+      h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New')
+    ),
+    h('div',{className:'filters'},
+      h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search work orders, assets, technicians...',value:search,onChange:e=>setSearch(e.target.value)})),
+      h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},
+        h('option',{value:''},'All statuses'),
+        ['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' ')))
+      ),
+      h('select',{className:'form-select',style:{width:140},value:priorityF,onChange:e=>setPriorityF(e.target.value)},
+        h('option',{value:''},'All priorities'),
+        ['urgent','high','normal','low'].map(p=>h('option',{key:p,value:p},p))
+      )
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'table-wrap'},
+        h('table',null,
+          h('thead',null,h('tr',null,['Order #','Title','Asset','Technician','Priority','Status','Due',''].map(c=>h('th',{key:c},c)))),
+          h('tbody',null,loading?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):
+            filtered.length===0?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'No work orders found')):
+            filtered.map(wo=>h('tr',{key:wo.id,style:{cursor:'pointer'},onClick:()=>setPage('wo-'+wo.id)},
+              h('td',null,h('span',{className:'mono'},wo.order_number)),
+              h('td',null,h('span',{style:{maxWidth:200,display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title)),
+              h('td',{style:{color:'#94a3b8',fontSize:12}},wo.asset?.name||'—'),
+              h('td',{style:{color:'#94a3b8',fontSize:12}},wo.technician?.name||'Unassigned'),
+              h('td',null,h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority})),
+              h('td',{onClick:e=>e.stopPropagation()},
+                h('select',{className:'form-select',style:{width:130,fontSize:12,padding:'4px 8px'},value:wo.status,onChange:e=>handleStatusChange(e,wo)},
+                  ['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' ')))
+                )
+              ),
+              h('td',{style:{color:'#6b7a9f',fontSize:12}},fmtDate(wo.due_date)),
+              h('td',null,h('button',{className:'btn-icon',onClick:e=>{e.stopPropagation();setPage('wo-edit-'+wo.id);}},h(IEdit)))
+            ))
+          )
+        )
+      ),
+      // Mobile cards
+      h('div',{className:'table-mobile'},
+        loading?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):
+        filtered.map(wo=>h('div',{key:wo.id,className:'divide-row',style:{flexDirection:'column',alignItems:'flex-start',gap:6},onClick:()=>setPage('wo-'+wo.id)},
+          h('div',{style:{display:'flex',gap:8,alignItems:'center',width:'100%'}},
+            h('span',{className:'mono'},wo.order_number),
+            h('div',{style:{marginLeft:'auto',display:'flex',gap:4}},
+              h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority}),
+              h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]})
+            )
+          ),
+          h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},wo.title),
+          h('div',{style:{fontSize:11,color:'#6b7a9f'}},(wo.asset?.name||'No asset')+' · '+(wo.technician?.name||'Unassigned'))
+        ))
+      )
+    )
+  );
+}
 
-      <section class="page" data-page="work-orders">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Work Orders</p>
-            <h2>Repairs and Tool Box Forms</h2>
-          </div>
-        </div>
-        <section class="panel">
-          <form id="workOrderForm" class="form-grid">
-            <label>
-              Asset Type
-              <select name="assetType" required id="workOrderAssetTypeSelect">
-                <option value="">Select asset type</option>
-                <option value="Vehicle">Vehicle</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Trailer">Trailer</option>
-              </select>
-            </label>
-            <label>
-              Asset #
-              <select name="assetId" required id="workOrderAssetSelect" disabled>
-                <option value="">Select asset type first</option>
-              </select>
-            </label>
-            <label>
-              Title
-              <input name="title" required placeholder="Brake inspection">
-            </label>
-            <label>
-              Priority
-              <select name="priority">
-                <option>Low</option>
-                <option selected>Medium</option>
-                <option>High</option>
-                <option>Critical</option>
-              </select>
-            </label>
-            <label>
-              Status
-              <select name="status">
-                <option selected>Not Yet Started</option>
-                <option>In Progress</option>
-                <option>Waiting on Parts</option>
-                <option>Complete</option>
-              </select>
-            </label>
-            <label>
-              Assigned To
-              <select name="assignedTo" id="workOrderTechnicianSelect">
-                <option value="">Unassigned</option>
-              </select>
-            </label>
-            <label>
-              Due Date
-              <input type="date" name="dueDate">
-            </label>
-            <label class="full-span">
-              Asset Number
-              <input name="assetNumberDisplay" id="workOrderAssetNumberDisplay" placeholder="Will fill automatically" readonly>
-            </label>
-            <label>
-              Year
-              <input name="assetYearDisplay" id="workOrderAssetYearDisplay" placeholder="Will fill automatically" readonly>
-            </label>
-            <label>
-              Make
-              <input name="assetMakeDisplay" id="workOrderAssetMakeDisplay" placeholder="Will fill automatically" readonly>
-            </label>
-            <label>
-              Model
-              <input name="assetModelDisplay" id="workOrderAssetModelDisplay" placeholder="Will fill automatically" readonly>
-            </label>
-            <label>
-              License Plate
-              <input name="assetPlateDisplay" id="workOrderAssetPlateDisplay" placeholder="Will fill automatically" readonly>
-            </label>
-            <label>
-              VIN / Serial
-              <input name="assetSerialDisplay" id="workOrderAssetSerialDisplay" placeholder="Will fill automatically" readonly>
-            </label>
-            <label>
-              Category
-              <input name="assetCategoryDisplay" id="workOrderAssetCategoryDisplay" placeholder="Will fill automatically" readonly>
-            </label>
-            <label class="full-span">
-              Complaint / Requested Work
-              <textarea name="description" rows="3" placeholder="Issue, repair request, or inspection notes"></textarea>
-            </label>
-            <label class="full-span checkbox-row">
-              <input type="checkbox" name="toolboxActive">
-              Add this to the active tool box forms area
-            </label>
-            <button type="submit" class="button-primary">Create Work Order</button>
-          </form>
-        </section>
-        <section class="panel panel-wide">
-          <div class="dashboard-grid">
-            <div>
-              <h3>Active Work Orders</h3>
-              <div id="workOrderList" class="list-stack"></div>
-            </div>
-            <div>
-              <h3>Tool Box Active Forms</h3>
-              <div id="toolboxList" class="list-stack"></div>
-            </div>
-            <div class="panel-wide">
-              <h3>Completed / Past Work Orders</h3>
-              <div id="completedWorkOrderList" class="list-stack"></div>
-            </div>
-          </div>
-        </section>
-      </section>
+// ── Work Order Detail ─────────────────────────────────────────────────────────
+function WODetail({id,setPage}){
+  const {data:wo,loading,refetch}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(id,name,asset_number,year,make,model),technician:technicians(id,name,specialty),work_order_parts(*,part:parts(name,part_number))').eq('id',id).single(),[id]);
 
-      <section class="page" data-page="work-order-detail">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Work Orders</p>
-            <h2 id="workOrderDetailTitle">Work Order Detail</h2>
-          </div>
-          <div class="action-row">
-            <button class="button-primary" id="printWorkOrderButton" type="button">Print / Save PDF</button>
-            <button class="button-danger" id="deleteWorkOrderButton" type="button">Delete Work Order</button>
-            <button class="button-secondary" data-target-page="work-orders">Back to Work Orders</button>
-          </div>
-        </div>
-        <div id="workOrderStatusActions" class="status-chip-row"></div>
-        <section id="printWorkOrderSheet" class="print-sheet"></section>
-        <section class="panel">
-          <div id="workOrderDetailSummary"></div>
-        </section>
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-label">Labor</p>
-              <h2>Time Tracking</h2>
-            </div>
-          </div>
-          <div class="two-column">
-            <form id="manualTimeEntryForm" class="form-grid">
-              <label>
-                Technician
-                <select name="technicianName" id="workOrderDetailTechnicianSelect">
-                  <option value="">Unassigned</option>
-                </select>
-              </label>
-              <label>
-                Hourly Rate
-                <input name="technicianRate" id="workOrderDetailTechnicianRate" placeholder="$42.00" readonly>
-              </label>
-              <label>
-                Timer Status
-                <input name="timerDisplay" id="workOrderTimerDisplay" value="00:00:00" readonly>
-              </label>
-              <div class="full-span timer-toolbar">
-                <button class="button-secondary" id="startTimerButton" type="button">Start Timer</button>
-                <button class="button-secondary" id="stopTimerButton" type="button">Stop Timer</button>
-              </div>
-              <label>
-                Entry Date
-                <input type="date" name="entryDate">
-              </label>
-              <label>
-                Hours
-                <input name="hours" placeholder="1.5">
-              </label>
-              <label class="full-span">
-                Note
-                <input name="note" placeholder="Brake inspection and fluid check">
-              </label>
-              <button type="submit" class="button-primary">Add Time Entry</button>
-            </form>
-            <div>
-              <h3>Time Entries</h3>
-              <div id="workOrderTimeEntryList" class="list-stack"></div>
-            </div>
-          </div>
-        </section>
-        <section class="panel panel-wide">
-          <div class="panel-heading">
-            <div>
-              <p class="section-label">Service Form</p>
-              <h2>Technician Detail</h2>
-            </div>
-          </div>
-          <form id="workOrderDetailForm" class="form-grid">
-            <label>
-              Service Date
-              <input type="date" name="serviceDate">
-            </label>
-            <label>
-              Odometer / Hours
-              <input name="meterReading" placeholder="84,210 mi / 1,255 hrs">
-            </label>
-            <label>
-              Hourly Rate
-              <input name="hourlyRate" placeholder="$42.00" readonly>
-            </label>
-            <label>
-              Labor Cost
-              <input name="laborCostDisplay" id="laborCostDisplay" readonly placeholder="Calculated automatically">
-            </label>
-            <div class="full-span work-order-section">
-              <p class="section-label">Brake Life / Status</p>
-              <div class="inspection-grid four-column">
-                <label><span>LF Brakes (mm)</span><select name="brakeLfMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-                <label><span>RF Brakes (mm)</span><select name="brakeRfMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-                <label><span>LR Brakes (mm)</span><select name="brakeLrMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-                <label><span>RR Brakes (mm)</span><select name="brakeRrMm" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-                <label class="full-span"><span>Brake Notes</span><input name="brakeNotes" placeholder="Optional notes"></label>
-              </div>
-            </div>
-            <div class="full-span work-order-section">
-              <p class="section-label">Tire Life / Status</p>
-              <div class="inspection-grid four-column">
-                <label><span>LF Tire (32nds)</span><select name="tireLf32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-                <label><span>RF Tire (32nds)</span><select name="tireRf32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-                <label><span>LR Tire (32nds)</span><select name="tireLr32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-                <label><span>RR Tire (32nds)</span><select name="tireRr32" data-wear-select><option value="">Select</option><option>12</option><option>11</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select></label>
-              </div>
-              <label class="full-span"><span>Tire Notes</span><input name="tireNotes" placeholder="Optional notes"></label>
-            </div>
-            <div class="full-span work-order-section">
-              <p class="section-label">Fluids</p>
-              <div class="fluid-grid">
-                <div class="fluid-row">
-                  <label><span>Engine Oil</span><select name="fluidEngineOil" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidEngineOilAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidEngineOilAdded"><span>Amount Added</span><input name="fluidEngineOilAmount" placeholder="1 qt"></label>
-                </div>
-                <div class="fluid-row">
-                  <label><span>Coolant</span><select name="fluidCoolant" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidCoolantAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidCoolantAdded"><span>Amount Added</span><input name="fluidCoolantAmount" placeholder="1 qt"></label>
-                </div>
-                <div class="fluid-row">
-                  <label><span>Brake Fluid</span><select name="fluidBrake" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidBrakeAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidBrakeAdded"><span>Amount Added</span><input name="fluidBrakeAmount" placeholder="8 oz"></label>
-                </div>
-                <div class="fluid-row">
-                  <label><span>Transmission Fluid</span><select name="fluidTransmission" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidTransmissionAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidTransmissionAdded"><span>Amount Added</span><input name="fluidTransmissionAmount" placeholder="1 qt"></label>
-                </div>
-                <div class="fluid-row">
-                  <label><span>Power Steering</span><select name="fluidPowerSteering" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidPowerSteeringAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidPowerSteeringAdded"><span>Amount Added</span><input name="fluidPowerSteeringAmount" placeholder="8 oz"></label>
-                </div>
-                <div class="fluid-row">
-                  <label><span>Hydraulic Fluid</span><select name="fluidHydraulic" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option><option>N/A</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidHydraulicAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidHydraulicAdded"><span>Amount Added</span><input name="fluidHydraulicAmount" placeholder="1 qt"></label>
-                </div>
-                <div class="fluid-row">
-                  <label><span>Windshield Washer</span><select name="fluidWasher" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidWasherAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidWasherAdded"><span>Amount Added</span><input name="fluidWasherAmount" placeholder="1 gal"></label>
-                </div>
-                <div class="fluid-row">
-                  <label><span>DEF</span><select name="fluidDef" data-status-select><option value="">Select</option><option>Full</option><option>Moderate</option><option>Low</option><option>N/A</option></select></label>
-                  <label class="fluid-check"><span>Added Fluid</span><input type="checkbox" name="fluidDefAdded" value="yes"></label>
-                  <label class="fluid-amount" data-fluid-amount-for="fluidDefAdded"><span>Amount Added</span><input name="fluidDefAmount" placeholder="2 gal"></label>
-                </div>
-                <label class="full-span"><span>Fluid Notes</span><input name="fluidNotes" placeholder="Optional notes"></label>
-              </div>
-            </div>
-            <div class="full-span work-order-section">
-              <p class="section-label">Lighting</p>
-              <div class="inspection-grid">
-                <label><span>Headlights</span><select name="lightHeadlights" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Brake Lights</span><select name="lightBrakeLights" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Turn Signals</span><select name="lightTurnSignals" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Marker / Tail Lights</span><select name="lightMarkers" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Reverse Lights</span><select name="lightReverse" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Interior / Dash Lights</span><select name="lightInterior" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label class="full-span"><span>Lighting Notes</span><input name="lightingNotes" placeholder="Optional notes"></label>
-              </div>
-            </div>
-            <div class="full-span work-order-section">
-              <p class="section-label">Body Components</p>
-              <div class="inspection-grid">
-                <label><span>Windshield / Glass</span><select name="bodyGlass" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Mirrors</span><select name="bodyMirrors" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Doors / Latches</span><select name="bodyDoors" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Hood / Panels</span><select name="bodyPanels" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Bumpers / Exterior</span><select name="bodyExterior" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label><span>Seats / Belts</span><select name="bodySeatsBelts" data-status-select><option value="">Select</option><option>Good</option><option>Moderate</option><option>Bad</option></select></label>
-                <label class="full-span"><span>Body Notes</span><input name="bodyNotes" placeholder="Optional notes"></label>
-              </div>
-            </div>
-            <label class="full-span">
-              Findings
-              <textarea name="findings" rows="3" placeholder="Inspection findings"></textarea>
-            </label>
-            <label class="full-span">
-              Work Performed
-              <textarea name="workPerformed" rows="3" placeholder="Repairs or service completed"></textarea>
-            </label>
-            <div class="full-span work-order-section">
-              <div class="panel-heading">
-                <div>
-                  <p class="section-label">Parts</p>
-                  <h3>Work Order Parts</h3>
-                </div>
-              </div>
-              <div class="action-row form-actions">
-                <button type="button" id="addWorkOrderPartButton" class="button-primary">Add Parts</button>
-              </div>
-              <div id="workOrderPartComposer" class="list-stack"></div>
-              <div id="workOrderPartList" class="list-stack"></div>
-            </div>
-            <label class="full-span">
-              Follow-Up / Recommendations
-              <textarea name="recommendations" rows="2" placeholder="Recommended next steps"></textarea>
-            </label>
-            <div class="action-row form-actions">
-              <button type="submit" class="button-primary">Save Work Order Detail</button>
-              <span id="workOrderAutoSaveStatus" class="helper-text autosave-status">Saved</span>
-            </div>
-          </form>
-        </section>
-      </section>
+  const handleDelete=async()=>{
+    if(!confirm('Delete this work order?'))return;
+    await sb.from('work_orders').delete().eq('id',id);
+    setPage('workorders');
+  };
+  const handleStatus=async e=>{
+    const updates={status:e.target.value,updated_at:new Date().toISOString()};
+    if(e.target.value==='completed')updates.completed_at=new Date().toISOString();
+    await sb.from('work_orders').update(updates).eq('id',id);
+    refetch();
+  };
 
-      <section class="page" data-page="compliance">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Compliance</p>
-            <h2>Registrations, Insurance, and Inspections</h2>
-          </div>
-        </div>
-        <section class="panel">
-          <form id="complianceForm" class="form-grid">
-            <label>
-              Asset
-              <select name="assetId" required id="complianceAssetSelect"></select>
-            </label>
-            <label>
-              Requirement Type
-              <select name="requirementType">
-                <option>Registration</option>
-                <option>Insurance</option>
-                <option>Inspection</option>
-                <option>Permit</option>
-                <option>Certification</option>
-              </select>
-            </label>
-            <label>
-              Provider / Agency
-              <input name="provider" placeholder="DMV / Insurer">
-            </label>
-            <label>
-              Policy / Reference
-              <input name="reference" placeholder="Policy or document number">
-            </label>
-            <label>
-              Effective Date
-              <input type="date" name="effectiveDate">
-            </label>
-            <label>
-              Expiration Date
-              <input type="date" name="expirationDate" required>
-            </label>
-            <label class="full-span">
-              Notes
-              <textarea name="notes" rows="3" placeholder="Coverage, renewal reminders, or special terms"></textarea>
-            </label>
-            <button type="submit" class="button-primary">Save Compliance Record</button>
-          </form>
-          <div id="complianceList" class="list-stack"></div>
-        </section>
-      </section>
+  if(loading)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Loading...');
+  if(!wo)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Work order not found.');
 
-      <section class="page" data-page="documents">
-        <div class="page-heading">
-          <div>
-            <p class="section-label">Documents</p>
-            <h2>Stored Files</h2>
-          </div>
-        </div>
-        <section class="panel">
-          <form id="documentForm" class="form-grid">
-            <label>
-              Asset
-              <select name="assetId" required id="documentAssetSelect"></select>
-            </label>
-            <label>
-              Document Title
-              <input name="title" required placeholder="Insurance card">
-            </label>
-            <label>
-              Category
-              <select name="category">
-                <option>Registration</option>
-                <option>Insurance</option>
-                <option>Inspection</option>
-                <option>Maintenance</option>
-                <option>Manual</option>
-                <option>Other</option>
-              </select>
-            </label>
-            <label class="full-span">
-              Choose File
-              <input type="file" name="file" id="documentFile">
-            </label>
-            <label class="full-span">
-              Notes
-              <textarea name="notes" rows="3" placeholder="Optional details about this document"></textarea>
-            </label>
-            <button type="submit" class="button-primary">Save Document</button>
-          </form>
-          <p class="helper-text">Files are stored in your browser for this first version, so smaller PDFs and images work best.</p>
-          <div id="documentList" class="list-stack"></div>
-        </section>
-      </section>
-    </main>
-  </div>
+  const Field=({label,value})=>h('div',{className:'detail-field'},h('label',null,label),h('p',null,value||'—'));
+  const parts=wo.work_order_parts||[];
+  const partsTotal=parts.reduce((s,p)=>s+(p.quantity_used*(p.unit_cost||0)),0);
 
-  <template id="emptyStateTemplate">
-    <div class="empty-state">No records yet.</div>
-  </template>
+  return h('div',{className:'page'},
+    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},
+      h('button',{className:'back-btn',onClick:()=>setPage('workorders')},h(IBack)),
+      h('div',{style:{flex:1,minWidth:0}},
+        h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4}},h('span',{className:'mono'},wo.order_number),h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority})),
+        h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title)
+      ),
+      h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-ghost',onClick:()=>setPage('wo-edit-'+id)},h(IEdit),' Edit'),
+        h('button',{className:'btn btn-danger',onClick:handleDelete},h(ITrash))
+      )
+    ),
+    h('div',{className:'card',style:{padding:16,marginBottom:16,display:'flex',alignItems:'center',gap:12}},
+      h('span',{style:{fontSize:13,color:'#6b7a9f'}},'Status'),
+      h('select',{className:'form-select',style:{width:180},value:wo.status,onChange:handleStatus},
+        ['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' ')))
+      ),
+      h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]})
+    ),
+    h('div',{className:'card',style:{padding:20,marginBottom:16}},
+      h('div',{style:{fontSize:14,fontWeight:500,color:'#e2e8f0',marginBottom:16}},'Work order details'),
+      h('div',{className:'detail-grid'},
+        h(Field,{label:'Asset',value:wo.asset?`${wo.asset.name} (${wo.asset.asset_number})`:null}),
+        h(Field,{label:'Assigned to',value:wo.technician?.name}),
+        h(Field,{label:'Category',value:wo.category}),
+        h(Field,{label:'Due date',value:fmtDate(wo.due_date)}),
+        h(Field,{label:'Odometer at service',value:wo.odometer_at_service?`${wo.odometer_at_service.toLocaleString()} mi`:null}),
+        h(Field,{label:'Est. hours',value:wo.estimated_hours?`${wo.estimated_hours} hrs`:null}),
+        h(Field,{label:'Actual hours',value:wo.actual_hours?`${wo.actual_hours} hrs`:null}),
+        h(Field,{label:'Labor cost',value:fmtCurrency(wo.labor_cost)}),
+        h(Field,{label:'Total cost',value:fmtCurrency(wo.total_cost)}),
+      ),
+      wo.description&&h('div',{style:{marginTop:16,paddingTop:16,borderTop:'0.5px solid #2a3048'}},
+        h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Description'),
+        h('div',{style:{fontSize:13,color:'#e2e8f0',whiteSpace:'pre-wrap'}},wo.description)
+      )
+    ),
+    parts.length>0&&h('div',{className:'card',style:{marginBottom:16}},
+      h('div',{className:'card-header'},h('span',{className:'card-title'},'Parts used')),
+      h('div',{className:'table-wrap'},
+        h('table',null,
+          h('thead',null,h('tr',null,['Part','Part #','Qty','Unit cost','Total'].map(c=>h('th',{key:c},c)))),
+          h('tbody',null,parts.map(p=>h('tr',{key:p.id},
+            h('td',null,p.part?.name||'—'),
+            h('td',null,h('span',{className:'mono'},p.part?.part_number||'—')),
+            h('td',null,p.quantity_used),
+            h('td',null,fmtCurrency(p.unit_cost)),
+            h('td',null,p.unit_cost?`$${(p.quantity_used*parseFloat(p.unit_cost)).toFixed(2)}`:'—')
+          ))),
+          h('tfoot',null,h('tr',null,
+            h('td',{colSpan:4,style:{textAlign:'right',color:'#6b7a9f',fontSize:12}},'Parts total'),
+            h('td',{style:{fontWeight:500}},'$'+partsTotal.toFixed(2))
+          ))
+        )
+      )
+    ),
+    h('div',{style:{fontSize:11,color:'#6b7a9f'}},`Created ${fmtDate(wo.created_at)} · Updated ${fmtDate(wo.updated_at)}`)
+  );
+}
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
-  <script src="app.js"></script>
+// ── Work Order Form ───────────────────────────────────────────────────────────
+function WOForm({id,setPage}){
+  const isEdit=Boolean(id);
+  const {data:existing}=useQuery(()=>id?sb.from('work_orders').select('*').eq('id',id).single():{data:null},[id]);
+  const {data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number').order('name'));
+  const {data:techs}=useQuery(()=>sb.from('technicians').select('id,name').eq('status','active').order('name'));
+  const [form,setForm]=useState({title:'',description:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',due_date:'',estimated_hours:'',odometer_at_service:''});
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState(null);
+
+  useEffect(()=>{if(existing&&isEdit)setForm({title:existing.title||'',description:existing.description||'',asset_id:existing.asset_id||'',technician_id:existing.technician_id||'',priority:existing.priority||'normal',status:existing.status||'open',category:existing.category||'',due_date:existing.due_date||'',estimated_hours:existing.estimated_hours||'',odometer_at_service:existing.odometer_at_service||''});},[existing,isEdit]);
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  const handleSubmit=async()=>{
+    if(!form.title.trim()){setError('Title is required');return;}
+    setSaving(true);setError(null);
+    const payload={...form,asset_id:form.asset_id||null,technician_id:form.technician_id||null,estimated_hours:form.estimated_hours?parseFloat(form.estimated_hours):null,odometer_at_service:form.odometer_at_service?parseInt(form.odometer_at_service):null,updated_at:new Date().toISOString()};
+    const {data,error:err}=isEdit?await sb.from('work_orders').update(payload).eq('id',id).select().single():await sb.from('work_orders').insert(payload).select().single();
+    setSaving(false);
+    if(err){setError(err.message);return;}
+    setPage('wo-'+data.id);
+  };
+
+  return h('div',{className:'page'},
+    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},
+      h('button',{className:'back-btn',onClick:()=>setPage(isEdit?'wo-'+id:'workorders')},h(IBack)),
+      h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?'Edit Work Order':'New Work Order')
+    ),
+    h('div',{className:'card',style:{padding:20,maxWidth:640}},
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Title *'),h('input',{className:'form-input',placeholder:'e.g. PM service 45k miles',value:form.title,onChange:e=>set('title',e.target.value)})),
+      h('div',{className:`form-grid form-grid-2`,style:{marginBottom:16}},
+        h('div',null,h('label',{className:'form-label'},'Asset'),h('select',{className:'form-select',value:form.asset_id,onChange:e=>set('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},`${a.name} (${a.asset_number})`)))),
+        h('div',null,h('label',{className:'form-label'},'Technician'),h('select',{className:'form-select',value:form.technician_id,onChange:e=>set('technician_id',e.target.value)},h('option',{value:''},'Unassigned'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))))
+      ),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:16}},
+        h('div',null,h('label',{className:'form-label'},'Priority'),h('select',{className:'form-select',value:form.priority,onChange:e=>set('priority',e.target.value)},['urgent','high','normal','low'].map(p=>h('option',{key:p,value:p},p)))),
+        h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:form.status,onChange:e=>set('status',e.target.value)},['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
+        h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:form.category,onChange:e=>set('category',e.target.value)},h('option',{value:''},'Select...'),['preventive','repair','inspection','tire','electrical','hydraulics','bodywork','other'].map(c=>h('option',{key:c,value:c},c))))
+      ),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:16}},
+        h('div',null,h('label',{className:'form-label'},'Due date'),h('input',{type:'date',className:'form-input',value:form.due_date,onChange:e=>set('due_date',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Est. hours'),h('input',{type:'number',step:0.5,className:'form-input',placeholder:'0.0',value:form.estimated_hours,onChange:e=>set('estimated_hours',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Odometer (mi)'),h('input',{type:'number',className:'form-input',placeholder:'Current miles',value:form.odometer_at_service,onChange:e=>set('odometer_at_service',e.target.value)}))
+      ),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Description'),h('textarea',{className:'form-textarea',rows:4,placeholder:'Describe the work to be done...',value:form.description,onChange:e=>set('description',e.target.value)})),
+      error&&h('div',{className:'error-box'},error),
+      h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-primary',onClick:handleSubmit,disabled:saving},saving?'Saving...':isEdit?'Save changes':'Create work order'),
+        h('button',{className:'btn btn-ghost',onClick:()=>setPage(isEdit?'wo-'+id:'workorders')},'Cancel')
+      )
+    )
+  );
+}
+
+// ── Fleet ─────────────────────────────────────────────────────────────────────
+function Fleet({setPage}){
+  const [typeF,setTypeF]=useState('');
+  const [statusF,setStatusF]=useState('');
+  const [search,setSearch]=useState('');
+  const {data:assets,loading}=useQuery(()=>{let q=sb.from('assets').select('*').order('asset_type').order('name');if(typeF)q=q.eq('asset_type',typeF);return q;},[typeF]);
+
+  const filtered=(assets||[]).filter(a=>{
+    if(statusF&&a.status!==statusF)return false;
+    if(search){const q=search.toLowerCase();return a.name?.toLowerCase().includes(q)||a.asset_number?.toLowerCase().includes(q)||a.vin?.toLowerCase().includes(q);}
+    return true;
+  });
+
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,
+        h('h2',null,'Fleet'),
+        h('p',null,`${(assets||[]).filter(a=>a.asset_type==='vehicle').length} vehicles · ${(assets||[]).filter(a=>a.asset_type==='trailer').length} trailers · ${(assets||[]).filter(a=>a.asset_type==='equipment').length} equipment`)
+      ),
+      h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset')
+    ),
+    h('div',{className:'tabs'},
+      ['','vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:`tab${typeF===t?' active':''}`,onClick:()=>setTypeF(t)},t?t.charAt(0).toUpperCase()+t.slice(1):'All'))
+    ),
+    h('div',{className:'filters'},
+      h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search name, asset #, VIN...',value:search,onChange:e=>setSearch(e.target.value)})),
+      h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},
+        h('option',{value:''},'All statuses'),
+        ['active','in_shop','down','retired'].map(s=>h('option',{key:s,value:s},s.replace('_',' ')))
+      )
+    ),
+    loading?h('div',{style:{textAlign:'center',color:'#6b7a9f',padding:40}},'Loading...'):
+    filtered.length===0?h('div',{style:{textAlign:'center',color:'#6b7a9f',padding:40}},'No assets found'):
+    h('div',{className:'asset-grid'},
+      filtered.map(a=>h('div',{key:a.id,className:'asset-card',onClick:()=>setPage('asset-'+a.id)},
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}},
+          h('span',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type),
+          h(PBadge,{cls:assetStatusCls[a.status],label:a.status.replace('_',' ')})
+        ),
+        h('div',{style:{fontSize:14,fontWeight:500,color:'#e2e8f0',marginBottom:2}},a.name),
+        h('div',{style:{fontSize:12,color:'#6b7a9f',marginBottom:12}},a.asset_number||'No ID'),
+        h('div',{style:{borderTop:'0.5px solid #2a3048',paddingTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+          h('div',null,h('div',{style:{fontSize:10,color:'#6b7a9f',marginBottom:2}},'Year'),h('div',{style:{fontSize:12,color:'#e2e8f0'}},a.year||'—')),
+          a.asset_type!=='trailer'&&h('div',null,h('div',{style:{fontSize:10,color:'#6b7a9f',marginBottom:2}},'Odometer'),h('div',{style:{fontSize:12,color:'#e2e8f0'}},a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':'—')),
+          h('div',{style:{gridColumn:'1/-1'}},h('div',{style:{fontSize:10,color:'#6b7a9f',marginBottom:2}},'Make / Model'),h('div',{style:{fontSize:12,color:'#e2e8f0'}},[a.make,a.model].filter(Boolean).join(' ')||'—'))
+        )
+      ))
+    )
+  );
+}
+
+// ── Asset Detail ──────────────────────────────────────────────────────────────
+function AssetDetail({id,setPage}){
+  const {data:asset,loading}=useQuery(()=>sb.from('assets').select('*').eq('id',id).single(),[id]);
+  const {data:wos}=useQuery(()=>sb.from('work_orders').select('id,order_number,title,priority,status').eq('asset_id',id).in('status',['open','in_progress']),[id]);
+  const {data:logs}=useQuery(()=>sb.from('service_logs').select('*,technician:technicians(name)').eq('asset_id',id).order('serviced_at',{ascending:false}),[id]);
+
+  const handleDelete=async()=>{
+    if(!confirm('Delete this asset?'))return;
+    await sb.from('assets').delete().eq('id',id);
+    setPage('fleet');
+  };
+
+  if(loading)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Loading...');
+  if(!asset)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Asset not found.');
+
+  const Field=({label,value})=>h('div',{className:'detail-field'},h('label',null,label),h('p',null,value||'—'));
+
+  return h('div',{className:'page'},
+    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},
+      h('button',{className:'back-btn',onClick:()=>setPage('fleet')},h(IBack)),
+      h('div',{style:{flex:1,minWidth:0}},
+        h('div',{style:{display:'flex',gap:8,marginBottom:4}},h(PBadge,{cls:assetStatusCls[asset.status],label:asset.status.replace('_',' ')}),h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},asset.asset_type)),
+        h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},asset.name)
+      ),
+      h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),
+        h('button',{className:'btn btn-danger',onClick:handleDelete},h(ITrash))
+      )
+    ),
+    h('div',{className:'card',style:{padding:20,marginBottom:16}},
+      h('div',{style:{fontSize:14,fontWeight:500,color:'#e2e8f0',marginBottom:16}},'Asset details'),
+      h('div',{className:'detail-grid'},
+        h(Field,{label:'Asset number',value:asset.asset_number}),
+        h(Field,{label:'Year',value:asset.year}),
+        h(Field,{label:'Make',value:asset.make}),
+        h(Field,{label:'Model',value:asset.model}),
+        h(Field,{label:'VIN',value:asset.vin}),
+        h(Field,{label:'License plate',value:asset.license_plate}),
+        asset.asset_type!=='trailer'&&h(Field,{label:'Odometer',value:asset.odometer_miles?`${asset.odometer_miles.toLocaleString()} mi`:null}),
+        asset.asset_type==='equipment'&&h(Field,{label:'Engine hours',value:asset.engine_hours?`${asset.engine_hours} hrs`:null}),
+      ),
+      asset.notes&&h('div',{style:{marginTop:16,paddingTop:16,borderTop:'0.5px solid #2a3048'}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('p',{style:{fontSize:13,color:'#e2e8f0'}},asset.notes))
+    ),
+    (wos||[]).length>0&&h('div',{className:'card',style:{marginBottom:16}},
+      h('div',{className:'card-header'},h('span',{className:'card-title'},`Open work orders (${(wos||[]).length})`),h('button',{className:'card-link',onClick:()=>setPage('workorders')},'View all →')),
+      (wos||[]).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},
+        h('span',{className:'mono'},wo.order_number),
+        h('span',{style:{flex:1,fontSize:13,color:'#e2e8f0'}},wo.title),
+        h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority})
+      ))
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'card-header'},h('span',{className:'card-title'},'Service history'),h('button',{className:'btn btn-ghost',style:{fontSize:11,padding:'4px 10px'},onClick:()=>setPage('servicelogs')},'Add log')),
+      !logs||logs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f',fontSize:13}},'No service records yet'):
+      (logs||[]).map(log=>h('div',{key:log.id,style:{padding:'12px 16px',borderBottom:'0.5px solid #2a3048'}},
+        h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},
+          h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),
+          h('div',{style:{fontSize:12,color:'#6b7a9f'}},fmtDate(log.serviced_at))
+        ),
+        h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16}},
+          log.technician?.name&&h('span',null,log.technician.name),
+          log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),
+          log.cost&&h('span',null,fmtCurrency(log.cost))
+        )
+      ))
+    )
+  );
+}
+
+// ── Asset Form ────────────────────────────────────────────────────────────────
+function AssetForm({id,setPage}){
+  const isEdit=Boolean(id);
+  const {data:existing}=useQuery(()=>id?sb.from('assets').select('*').eq('id',id).single():{data:null},[id]);
+  const [form,setForm]=useState({name:'',asset_type:'vehicle',asset_number:'',year:'',make:'',model:'',vin:'',license_plate:'',odometer_miles:'',engine_hours:'',status:'active',notes:''});
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState(null);
+
+  useEffect(()=>{if(existing&&isEdit)setForm({name:existing.name||'',asset_type:existing.asset_type||'vehicle',asset_number:existing.asset_number||'',year:existing.year||'',make:existing.make||'',model:existing.model||'',vin:existing.vin||'',license_plate:existing.license_plate||'',odometer_miles:existing.odometer_miles||'',engine_hours:existing.engine_hours||'',status:existing.status||'active',notes:existing.notes||''});},[existing,isEdit]);
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  const handleSubmit=async()=>{
+    if(!form.name.trim()){setError('Name is required');return;}
+    setSaving(true);setError(null);
+    const payload={name:form.name,asset_type:form.asset_type,asset_number:form.asset_number||null,year:form.year?parseInt(form.year):null,make:form.make||null,model:form.model||null,vin:form.vin||null,license_plate:form.license_plate||null,odometer_miles:form.odometer_miles?parseInt(form.odometer_miles):0,engine_hours:form.engine_hours?parseFloat(form.engine_hours):0,status:form.status,notes:form.notes||null,updated_at:new Date().toISOString()};
+    const {data,error:err}=isEdit?await sb.from('assets').update(payload).eq('id',id).select().single():await sb.from('assets').insert(payload).select().single();
+    setSaving(false);
+    if(err){setError(err.message);return;}
+    setPage('asset-'+data.id);
+  };
+
+  return h('div',{className:'page'},
+    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},
+      h('button',{className:'back-btn',onClick:()=>setPage(isEdit?'asset-'+id:'fleet')},h(IBack)),
+      h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?'Edit Asset':'Add Asset')
+    ),
+    h('div',{className:'card',style:{padding:20,maxWidth:640}},
+      h('div',{className:'form-group'},
+        h('label',{className:'form-label'},'Asset type *'),
+        h('div',{className:'type-select'},['vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:`type-btn${form.asset_type===t?' active':''}`,onClick:()=>set('asset_type',t)},t)))
+      ),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:16}},
+        h('div',null,h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',placeholder:'e.g. 2022 Kenworth T680',value:form.name,onChange:e=>set('name',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Asset number'),h('input',{className:'form-input',placeholder:'e.g. VH-01',value:form.asset_number,onChange:e=>set('asset_number',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:16}},
+        h('div',null,h('label',{className:'form-label'},'Year'),h('input',{type:'number',className:'form-input',placeholder:'2022',value:form.year,onChange:e=>set('year',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Make'),h('input',{className:'form-input',placeholder:'Kenworth',value:form.make,onChange:e=>set('make',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Model'),h('input',{className:'form-input',placeholder:'T680',value:form.model,onChange:e=>set('model',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:16}},
+        h('div',null,h('label',{className:'form-label'},'VIN'),h('input',{className:'form-input',style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12},placeholder:'17-character VIN',value:form.vin,onChange:e=>set('vin',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'License plate'),h('input',{className:'form-input',placeholder:'ABC-1234',value:form.license_plate,onChange:e=>set('license_plate',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:16}},
+        h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:form.status,onChange:e=>set('status',e.target.value)},['active','in_shop','down','retired'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
+        form.asset_type!=='trailer'&&h('div',null,h('label',{className:'form-label'},'Odometer (mi)'),h('input',{type:'number',className:'form-input',placeholder:'0',value:form.odometer_miles,onChange:e=>set('odometer_miles',e.target.value)})),
+        form.asset_type==='equipment'&&h('div',null,h('label',{className:'form-label'},'Engine hours'),h('input',{type:'number',step:0.1,className:'form-input',placeholder:'0.0',value:form.engine_hours,onChange:e=>set('engine_hours',e.target.value)}))
+      ),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('textarea',{className:'form-textarea',rows:3,value:form.notes,onChange:e=>set('notes',e.target.value)})),
+      error&&h('div',{className:'error-box'},error),
+      h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-primary',onClick:handleSubmit,disabled:saving},saving?'Saving...':isEdit?'Save changes':'Add asset'),
+        h('button',{className:'btn btn-ghost',onClick:()=>setPage(isEdit?'asset-'+id:'fleet')},'Cancel')
+      )
+    )
+  );
+}
+
+// ── Parts ─────────────────────────────────────────────────────────────────────
+function Parts(){
+  const {data:parts,loading,refetch}=useQuery(()=>sb.from('parts').select('*').order('name'));
+  const [search,setSearch]=useState('');
+  const [catF,setCatF]=useState('');
+  const [modal,setModal]=useState(null);
+
+  const cats=[...new Set((parts||[]).map(p=>p.category).filter(Boolean))].sort();
+  const filtered=(parts||[]).filter(p=>{
+    if(catF&&p.category!==catF)return false;
+    if(search){const q=search.toLowerCase();return p.name?.toLowerCase().includes(q)||p.part_number?.toLowerCase().includes(q)||p.supplier?.toLowerCase().includes(q);}
+    return true;
+  });
+  const lowParts=filtered.filter(p=>p.quantity_on_hand<=p.reorder_point);
+  const outParts=filtered.filter(p=>p.quantity_on_hand===0);
+
+  const handleDelete=async id=>{if(!confirm('Delete this part?'))return;await sb.from('parts').delete().eq('id',id);refetch();};
+
+  const PartModal=({part,onClose})=>{
+    const isEdit=Boolean(part?.id);
+    const [f,setF]=useState({part_number:part?.part_number||'',name:part?.name||'',category:part?.category||'',quantity_on_hand:part?.quantity_on_hand??0,reorder_point:part?.reorder_point??5,unit_cost:part?.unit_cost||'',supplier:part?.supplier||'',location:part?.location||''});
+    const [saving,setSaving]=useState(false);const [err,setErr]=useState(null);
+    const s=(k,v)=>setF(p=>({...p,[k]:v}));
+    const save=async()=>{
+      if(!f.name.trim()){setErr('Name required');return;}
+      setSaving(true);
+      const payload={...f,quantity_on_hand:parseInt(f.quantity_on_hand)||0,reorder_point:parseInt(f.reorder_point)||5,unit_cost:f.unit_cost?parseFloat(f.unit_cost):null,updated_at:new Date().toISOString()};
+      const {error:e}=isEdit?await sb.from('parts').update(payload).eq('id',part.id):await sb.from('parts').insert(payload);
+      setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();
+    };
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,isEdit?'Edit Part':'Add Part'),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:f.part_number,onChange:e=>s('part_number',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>s('category',e.target.value)},h('option',{value:''},'Select...'),['filters','brakes','fluids','electrical','belts','tires','accessories','other'].map(c=>h('option',{key:c,value:c},c))))
+      ),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',value:f.name,onChange:e=>s('name',e.target.value)})),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Qty on hand'),h('input',{type:'number',className:'form-input',value:f.quantity_on_hand,onChange:e=>s('quantity_on_hand',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Reorder at'),h('input',{type:'number',className:'form-input',value:f.reorder_point,onChange:e=>s('reorder_point',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Unit cost'),h('input',{type:'number',step:.01,className:'form-input',placeholder:'0.00',value:f.unit_cost,onChange:e=>s('unit_cost',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Supplier'),h('input',{className:'form-input',value:f.supplier,onChange:e=>s('supplier',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Bin/shelf'),h('input',{className:'form-input',placeholder:'A-12',value:f.location,onChange:e=>s('location',e.target.value)}))
+      ),
+      err&&h('div',{className:'error-box'},err),
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add part'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+    ));
+  };
+
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'Parts Inventory'),h('p',null,`${(parts||[]).length} parts total`)),
+      h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add Part')
+    ),
+    outParts.length>0&&h('div',{className:'alert alert-danger'},h(IAlert),`${outParts.length} part${outParts.length>1?'s':''} out of stock: ${outParts.map(p=>p.name).join(', ')}`),
+    lowParts.length>outParts.length&&h('div',{className:'alert alert-warn'},h(IAlert),`${lowParts.length-outParts.length} part${lowParts.length-outParts.length>1?'s':''} below reorder point`),
+    h('div',{className:'filters'},
+      h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search parts, numbers, suppliers...',value:search,onChange:e=>setSearch(e.target.value)})),
+      h('select',{className:'form-select',style:{width:160},value:catF,onChange:e=>setCatF(e.target.value)},h('option',{value:''},'All categories'),cats.map(c=>h('option',{key:c,value:c},c)))
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'table-wrap'},
+        h('table',null,
+          h('thead',null,h('tr',null,['Part #','Name','Category','On hand','Reorder at','Unit cost','Supplier','Location',''].map(c=>h('th',{key:c},c)))),
+          h('tbody',null,loading?h('tr',null,h('td',{colSpan:9,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):
+            filtered.map(p=>{
+              const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;
+              return h('tr',{key:p.id},
+                h('td',null,h('span',{className:'mono'},p.part_number||'—')),
+                h('td',{style:{fontWeight:500}},p.name),
+                h('td',{style:{color:'#6b7a9f',fontSize:12,textTransform:'capitalize'}},p.category||'—'),
+                h('td',null,h('span',{style:{fontWeight:500,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80'}},p.quantity_on_hand)),
+                h('td',{style:{color:'#6b7a9f',fontSize:12}},p.reorder_point),
+                h('td',null,fmtCurrency(p.unit_cost)),
+                h('td',{style:{color:'#6b7a9f',fontSize:12}},p.supplier||'—'),
+                h('td',{style:{color:'#6b7a9f',fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},p.location||'—'),
+                h('td',null,h('div',{className:'btn-row'},
+                  h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit)),
+                  h('button',{className:'btn-icon',style:{color:'#6b7a9f'},onClick:()=>handleDelete(p.id)},h(ITrash))
+                ))
+              );
+            })
+          )
+        )
+      ),
+      h('div',{className:'table-mobile'},
+        loading?h('div',{style:{padding:24,color:'#6b7a9f',textAlign:'center'}},'Loading...'):
+        filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;
+          return h('div',{key:p.id,className:'divide-row'},
+            h('div',{style:{flex:1}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},p.name),h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},p.part_number,' · ',p.category)),
+            h('div',{style:{fontSize:18,fontWeight:600,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80',marginRight:8}},p.quantity_on_hand),
+            h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit))
+          );
+        })
+      )
+    ),
+    modal!==null&&h(PartModal,{part:modal.id?modal:null,onClose:()=>setModal(null)})
+  );
+}
+
+// ── Technicians ───────────────────────────────────────────────────────────────
+function Technicians(){
+  const {data:techs,loading,refetch}=useQuery(()=>sb.from('technicians').select('*').order('name'));
+  const {data:wos}=useQuery(()=>sb.from('work_orders').select('technician_id,status').in('status',['open','in_progress']));
+  const [modal,setModal]=useState(null);
+
+  const openByTech=id=>(wos||[]).filter(w=>w.technician_id===id).length;
+  const handleDelete=async id=>{if(!confirm('Remove technician?'))return;await sb.from('technicians').delete().eq('id',id);refetch();};
+
+  const TechModal=({tech,onClose})=>{
+    const isEdit=Boolean(tech?.id);
+    const [f,setF]=useState({name:tech?.name||'',email:tech?.email||'',phone:tech?.phone||'',specialty:tech?.specialty||'',status:tech?.status||'active'});
+    const [saving,setSaving]=useState(false);const [err,setErr]=useState(null);
+    const s=(k,v)=>setF(p=>({...p,[k]:v}));
+    const save=async()=>{
+      if(!f.name.trim()){setErr('Name required');return;}
+      setSaving(true);
+      const {error:e}=isEdit?await sb.from('technicians').update(f).eq('id',tech.id):await sb.from('technicians').insert(f);
+      setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();
+    };
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,isEdit?'Edit Technician':'Add Technician'),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Full name *'),h('input',{className:'form-input',placeholder:'Juan Martinez',value:f.name,onChange:e=>s('name',e.target.value)})),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Email'),h('input',{type:'email',className:'form-input',value:f.email,onChange:e=>s('email',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Phone'),h('input',{type:'tel',className:'form-input',value:f.phone,onChange:e=>s('phone',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Specialty'),h('select',{className:'form-select',value:f.specialty,onChange:e=>s('specialty',e.target.value)},h('option',{value:''},'General'),['diesel','hydraulics','electrical','tires','bodywork','hvac','welding'].map(c=>h('option',{key:c,value:c},c)))),
+        h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:f.status,onChange:e=>s('status',e.target.value)},h('option',{value:'active'},'Active'),h('option',{value:'inactive'},'Inactive')))
+      ),
+      err&&h('div',{className:'error-box'},err),
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add technician'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+    ));
+  };
+
+  const active=(techs||[]).filter(t=>t.status==='active');
+  const inactive=(techs||[]).filter(t=>t.status==='inactive');
+  const maxOpen=Math.max(1,...active.map(t=>openByTech(t.id)));
+
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'Technicians'),h('p',null,`${active.length} active`)),
+      h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add')
+    ),
+    loading?h('div',{style:{textAlign:'center',color:'#6b7a9f',padding:40}},'Loading...'):
+    h(Fragment,null,
+      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}},
+        active.map(t=>{
+          const cnt=openByTech(t.id);
+          return h('div',{key:t.id,className:'card',style:{padding:16,display:'flex',gap:12,alignItems:'flex-start'}},
+            h('div',{className:'avatar'},initials(t.name)),
+            h('div',{style:{flex:1,minWidth:0}},
+              h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},
+                h('div',{style:{fontSize:14,fontWeight:500,color:'#e2e8f0'}},t.name),
+                t.specialty&&h('span',{className:'badge b-normal',style:{textTransform:'capitalize'}},t.specialty)
+              ),
+              t.email&&h('div',{style:{fontSize:12,color:'#6b7a9f'}},t.email),
+              t.phone&&h('div',{style:{fontSize:12,color:'#6b7a9f'}},t.phone),
+              h('div',{className:'workload-row',style:{marginTop:8,marginBottom:0}},
+                h('div',{className:'workload-info'},h('span',{style:{color:cnt>0?'#60a5fa':'#6b7a9f'}},`${cnt} open order${cnt!==1?'s':''}`)),
+                h('div',{className:'workload-bar-bg'},h('div',{className:'workload-bar',style:{width:`${(cnt/maxOpen)*100}%`}}))
+              )
+            ),
+            h('div',{className:'btn-row'},
+              h('button',{className:'btn-icon',onClick:()=>setModal(t)},h(IEdit)),
+              h('button',{className:'btn-icon',onClick:()=>handleDelete(t.id)},h(ITrash))
+            )
+          );
+        })
+      ),
+      inactive.length>0&&h('div',{style:{marginTop:20}},
+        h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.08em',fontWeight:600,marginBottom:8}},'Inactive'),
+        h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:8}},
+          inactive.map(t=>h('div',{key:t.id,className:'card',style:{padding:14,display:'flex',gap:10,alignItems:'center',opacity:.5}},
+            h('div',{className:'avatar'},initials(t.name)),
+            h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0'}},t.name),t.specialty&&h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},t.specialty)),
+            h('button',{className:'btn-icon',onClick:()=>setModal(t)},h(IEdit))
+          ))
+        )
+      )
+    ),
+    modal!==null&&h(TechModal,{tech:modal.id?modal:null,onClose:()=>setModal(null)})
+  );
+}
+
+// ── Service Logs ──────────────────────────────────────────────────────────────
+function ServiceLogs(){
+  const [assetF,setAssetF]=useState('');const [search,setSearch]=useState('');const [showModal,setShowModal]=useState(false);
+  const {data:logs,loading,refetch}=useQuery(()=>{let q=sb.from('service_logs').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('serviced_at',{ascending:false});if(assetF)q=q.eq('asset_id',assetF);return q;},[assetF]);
+  const {data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number').order('name'));
+  const {data:techs}=useQuery(()=>sb.from('technicians').select('id,name').eq('status','active').order('name'));
+
+  const filtered=(logs||[]).filter(l=>{if(!search)return true;const q=search.toLowerCase();return l.service_type?.toLowerCase().includes(q)||l.asset?.name?.toLowerCase().includes(q)||l.technician?.name?.toLowerCase().includes(q);});
+
+  const LogModal=({onClose})=>{
+    const [f,setF]=useState({asset_id:'',technician_id:'',service_type:'',description:'',odometer_miles:'',engine_hours:'',cost:'',serviced_at:new Date().toISOString().slice(0,16),next_service_miles:'',next_service_date:''});
+    const [saving,setSaving]=useState(false);const [err,setErr]=useState(null);
+    const s=(k,v)=>setF(p=>({...p,[k]:v}));
+    const save=async()=>{
+      if(!f.asset_id||!f.service_type){setErr('Asset and service type required');return;}
+      setSaving(true);
+      const payload={asset_id:f.asset_id,technician_id:f.technician_id||null,service_type:f.service_type,description:f.description||null,odometer_miles:f.odometer_miles?parseInt(f.odometer_miles):null,engine_hours:f.engine_hours?parseFloat(f.engine_hours):null,cost:f.cost?parseFloat(f.cost):null,serviced_at:f.serviced_at||new Date().toISOString(),next_service_miles:f.next_service_miles?parseInt(f.next_service_miles):null,next_service_date:f.next_service_date||null};
+      const {error:e}=await sb.from('service_logs').insert(payload);
+      setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();
+    };
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,'Log Service'),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},`${a.name} (${a.asset_number})`)))),
+        h('div',null,h('label',{className:'form-label'},'Technician'),h('select',{className:'form-select',value:f.technician_id,onChange:e=>s('technician_id',e.target.value)},h('option',{value:''},'Unassigned'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))))
+      ),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Service type *'),h('select',{className:'form-select',value:f.service_type,onChange:e=>s('service_type',e.target.value)},h('option',{value:''},'Select...'),['Oil change','PM service','Brake job','Tire rotation','Tire replacement','Inspection','Filter replacement','Fluid flush','Belt replacement','Electrical repair','Hydraulic repair','Bodywork','Other'].map(st=>h('option',{key:st,value:st},st)))),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Date / time'),h('input',{type:'datetime-local',className:'form-input',value:f.serviced_at,onChange:e=>s('serviced_at',e.target.value)})),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Odometer (mi)'),h('input',{type:'number',className:'form-input',value:f.odometer_miles,onChange:e=>s('odometer_miles',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Eng. hours'),h('input',{type:'number',step:.1,className:'form-input',value:f.engine_hours,onChange:e=>s('engine_hours',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Total cost'),h('input',{type:'number',step:.01,className:'form-input',placeholder:'0.00',value:f.cost,onChange:e=>s('cost',e.target.value)}))
+      ),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('textarea',{className:'form-textarea',rows:3,value:f.description,onChange:e=>s('description',e.target.value)})),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Next service miles'),h('input',{type:'number',className:'form-input',value:f.next_service_miles,onChange:e=>s('next_service_miles',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Next service date'),h('input',{type:'date',className:'form-input',value:f.next_service_date,onChange:e=>s('next_service_date',e.target.value)}))
+      ),
+      err&&h('div',{className:'error-box'},err),
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Log service'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+    ));
+  };
+
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'Service Logs'),h('p',null,`${filtered.length} records`)),
+      h('button',{className:'btn btn-primary',onClick:()=>setShowModal(true)},h(IPlus),' Log Service')
+    ),
+    h('div',{className:'filters'},
+      h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search logs...',value:search,onChange:e=>setSearch(e.target.value)})),
+      h('select',{className:'form-select',style:{width:200},value:assetF,onChange:e=>setAssetF(e.target.value)},h('option',{value:''},'All assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name)))
+    ),
+    h('div',{className:'card'},
+      loading?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'Loading...'):
+      filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No service records found'):
+      filtered.map(log=>h('div',{key:log.id,style:{padding:'14px 16px',borderBottom:'0.5px solid #2a3048'}},
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}},
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{style:{display:'flex',gap:10,alignItems:'center',marginBottom:4,flexWrap:'wrap'}},
+              h('span',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),
+              h('span',{style:{fontSize:12,color:'#3b7eff'}},log.asset?.name)
+            ),
+            h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16,flexWrap:'wrap'}},
+              log.technician?.name&&h('span',null,log.technician.name),
+              log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),
+              log.engine_hours&&h('span',null,log.engine_hours+' hrs'),
+              log.cost&&h('span',null,fmtCurrency(log.cost))
+            ),
+            log.description&&h('div',{style:{fontSize:12,color:'#6b7a9f',marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},log.description),
+            log.next_service_date&&h('div',{style:{fontSize:12,color:'#fbbf24',marginTop:4}},`Next service: ${fmtDate(log.next_service_date)}${log.next_service_miles?' or '+log.next_service_miles.toLocaleString()+' mi':''}`)
+          ),
+          h('div',{style:{fontSize:12,color:'#6b7a9f',flexShrink:0,textAlign:'right'}},fmtDate(log.serviced_at))
+        )
+      ))
+    ),
+    showModal&&h(LogModal,{onClose:()=>setShowModal(false)})
+  );
+}
+
+// ── App Shell ─────────────────────────────────────────────────────────────────
+function App(){
+  const [page,setPage]=useState('dashboard');
+  const [drawerOpen,setDrawerOpen]=useState(false);
+
+  const {data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
+  const {data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point'));
+  const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.quantity_on_hand<=p.reorder_point).length};
+
+  const currentLabel=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'FleetOps';
+
+  const renderPage=()=>{
+    if(page==='dashboard')return h(Dashboard,{setPage});
+    if(page==='workorders')return h(WorkOrders,{setPage});
+    if(page==='wo-new')return h(WOForm,{id:null,setPage});
+    if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage});
+    if(page.startsWith('wo-'))return h(WODetail,{id:page.replace('wo-',''),setPage});
+    if(page==='fleet')return h(Fleet,{setPage});
+    if(page==='asset-new')return h(AssetForm,{id:null,setPage});
+    if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
+    if(page.startsWith('asset-'))return h(AssetDetail,{id:page.replace('asset-',''),setPage});
+    if(page==='parts')return h(Parts,null);
+    if(page==='technicians')return h(Technicians,null);
+    if(page==='servicelogs')return h(ServiceLogs,null);
+    return h(Dashboard,{setPage});
+  };
+
+  return h('div',{className:'shell'},
+    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,onClose:null})),
+    h('div',{className:`overlay${drawerOpen?' open':''}`,onClick:()=>setDrawerOpen(false)},
+      h('div',{className:'drawer',onClick:e=>e.stopPropagation()},
+        h(SidebarNav,{page,setPage,badges,onClose:()=>setDrawerOpen(false)})
+      )
+    ),
+    h('div',{className:'main'},
+      h('div',{className:'mobile-bar'},
+        h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),
+        h('span',null,currentLabel)
+      ),
+      renderPage()
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
 </body>
 </html>
