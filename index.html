@@ -317,6 +317,38 @@ function Dashboard({setPage}){
   );
 }
 
+function SamsaraBtn({refetch}){
+  const[syncing,setSyncing]=useState(false);
+  const[result,setResult]=useState(null);
+  const doSync=async()=>{
+    setSyncing(true);setResult(null);
+    try{
+      const resp=await fetch('https://zmxynphetgelskqnadbg.supabase.co/functions/v1/samsara-sync',{method:'POST',headers:{'Content-Type':'application/json'}});
+      const data=await resp.json();
+      setResult(data);
+      if(data.synced>0)refetch();
+    }catch(e){setResult({error:e.message});}
+    setSyncing(false);
+  };
+  return h('div',{style:{position:'relative',display:'inline-block'}},
+    h('button',{className:'btn btn-ghost',style:{fontSize:12,gap:6,color:syncing?'#6b7a9f':'#60a5fa',borderColor:syncing?'#2a3048':'rgba(59,126,255,.4)'},onClick:doSync,disabled:syncing},
+      syncing?'⏳ Syncing...':'🛰 Samsara Sync'
+    ),
+    result&&h('div',{style:{position:'absolute',top:'100%',right:0,marginTop:6,background:'#1e2333',border:'.5px solid #2a3048',borderRadius:10,padding:14,zIndex:50,minWidth:260,boxShadow:'0 8px 24px rgba(0,0,0,.4)'}},
+      result.error
+        ? h('div',{style:{color:'#f87171',fontSize:12}},'✗ '+result.error)
+        : h('div',null,
+            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' of '+result.samsara_vehicles+' vehicles'),
+            result.matched?.length>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Updated: '+(result.matched||[]).map(m=>m.asset+(m.odometer_miles?' — '+m.odometer_miles.toLocaleString()+' mi':'')).join(', ')),
+            result.unmatched?.length>0&&h('div',{style:{fontSize:11,color:'#fbbf24',marginBottom:4}},'No match in FleetOps: '+(result.unmatched||[]).join(', ')),
+            result.errors?.length>0&&h('div',{style:{fontSize:11,color:'#f87171'}},result.errors.join(', ')),
+            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:6}},'Tip: VINs must match between Samsara and FleetOps for auto-matching.')
+          ),
+      h('button',{style:{marginTop:8,fontSize:11,color:'#6b7a9f',background:'none',border:'none',cursor:'pointer'},onClick:()=>setResult(null)},'Dismiss')
+    )
+  );
+}
+
 function Fleet({setPage}){
   const[typeF,setTypeF]=useState('');
   const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
@@ -326,7 +358,7 @@ function Fleet({setPage}){
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Fleet'),h('p',null,(assets||[]).filter(a=>a.asset_type==='vehicle').length+' vehicles · '+(assets||[]).filter(a=>a.asset_type==='trailer').length+' trailers · '+(assets||[]).filter(a=>a.asset_type==='equipment').length+' equipment')),
-      h('div',{className:'btn-row'},h('button',{className:'btn btn-ghost',style:{fontSize:11},title:'Click for Samsara API info',onClick:()=>alert('Samsara Integration\n\nTo auto-sync odometer & engine hours:\n1. Go to Samsara dashboard\n2. Settings → API Tokens → Create token\n3. Share the token with your FleetOps admin to configure the integration\n\nOnce set up, mileage and engine hours will sync automatically and power service interval alerts.')},'🛰 Samsara'),h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),h('select',{className:'btn btn-ghost',style:{cursor:'pointer'},onChange:e=>{if(e.target.value)setImportM(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'⬆ Import CSV'),h('option',{value:'vehicle'},'Import Vehicles'),h('option',{value:'trailer'},'Import Trailers'),h('option',{value:'equipment'},'Import Equipment')),h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset'))
+      h('div',{className:'btn-row'},h(SamsaraBtn,{refetch}),h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),h('select',{className:'btn btn-ghost',style:{cursor:'pointer'},onChange:e=>{if(e.target.value)setImportM(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'⬆ Import CSV'),h('option',{value:'vehicle'},'Import Vehicles'),h('option',{value:'trailer'},'Import Trailers'),h('option',{value:'equipment'},'Import Equipment')),h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset'))
     ),
     h('div',{className:'tabs'},['','vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:'tab'+(typeF===t?' active':''),onClick:()=>setTypeF(t)},t?t.charAt(0).toUpperCase()+t.slice(1):'All'))),
     h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search name, asset #, VIN...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},h('option',{value:''},'All statuses'),['active','in_shop','down','retired'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
