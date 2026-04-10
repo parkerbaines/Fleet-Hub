@@ -1249,5 +1249,24 @@ body, div, span, p, td, th {
 h1, h2, h3, h4, h5 {
   color: #111827;
 }
+.wo-section,
+.insp-item,
+.corner-box{
+  background:#181c27 !important;
+  border:1px solid #2a3048 !important;
+}
 
+.isel,
+.insp-full input,
+.corner-box input{
+  background:#0f1117 !important;
+  border:1px solid #2a3048 !important;
+  color:#e2e8f0 !important;
+}
+
+.insp-item label,
+.corner-box .pos,
+.corner-box .unit{
+  color:#8fa1c7 !important;
+}
 
