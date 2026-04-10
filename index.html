@@ -184,7 +184,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script>
 
 const {createElement:h,useState,useEffect,useCallback,useRef,Fragment}=React;
-const SUPA_URL='https://zmxynphetgelskqnadbg.supabase.co';
+const SUPA_URL='https://zmxynpheteglskqnadbg.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpteHlucGhldGdlbHNrcW5hZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Mzg5ODgsImV4cCI6MjA5MDIxNDk4OH0.BDHe4XsGCvHY0sIxN5ncIV7-EYEj4lq-nuxFfvySZgU';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
@@ -323,7 +323,7 @@ function SamsaraBtn({refetch}){
   const doSync=async()=>{
     setSyncing(true);setResult(null);
     try{
-      const resp=await fetch('https://zmxynphetgelskqnadbg.supabase.co/functions/v1/samsara-sync',{method:'POST',headers:{'Content-Type':'application/json'}});
+      const resp=await fetch('https://zmxynpheteglskqnadbg.supabase.co/functions/v1/samsara-sync',{method:'POST',headers:{'Content-Type':'application/json'}});
       const data=await resp.json();
       setResult(data);
       if(data.synced>0)refetch();
