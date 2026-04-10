@@ -5,930 +5,278 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>FleetOps</title>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="FleetOps"/>
 <meta name="theme-color" content="#0f1117"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin></script>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0f1117;color:#e2e8f0}
-#root{height:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
-::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a3048;border-radius:2px}
-.shell{display:flex;height:100vh;overflow:hidden}
-.sidebar{width:220px;flex-shrink:0;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column}
-.sidebar-logo{padding:18px 20px 14px;border-bottom:0.5px solid #2a3048}
-.sidebar-logo h1{font-size:15px;font-weight:600;color:#e2e8f0;letter-spacing:-0.02em}
-.sidebar-logo p{font-size:11px;color:#6b7a9f;margin-top:2px}
-.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10px}
-.nav-section{font-size:10px;color:#6b7a9f;text-transform:uppercase;letter-spacing:.08em;padding:10px 10px 4px;font-weight:600}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:13px;color:#6b7a9f;cursor:pointer;margin-bottom:1px;transition:all .15s;border:none;background:none;width:100%;text-align:left}
-.nav-item:hover{color:#e2e8f0;background:#1e2333}
-.nav-item.active{background:rgba(59,126,255,.15);color:#3b7eff;font-weight:500}
-.nav-badge{margin-left:auto;background:rgba(239,68,68,.2);color:#f87171;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
-.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
-.mobile-bar{display:none;align-items:center;padding:12px 16px;border-bottom:0.5px solid #2a3048;background:#181c27;gap:12px}
-.mobile-bar span{font-size:14px;font-weight:500}
-.menu-btn{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex;flex-shrink:0}
-.page{flex:1;overflow-y:auto;padding:20px 24px}
-.overlay{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6)}
-.overlay.open{display:flex}
-.drawer{width:260px;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column;position:relative;z-index:1}
-.card{background:#1e2333;border:0.5px solid #2a3048;border-radius:12px}
-.card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:0.5px solid #2a3048;flex-wrap:wrap;gap:8px}
-.card-title{font-size:13px;font-weight:600;color:#e2e8f0;display:flex;align-items:center;gap:6px}
-.card-link{font-size:11px;color:#3b7eff;cursor:pointer;background:none;border:none}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
-.metric{background:#181c27;border-radius:8px;padding:14px 16px;cursor:default}
-.metric.clickable{cursor:pointer;transition:border .15s}
-.metric.clickable:hover{border:0.5px solid rgba(59,126,255,.5)}
-.metric-label{font-size:11px;color:#6b7a9f;margin-bottom:6px}
-.metric-value{font-size:26px;font-weight:600;color:#e2e8f0;line-height:1}
-.metric-sub{font-size:11px;color:#6b7a9f;margin-top:4px}
-.metric-sub.warn{color:#f59e0b}.metric-sub.danger{color:#ef4444}
-.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px}
-.divide-row{border-bottom:0.5px solid #2a3048;display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .1s}
-.divide-row:last-child{border-bottom:none}
-.divide-row:hover{background:rgba(255,255,255,.03)}
-.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot-green{background:#22c55e}.dot-amber{background:#f59e0b}.dot-red{background:#ef4444}.dot-gray{background:#6b7a9f}
-.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;display:inline-block}
-.b-urgent{background:rgba(239,68,68,.2);color:#f87171}.b-high{background:rgba(245,158,11,.2);color:#fbbf24}
-.b-normal{background:rgba(59,126,255,.2);color:#60a5fa}.b-low{background:rgba(107,122,159,.2);color:#94a3b8}
-.b-open{background:rgba(245,158,11,.2);color:#fbbf24}.b-in_progress{background:rgba(59,126,255,.2);color:#60a5fa}
-.b-on_hold{background:rgba(107,122,159,.2);color:#94a3b8}.b-completed{background:rgba(34,197,94,.2);color:#4ade80}
-.b-cancelled{background:rgba(239,68,68,.2);color:#f87171}.b-active{background:rgba(34,197,94,.2);color:#4ade80}
-.b-in_shop{background:rgba(245,158,11,.2);color:#fbbf24}.b-down{background:rgba(239,68,68,.2);color:#f87171}
-.b-retired{background:rgba(107,122,159,.2);color:#94a3b8}
-.btn{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.btn-primary{background:#3b7eff;color:#fff;border:none}.btn-primary:hover{background:#5a94ff}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
-.btn-ghost{background:transparent;color:#94a3b8;border:0.5px solid #2a3048}.btn-ghost:hover{background:#1e2333;color:#e2e8f0}
-.btn-danger{background:transparent;color:#f87171;border:0.5px solid rgba(239,68,68,.3)}.btn-danger:hover{background:rgba(239,68,68,.1)}
-.btn-success{background:rgba(34,197,94,.12);color:#4ade80;border:0.5px solid rgba(34,197,94,.3)}.btn-success:hover{background:rgba(34,197,94,.22)}
-.btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn-icon{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex;transition:color .15s}
-.btn-icon:hover{color:#e2e8f0}
-.form-group{margin-bottom:16px}
-.form-label{display:block;font-size:11px;color:#6b7a9f;margin-bottom:6px;font-weight:500}
-.form-input,.form-select,.form-textarea{width:100%;background:#181c27;border:0.5px solid #2a3048;border-radius:8px;padding:8px 12px;font-size:13px;color:#e2e8f0;font-family:inherit;transition:border .15s;outline:none}
-.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:#3b7eff}
-.form-input::placeholder{color:#6b7a9f}
-.form-textarea{resize:vertical}.form-select{appearance:none;cursor:pointer}
-.form-grid{display:grid;gap:12px}.form-grid-2{grid-template-columns:1fr 1fr}
-.form-grid-3{grid-template-columns:1fr 1fr 1fr}.form-grid-4{grid-template-columns:1fr 1fr 1fr 1fr}
-.error-box{background:rgba(239,68,68,.1);border:0.5px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;color:#f87171;font-size:13px;margin-bottom:16px}
-.success-box{background:rgba(34,197,94,.1);border:0.5px solid rgba(34,197,94,.3);border-radius:8px;padding:10px 14px;color:#4ade80;font-size:13px;margin-bottom:16px}
-.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
-.page-header h2{font-size:18px;font-weight:600;color:#e2e8f0}
-.page-header p{font-size:12px;color:#6b7a9f;margin-top:2px}
-.table-wrap{overflow-x:auto}
-table{width:100%;font-size:13px;border-collapse:collapse}
-th{text-align:left;font-size:11px;font-weight:500;color:#6b7a9f;padding:10px 16px;border-bottom:0.5px solid #2a3048}
-td{padding:11px 16px;border-bottom:0.5px solid #2a3048;color:#e2e8f0}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,.02)}
-.mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7a9f}
-.alert{display:flex;align-items:center;gap:10px;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px}
-.alert-danger{background:rgba(239,68,68,.1);border:0.5px solid rgba(239,68,68,.3);color:#fca5a5}
-.alert-warn{background:rgba(245,158,11,.1);border:0.5px solid rgba(245,158,11,.3);color:#fcd34d}
-.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.search-wrap{position:relative;flex:1;min-width:200px}
-.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7a9f;pointer-events:none}
-.search-input{padding-left:34px !important}
-.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:flex-end;justify-content:center}
-@media(min-width:640px){.modal-overlay{align-items:center}}
-.modal{background:#1e2333;border:0.5px solid #2a3048;border-radius:16px 16px 0 0;width:100%;max-width:560px;padding:20px;max-height:90vh;overflow-y:auto}
-@media(min-width:640px){.modal{border-radius:16px}}
-.modal-wide{max-width:700px}
-.modal h3{font-size:16px;font-weight:500;color:#e2e8f0;margin-bottom:16px}
-.asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.asset-card{background:#1e2333;border:0.5px solid #2a3048;border-radius:12px;padding:16px;cursor:pointer;transition:border-color .15s}
-.asset-card:hover{border-color:rgba(59,126,255,.4)}
-.tabs{display:flex;gap:2px;background:#181c27;border-radius:10px;padding:4px;margin-bottom:16px;overflow-x:auto}
-.tab{padding:6px 14px;border-radius:7px;font-size:13px;color:#6b7a9f;cursor:pointer;border:none;background:none;transition:all .15s;font-family:inherit;white-space:nowrap;flex-shrink:0}
-.tab.active{background:#1e2333;color:#e2e8f0;font-weight:500}
-.workload-info{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
-.workload-bar-bg{height:6px;background:#181c27;border-radius:3px}
-.workload-bar{height:6px;background:#3b7eff;border-radius:3px;transition:width .3s}
-.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
-.detail-field label{font-size:11px;color:#6b7a9f;display:block;margin-bottom:3px}
-.detail-field p{font-size:13px;color:#e2e8f0}
-.back-btn{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex;flex-shrink:0}
-.back-btn:hover{color:#e2e8f0}
-.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.quick-btn{text-align:left;padding:12px;border-radius:10px;border:0.5px solid #2a3048;background:transparent;cursor:pointer;transition:all .15s;font-family:inherit}
-.quick-btn:hover{border-color:rgba(59,126,255,.4);background:rgba(59,126,255,.05)}
-.quick-btn .q-title{font-size:13px;font-weight:500;color:#e2e8f0}
-.quick-btn .q-sub{font-size:11px;color:#6b7a9f;margin-top:2px}
-.type-select{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.type-btn{flex:1;min-width:80px;padding:8px;border-radius:8px;border:0.5px solid #2a3048;background:transparent;color:#6b7a9f;font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;text-transform:capitalize}
-.type-btn.active{border-color:#3b7eff;background:rgba(59,126,255,.1);color:#3b7eff;font-weight:500}
-.avatar{width:40px;height:40px;border-radius:50%;background:rgba(59,126,255,.2);color:#60a5fa;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
-.import-zone{border:2px dashed #2a3048;border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:16px}
-.import-zone:hover{border-color:#3b7eff;background:rgba(59,126,255,.05)}
-.import-zone input{display:none}
-.import-preview{background:#181c27;border-radius:8px;overflow:hidden;margin-bottom:16px;max-height:200px;overflow-y:auto}
-/* ===== WORK ORDER ===== */
-.wo-page{max-width:880px}
-.wo-section{background:#181c27;border-radius:12px;padding:20px;margin-bottom:16px}
-.wo-section-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:0.5px solid #2a3048;flex-wrap:wrap}
-.wo-section-title{font-size:13px;font-weight:600;color:#e2e8f0}
-.wo-section-sub{font-size:12px;color:#60a5fa;font-weight:600;margin-left:auto}
-/* Inspection grid */
-.insp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:8px;margin-bottom:12px}
-.insp-item{background:#1e2333;border-radius:8px;padding:10px 12px}
-.insp-item label{font-size:10px;color:#6b7a9f;display:block;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.isel{width:100%;background:#0f1117;border:0.5px solid #2a3048;border-radius:6px;padding:6px 10px;font-size:12px;color:#e2e8f0;font-family:inherit;outline:none;cursor:pointer;appearance:none}
-.isel:focus{border-color:#3b7eff}
-.isel.ok{border-color:rgba(34,197,94,.6);color:#4ade80}
-.isel.warn{border-color:rgba(245,158,11,.6);color:#fbbf24}
-.isel.bad{border-color:rgba(239,68,68,.6);color:#f87171}
-.insp-full{grid-column:1/-1}
-.insp-full input{width:100%;background:#0f1117;border:0.5px solid #2a3048;border-radius:6px;padding:7px 10px;font-size:12px;color:#e2e8f0;font-family:inherit;outline:none}
-.insp-full input:focus{border-color:#3b7eff}
-/* Depth grid (4 corners) */
-.corner-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px}
-.corner-box{background:#1e2333;border-radius:8px;padding:12px;text-align:center}
-.corner-box .pos{font-size:9px;font-weight:700;color:#6b7a9f;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.corner-box input{width:100%;background:#0f1117;border:0.5px solid #2a3048;border-radius:6px;padding:7px 6px;font-size:15px;font-weight:700;color:#e2e8f0;text-align:center;font-family:'JetBrains Mono',monospace;outline:none}
-.corner-box input:focus{border-color:#3b7eff}
-.corner-box .unit{font-size:10px;color:#6b7a9f;margin-top:4px}
-/* Time/parts rows */
-.entry-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid #2a3048}
-.entry-row:last-child{border-bottom:none}
-/* Cost summary */
-.cost-bar{background:rgba(59,126,255,.07);border:0.5px solid rgba(59,126,255,.2);border-radius:10px;padding:16px;margin-bottom:16px}
-.cost-line{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:#e2e8f0}
-.cost-line.total{font-weight:700;font-size:16px;border-top:0.5px solid rgba(59,126,255,.3);margin-top:8px;padding-top:10px;color:#60a5fa}
-/* Print */
-@media print{
-  .shell,.sidebar,.mobile-bar,.overlay,.no-print{display:none!important}
-  #printArea{display:block!important;padding:20px;font-family:Arial,sans-serif;color:#000;font-size:11px}
-  body{background:white}
-}
-#printArea{display:none}
-@media(max-width:1024px){.sidebar{display:none}.mobile-bar{display:flex}.metrics{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.page{padding:16px}}
-@media(max-width:640px){.metrics{grid-template-columns:1fr 1fr}.form-grid-3{grid-template-columns:1fr 1fr}.form-grid-4{grid-template-columns:1fr 1fr}.form-grid-2{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr 1fr}.corner-grid{grid-template-columns:1fr 1fr}.insp-grid{grid-template-columns:1fr}table{display:none}.table-mobile{display:block}}
-@media(min-width:641px){.table-mobile{display:none}}
-</style>
 </head>
-<body>
-<div id="root"></div>
-<div id="printArea"></div>
+<body style="margin:0;background:#0f1117;color:#e2e8f0;font-family:system-ui,sans-serif">
+<div id="root" style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px">
+  <div style="font-size:24px;font-weight:600">Loading FleetOps...</div>
+  <div id="status" style="font-size:13px;color:#6b7a9f">Initializing</div>
+</div>
+
 <script>
-
-window.addEventListener('error', function(e) {
-  document.getElementById('root').innerHTML = '<div style="color:#f87171;padding:40px;font-family:monospace;background:#0f1117;height:100vh"><h2 style="margin-bottom:16px">JavaScript Error</h2><pre style="white-space:pre-wrap;font-size:13px">' + e.message + '\n\nFile: ' + e.filename + '\nLine: ' + e.lineno + '\nCol: ' + e.colno + '</pre></div>';
-});
-
-const {createElement:h,useState,useEffect,useCallback,useRef,Fragment}=React;
-const SUPA_URL='https://zmxynphetgelskqnadbg.supabase.co';
-const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpteHlucGhldGdlbHNrcW5hZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Mzg5ODgsImV4cCI6MjA5MDIxNDk4OH0.BDHe4XsGCvHY0sIxN5ncIV7-EYEj4lq-nuxFfvySZgU';
-const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
-
-function useQuery(fn,deps=[]){
-  const[data,setData]=useState(null);const[loading,setLoading]=useState(true);const[error,setError]=useState(null);
-  const refetch=useCallback(async()=>{setLoading(true);setError(null);try{const r=await fn();if(r.error)throw r.error;setData(r.data);}catch(e){setError(e.message);}finally{setLoading(false);}},deps);
-  useEffect(()=>{refetch();},[refetch]);
-  return{data,loading,error,refetch};
+function status(msg) {
+  document.getElementById('status').textContent = msg;
+  console.log(msg);
 }
-
-const svg=(d,opts={})=>h('svg',{viewBox:'0 0 20 20',width:16,height:16,fill:'none',stroke:'currentColor',strokeWidth:1.5,...opts},typeof d==='string'?h('path',{d}):d);
-const IMenu=()=>svg([h('path',{d:'M3 6h14M3 10h14M3 14h14',key:'m'})]);
-const IPlus=()=>svg([h('path',{d:'M10 4v12M4 10h12',key:'p',strokeWidth:2})]);
-const IBack=()=>svg([h('path',{d:'M12 5l-5 5 5 5',key:'b',strokeWidth:2})]);
-const IEdit=()=>svg([h('path',{d:'M11.5 3.5l5 5L7 18H2v-5L11.5 3.5z',key:'e'})]);
-const ITrash=()=>svg([h('path',{d:'M3 5h14M8 5V3h4v2M5 5l1 12h8l1-12',key:'t'})]);
-const ISearch=()=>svg([h('circle',{cx:8.5,cy:8.5,r:5.5,key:'c'}),h('path',{d:'M13 13l4 4',key:'l'})]);
-const IAlert=()=>svg([h('path',{d:'M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495z',fill:'currentColor',key:'a'}),h('path',{d:'M10 7v4M10 13v.5',stroke:'#0f1117',strokeWidth:1.5,key:'b'})],{fill:'currentColor',stroke:'none'});
-const IDash=()=>svg([h('rect',{x:2,y:2,width:6,height:6,rx:1,fill:'currentColor',key:'a'}),h('rect',{x:10,y:2,width:6,height:6,rx:1,fill:'currentColor',key:'b'}),h('rect',{x:2,y:10,width:6,height:6,rx:1,fill:'currentColor',key:'c'}),h('rect',{x:10,y:10,width:6,height:6,rx:1,fill:'currentColor',key:'d'})],{fill:'none',stroke:'none'});
-const IWO=()=>svg([h('rect',{x:3,y:3,width:14,height:14,rx:2,key:'r'}),h('path',{d:'M7 7h6M7 10h6M7 13h4',key:'l'})]);
-const IFleet=()=>svg([h('rect',{x:1,y:7,width:13,height:9,rx:1.5,key:'b'}),h('path',{d:'M4 7V5.5A1.5 1.5 0 015.5 4h4A1.5 1.5 0 0111 5.5V7',key:'t'}),h('circle',{cx:4.5,cy:16,r:1.5,key:'w1'}),h('circle',{cx:10.5,cy:16,r:1.5,key:'w2'}),h('path',{d:'M14 11h3a1 1 0 011 1v2a1 1 0 01-1 1h-3',key:'h'})]);
-const IParts=()=>svg([h('rect',{x:2,y:2,width:7,height:7,rx:1,key:'a'}),h('rect',{x:11,y:2,width:7,height:4,rx:1,key:'b'}),h('rect',{x:2,y:11,width:7,height:7,rx:1,key:'c'}),h('path',{d:'M11 10v8l2.5-2 2.5 2v-8',key:'d'})]);
-const ITech=()=>svg([h('circle',{cx:8,cy:6,r:3,key:'h'}),h('path',{d:'M2 18c0-3.3 2.7-6 6-6s6 2.7 6 6',key:'b'}),h('path',{d:'M14 8l1.5 1.5L18 7',key:'c'})]);
-const ILogs=()=>svg([h('rect',{x:2,y:2,width:16,height:16,rx:2,key:'r'}),h('path',{d:'M6 7h8M6 10.5h8M6 14h5',key:'l'})]);
-const IDownload=()=>svg([h('path',{d:'M10 3v10M6 9l4 4 4-4',key:'d',strokeWidth:2}),h('path',{d:'M3 15v1a2 2 0 002 2h10a2 2 0 002-2v-1',key:'b'})]);
-const IPrint=()=>svg([h('rect',{x:4,y:8,width:12,height:8,rx:1,key:'b'}),h('path',{d:'M7 8V5h6v3M7 13h6M7 16h4',key:'l'}),h('path',{d:'M4 11H2V9a1 1 0 011-1h14a1 1 0 011 1v2h-2',key:'p'})]);
-const IClock=()=>svg([h('circle',{cx:10,cy:10,r:7,key:'c'}),h('path',{d:'M10 6v4l3 3',key:'h'})]);
-const ICheck=()=>svg([h('path',{d:'M4 10l5 5 7-8',key:'c',strokeWidth:2.5})]);
-
-const PBadge=({cls,label})=>h('span',{className:'badge '+cls},label);
-const priorityCls={urgent:'b-urgent',high:'b-high',normal:'b-normal',low:'b-low'};
-const statusLabel={open:'Open',in_progress:'In Progress',on_hold:'On Hold',completed:'Completed',cancelled:'Cancelled'};
-const statusCls={open:'b-open',in_progress:'b-in_progress',on_hold:'b-on_hold',completed:'b-completed',cancelled:'b-cancelled'};
-const assetStatusCls={active:'b-active',in_shop:'b-in_shop',down:'b-down',retired:'b-retired'};
-const dotCls={active:'dot-green',in_shop:'dot-amber',down:'dot-red',retired:'dot-gray'};
-const fmtDate=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
-const fmtCur=v=>(v!=null&&v!==''&&parseFloat(v)!==0)?'$'+parseFloat(v).toFixed(2):'—';
-const initials=n=>{const p=n.trim().split(' ');return(p.length>=2?p[0][0]+p[p.length-1][0]:p[0].slice(0,2)).toUpperCase();};
-
-function iClass(v){
-  if(!v||v==='N/A')return '';
-  const ok=['Good','Full','Pass','Clean','None','Works','Functional','No Leak','Normal','Present'];
-  const warn=['Fair','Moderate','Low','Caution','Seeping','Minor','Dirty','Pending'];
-  const bad=['Bad','Very Low','Fail','Critical','Leaking','Replace','Severe','Active'];
-  if(ok.some(x=>v.startsWith(x))||(parseInt(v)>=6&&!isNaN(parseInt(v))))return 'ok';
-  if(warn.some(x=>v.startsWith(x))||(parseInt(v)>=3&&parseInt(v)<6&&!isNaN(parseInt(v))))return 'warn';
-  if(bad.some(x=>v.startsWith(x))||(parseInt(v)<=2&&!isNaN(parseInt(v))))return 'bad';
-  return '';
+function err(msg) {
+  document.getElementById('root').innerHTML = '<div style="padding:40px;max-width:600px;margin:auto"><h2 style="color:#f87171;margin-bottom:12px">Error</h2><pre style="color:#e2e8f0;font-size:13px;white-space:pre-wrap;background:#1e2333;padding:16px;border-radius:8px">' + msg + '</pre></div>';
 }
+window.onerror = function(msg, src, line, col, error) {
+  err('JS Error:\n' + msg + '\nLine: ' + line + '\nColumn: ' + col + (error ? '\n\n' + error.stack : ''));
+  return true;
+};
+window.onunhandledrejection = function(e) {
+  err('Promise Error:\n' + (e.reason?.stack || e.reason || 'Unknown'));
+};
+</script>
 
-function parseCSV(t){
-  const lines=t.trim().split(/\r?\n/);if(lines.length<2)return[];
-  const hdrs=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
-  return lines.slice(1).filter(l=>l.trim()).map(line=>{
-    const v=[];let c='';let q=false;
-    for(let i=0;i<line.length;i++){if(line[i]==='"'){q=!q;}else if(line[i]===','&&!q){v.push(c.trim());c='';}else c+=line[i];}
-    v.push(c.trim());const row={};hdrs.forEach((h,i)=>{row[h]=(v[i]||'').replace(/^"|"$/g,'');});return row;
-  });
-}
-function toCSV(rows,cols){return[cols.map(c=>c.l).join(','),...rows.map(r=>cols.map(c=>{const v=String(r[c.k]??'');return v.includes(',')?'"'+v+'"':v;}).join(','))].join('\n');}
-function dlCSV(fn,ct){const b=new Blob([ct],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=fn;a.click();URL.revokeObjectURL(u);}
-function dlTmpl(type){const d={vehicle:{c:['name','asset_number','year','make','model','vin','license_plate','odometer_miles','status','notes'],s:['2022 Kenworth T680','VH-01','2022','Kenworth','T680','1XKWDB0X2NJ123456','ABC1234','87500','active','Primary haul truck']},trailer:{c:['name','asset_number','year','make','model','vin','license_plate','status','notes'],s:['Utility Trailer 1','TR-01','2021','Big Tex','14ET','5B4EP2321LN123456','XYZ789','active','']},equipment:{c:['name','asset_number','year','make','model','vin','engine_hours','status','notes'],s:['Forklift 1','EQ-01','2019','Toyota','8FGU25','60812','1250','active','']}};const x=d[type];dlCSV('fleetops_'+type+'_template.csv',x.c.join(',')+'\n'+x.s.join(','));}
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" 
+  crossorigin 
+  onload="status('React loaded')" 
+  onerror="err('Failed to load React from unpkg. Check network connection.')">
+</script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" 
+  crossorigin
+  onload="status('ReactDOM loaded')"
+  onerror="err('Failed to load ReactDOM')">
+</script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" 
+  crossorigin
+  onload="status('Supabase loaded')"
+  onerror="err('Failed to load Supabase')">
+</script>
 
-const NAV=[{id:'dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},{id:'workorders',label:'Work Orders',Icon:IWO,section:'Operations',badge:'wo'},{id:'servicelogs',label:'Service Logs',Icon:ILogs,section:'Operations'},{id:'fleet',label:'Fleet',Icon:IFleet,section:'Assets'},{id:'parts',label:'Parts Inventory',Icon:IParts,section:'Resources',badge:'parts'},{id:'technicians',label:'Technicians',Icon:ITech,section:'Resources'}];
+<script>
+// Wait for all scripts then boot
+function boot() {
+  if (typeof React === 'undefined') { err('React not available'); return; }
+  if (typeof ReactDOM === 'undefined') { err('ReactDOM not available'); return; }
+  if (typeof supabase === 'undefined') { err('Supabase not available'); return; }
+  status('All libraries loaded, starting app...');
+  
+  try {
+    const {createElement:h, useState, useEffect, useCallback, useRef, Fragment} = React;
+    const SUPA_URL = 'https://zmxynphetgelskqnadbg.supabase.co';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpteHlucGhldGdlbHNrcW5hZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Mzg5ODgsImV4cCI6MjA5MDIxNDk4OH0.BDHe4XsGCvHY0sIxN5ncIV7-EYEj4lq-nuxFfvySZgU';
+    const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-function SidebarNav({page,setPage,badges,onClose}){
-  const secs=[...new Set(NAV.map(n=>n.section))];
-  return h(Fragment,null,
-    h('div',{className:'sidebar-logo'},h('h1',null,'FleetOps'),h('p',null,'Maintenance Platform')),
-    h('nav',{className:'sidebar-nav'},secs.map(sec=>h('div',{key:sec},h('div',{className:'nav-section'},sec),NAV.filter(n=>n.section===sec).map(({id,label,Icon,badge})=>h('button',{key:id,className:'nav-item'+(page===id?' active':''),onClick:()=>{setPage(id);onClose&&onClose();}},h(Icon),label,badge&&badges[badge]>0&&h('span',{className:'nav-badge'},badges[badge]))))))
-  );
-}
+    function App() {
+      const [page, setPage] = useState('loading');
+      const [assets, setAssets] = useState([]);
+      const [wos, setWos] = useState([]);
+      const [parts, setParts] = useState([]);
+      const [techs, setTechs] = useState([]);
+      const [menu, setMenu] = useState(false);
+      const [nav, setNav] = useState('dashboard');
 
-function ImportModal({assetType,onClose,onDone}){
-  const[rows,setRows]=useState(null);const[error,setError]=useState('');const[importing,setImporting]=useState(false);const[done,setDone]=useState(false);
-  const fileRef=useRef();
-  const handleFile=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{try{const p=parseCSV(ev.target.result);if(!p.length){setError('No rows found.');return;}setRows(p);setError('');}catch(err){setError('Parse error: '+err.message);}};reader.readAsText(file);};
-  const doImport=async()=>{
-    setImporting(true);setError('');
-    const recs=rows.map(r=>({asset_type:assetType,name:r.name||r.Name||'Unnamed',asset_number:r.asset_number||null,year:r.year?parseInt(r.year)||null:null,make:r.make||null,model:r.model||null,vin:r.vin||null,license_plate:r.license_plate||null,odometer_miles:r.odometer_miles?parseInt(r.odometer_miles)||0:0,engine_hours:r.engine_hours?parseFloat(r.engine_hours)||0:0,status:r.status||'active',notes:r.notes||null,updated_at:new Date().toISOString()}));
-    const{error:err}=await sb.from('assets').insert(recs);setImporting(false);
-    if(err){setError(err.message);return;}setDone(true);setTimeout(()=>{onDone();onClose();},1500);
-  };
-  const tn=assetType.charAt(0).toUpperCase()+assetType.slice(1)+'s';
-  return h('div',{className:'modal-overlay'},h('div',{className:'modal modal-wide'},
-    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}},h('h3',{style:{marginBottom:0}},'Import '+tn),h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>dlTmpl(assetType)},h(IDownload),' Template')),
-    h('p',{style:{fontSize:12,color:'#6b7a9f',marginBottom:16}},'Download the template, fill it in Excel, save as CSV, then upload here.'),
-    done?h('div',{className:'success-box'},'✓ '+rows.length+' records imported!'):
-    h(Fragment,null,
-      h('div',{className:'import-zone',onClick:()=>fileRef.current.click()},h('input',{type:'file',ref:fileRef,accept:'.csv,.txt',onChange:handleFile}),h('div',{style:{fontSize:28,marginBottom:8}},'📂'),h('div',{style:{fontSize:14,color:'#e2e8f0',fontWeight:500}},'Click to select CSV file'),h('div',{style:{fontSize:12,color:'#6b7a9f',marginTop:4}},'Headers must match the template columns')),
-      rows&&h(Fragment,null,h('div',{style:{fontSize:12,color:'#4ade80',marginBottom:10}},'✓ '+rows.length+' rows ready to import'),h('div',{className:'import-preview'},h('table',null,h('thead',null,h('tr',null,Object.keys(rows[0]).slice(0,5).map(k=>h('th',{key:k,style:{fontSize:10,padding:'6px 12px'}},k)))),h('tbody',null,rows.slice(0,3).map((r,i)=>h('tr',{key:i},Object.keys(rows[0]).slice(0,5).map(k=>h('td',{key:k,style:{fontSize:11,padding:'5px 12px',color:'#94a3b8'}},r[k]||'—')))))))),
-      error&&h('div',{className:'error-box'},error),
-      h('div',{className:'btn-row'},rows&&h('button',{className:'btn btn-primary',onClick:doImport,disabled:importing},importing?'Importing...':'Import '+rows.length+' records'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
-    )
-  ));
-}
+      useEffect(() => {
+        Promise.all([
+          sb.from('assets').select('*').order('name'),
+          sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('created_at', {ascending:false}),
+          sb.from('parts').select('*').order('name'),
+          sb.from('technicians').select('*').order('name'),
+        ]).then(([a, w, p, t]) => {
+          if (!a.error) setAssets(a.data || []);
+          if (!w.error) setWos(w.data || []);
+          if (!p.error) setParts(p.data || []);
+          if (!t.error) setTechs(t.data || []);
+          setPage('ready');
+        }).catch(e => {
+          setPage('error_' + e.message);
+        });
+      }, []);
 
-function Dashboard({setPage}){
-  const{data:assets,loading:al}=useQuery(()=>sb.from('assets').select('*').neq('status','retired'));
-  const{data:wos,loading:wl}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').in('status',['open','in_progress']).order('created_at',{ascending:false}));
-  const{data:parts}=useQuery(()=>sb.from('parts').select('*'));
-  const openWOs=wos||[];const urgent=openWOs.filter(w=>w.priority==='urgent').length;
-  const down=(assets||[]).filter(a=>a.status==='down').length;const inShop=(assets||[]).filter(a=>a.status==='in_shop').length;
-  const lowParts=(parts||[]).filter(p=>p.quantity_on_hand<=p.reorder_point);const outOfStock=lowParts.filter(p=>p.quantity_on_hand===0);
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')),
-    urgent>0&&h('div',{className:'alert alert-danger',style:{marginBottom:16}},h(IAlert),urgent+' urgent work order'+(urgent>1?'s':'')+' need attention',h('button',{className:'card-link',style:{marginLeft:'auto'},onClick:()=>setPage('workorders')},'View →')),
-    h('div',{className:'metrics'},
-      h('div',{className:'metric'},h('div',{className:'metric-label'},'Total Assets'),h('div',{className:'metric-value'},al?'—':(assets||[]).length),h('div',{className:'metric-sub'},'Vehicles, trailers & equipment')),
-      h('div',{className:'metric clickable',onClick:()=>setPage('workorders')},h('div',{className:'metric-label'},'Open Work Orders'),h('div',{className:'metric-value'},wl?'—':openWOs.length),h('div',{className:'metric-sub'+(urgent>0?' warn':'')},urgent>0?urgent+' urgent':'All normal priority')),
-      h('div',{className:'metric'},h('div',{className:'metric-label'},'Down / In Shop'),h('div',{className:'metric-value'},al?'—':down+inShop),h('div',{className:'metric-sub'+(down>0?' warn':'')},down+' down · '+inShop+' in shop')),
-      h('div',{className:'metric clickable',onClick:()=>setPage('parts')},h('div',{className:'metric-label'},'Parts Low / Out'),h('div',{className:'metric-value'},lowParts.length),h('div',{className:'metric-sub'+(outOfStock.length>0?' danger':' warn')},outOfStock.length>0?outOfStock.length+' out of stock':lowParts.length+' below reorder'))
-    ),
-    h('div',{className:'grid2'},
-      h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Open work orders'),h('button',{className:'card-link',onClick:()=>setPage('workorders')},'View all →')),
-        wl?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):openWOs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'No open work orders'):
-        openWOs.slice(0,6).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},h('span',{className:'mono',style:{width:56,flexShrink:0}},wo.order_number),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title),h('div',{style:{fontSize:11,color:'#6b7a9f',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(wo.asset?.name||'No asset')+' · '+(wo.technician?.name||'Unassigned'))),h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority}),h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]})))
-      ),
-      h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Fleet status'),h('button',{className:'card-link',onClick:()=>setPage('fleet')},'View all →')),
-        al?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):(assets||[]).slice(0,8).map(a=>h('div',{key:a.id,className:'divide-row',onClick:()=>setPage('asset-'+a.id)},h('span',{className:'status-dot '+dotCls[a.status]}),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.asset_number)),h('span',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize',flexShrink:0}},a.status.replace('_',' '))))
-      )
-    ),
-    h('div',{className:'grid2'},
-      h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Parts — low stock'),h('button',{className:'card-link',onClick:()=>setPage('parts')},'Inventory →')),
-        lowParts.length===0?h('div',{style:{padding:'20px',textAlign:'center',color:'#6b7a9f',fontSize:13}},'All parts well stocked'):
-        lowParts.map(p=>h('div',{key:p.id,className:'divide-row',style:{cursor:'default'}},h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0'}},p.name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},p.part_number)),h('span',{style:{fontSize:13,fontWeight:500,color:p.quantity_on_hand===0?'#f87171':'#fbbf24'}},p.quantity_on_hand===0?'Out of stock':p.quantity_on_hand+' left')))
-      ),
-      h('div',{className:'card',style:{padding:16}},h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:14}},'Quick actions'),h('div',{className:'quick-grid'},[{label:'New Work Order',sub:'Log a repair or PM',page:'wo-new'},{label:'Add Asset',sub:'Vehicle, trailer or equipment',page:'asset-new'},{label:'Add Part',sub:'Update inventory',page:'parts'},{label:'Log Service',sub:'Record completed work',page:'servicelogs'}].map(a=>h('button',{key:a.label,className:'quick-btn',onClick:()=>setPage(a.page)},h('div',{className:'q-title'},a.label),h('div',{className:'q-sub'},a.sub)))))
-    )
-  );
-}
+      if (page === 'loading') return h('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12,background:'#0f1117',color:'#e2e8f0'}},
+        h('div', {style:{fontSize:22,fontWeight:600}}, 'FleetOps'),
+        h('div', {style:{fontSize:13,color:'#6b7a9f'}}, 'Loading your data...')
+      );
+      
+      if (page.startsWith('error_')) return h('div', {style:{padding:40,color:'#f87171'}}, 'Database error: ' + page.replace('error_', ''));
 
-function Fleet({setPage}){
-  const[typeF,setTypeF]=useState('');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
-  const{data:assets,loading,refetch}=useQuery(()=>{let q=sb.from('assets').select('*').order('asset_type').order('name');if(typeF)q=q.eq('asset_type',typeF);return q;},[typeF]);
-  const filtered=(assets||[]).filter(a=>{if(statusF&&a.status!==statusF)return false;if(search){const q=search.toLowerCase();return a.name?.toLowerCase().includes(q)||a.asset_number?.toLowerCase().includes(q)||a.vin?.toLowerCase().includes(q);}return true;});
-  const handleExport=()=>{const cols=[{k:'name',l:'name'},{k:'asset_number',l:'asset_number'},{k:'asset_type',l:'asset_type'},{k:'year',l:'year'},{k:'make',l:'make'},{k:'model',l:'model'},{k:'vin',l:'vin'},{k:'license_plate',l:'license_plate'},{k:'odometer_miles',l:'odometer_miles'},{k:'engine_hours',l:'engine_hours'},{k:'status',l:'status'},{k:'notes',l:'notes'}];dlCSV('fleetops_fleet_'+new Date().toISOString().slice(0,10)+'.csv',toCSV(filtered,cols));};
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},
-      h('div',null,h('h2',null,'Fleet'),h('p',null,(assets||[]).filter(a=>a.asset_type==='vehicle').length+' vehicles · '+(assets||[]).filter(a=>a.asset_type==='trailer').length+' trailers · '+(assets||[]).filter(a=>a.asset_type==='equipment').length+' equipment')),
-      h('div',{className:'btn-row'},h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),h('select',{className:'btn btn-ghost',style:{cursor:'pointer'},onChange:e=>{if(e.target.value)setImportM(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'⬆ Import CSV'),h('option',{value:'vehicle'},'Import Vehicles'),h('option',{value:'trailer'},'Import Trailers'),h('option',{value:'equipment'},'Import Equipment')),h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset'))
-    ),
-    h('div',{className:'tabs'},['','vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:'tab'+(typeF===t?' active':''),onClick:()=>setTypeF(t)},t?t.charAt(0).toUpperCase()+t.slice(1):'All'))),
-    h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search name, asset #, VIN...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},h('option',{value:''},'All statuses'),['active','in_shop','down','retired'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
-    loading?h('div',{style:{textAlign:'center',color:'#6b7a9f',padding:40}},'Loading...'):filtered.length===0?h('div',{style:{textAlign:'center',color:'#6b7a9f',padding:40}},'No assets found'):
-    h('div',{className:'asset-grid'},filtered.map(a=>h('div',{key:a.id,className:'asset-card',onClick:()=>setPage('asset-'+a.id)},
-      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}},h('span',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type),h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))),
-      h('div',{style:{fontSize:14,fontWeight:500,color:'#e2e8f0',marginBottom:2}},a.name),h('div',{style:{fontSize:12,color:'#6b7a9f',marginBottom:12}},a.asset_number||'No ID'),
-      h('div',{style:{borderTop:'0.5px solid #2a3048',paddingTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
-        h('div',null,h('div',{style:{fontSize:10,color:'#6b7a9f',marginBottom:2}},'Year'),h('div',{style:{fontSize:12,color:'#e2e8f0'}},a.year||'—')),
-        a.asset_type!=='trailer'&&h('div',null,h('div',{style:{fontSize:10,color:'#6b7a9f',marginBottom:2}},a.asset_type==='equipment'?'Eng Hrs':'Odometer'),h('div',{style:{fontSize:12,color:'#e2e8f0'}},a.asset_type==='equipment'?(a.engine_hours?a.engine_hours+' hrs':'—'):(a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':'—'))),
-        h('div',{style:{gridColumn:'1/-1'}},h('div',{style:{fontSize:10,color:'#6b7a9f',marginBottom:2}},'Make / Model'),h('div',{style:{fontSize:12,color:'#e2e8f0'}},[a.make,a.model].filter(Boolean).join(' ')||'—'))
-      )
-    ))),
-    importM&&h(ImportModal,{assetType:importM,onClose:()=>setImportM(null),onDone:refetch})
-  );
-}
+      const openWOs = wos.filter(w => ['open','in_progress'].includes(w.status));
+      const lowParts = parts.filter(p => p.quantity_on_hand <= p.reorder_point);
 
-function AssetDetail({id,setPage}){
-  const{data:a,loading}=useQuery(()=>sb.from('assets').select('*').eq('id',id).single(),[id]);
-  const{data:wos}=useQuery(()=>sb.from('work_orders').select('id,order_number,title,priority,status').eq('asset_id',id).in('status',['open','in_progress']),[id]);
-  const{data:logs}=useQuery(()=>sb.from('service_logs').select('*,technician:technicians(name)').eq('asset_id',id).order('serviced_at',{ascending:false}),[id]);
-  const del=async()=>{if(!confirm('Delete this asset?'))return;await sb.from('assets').delete().eq('id',id);setPage('fleet');};
-  if(loading)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Loading...');
-  if(!a)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Asset not found.');
-  const F=({label,value})=>h('div',{className:'detail-field'},h('label',null,label),h('p',null,value||'—'));
-  return h('div',{className:'page'},
-    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},h('button',{className:'back-btn',onClick:()=>setPage('fleet')},h(IBack)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',gap:8,marginBottom:4}},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' ')),h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type)),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},a.name)),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New WO'),h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),h('button',{className:'btn btn-danger',onClick:del},h(ITrash)))),
-    h('div',{className:'card',style:{padding:20,marginBottom:16}},h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:16}},'Asset Details'),h('div',{className:'detail-grid'},h(F,{label:'Asset #',value:a.asset_number}),h(F,{label:'Year',value:a.year}),h(F,{label:'Make',value:a.make}),h(F,{label:'Model',value:a.model}),h(F,{label:'VIN',value:a.vin}),h(F,{label:'License Plate',value:a.license_plate}),a.asset_type!=='trailer'&&h(F,{label:'Odometer',value:a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':null}),a.asset_type==='equipment'&&h(F,{label:'Engine Hours',value:a.engine_hours?a.engine_hours+' hrs':null})),a.notes&&h('div',{style:{marginTop:16,paddingTop:16,borderTop:'0.5px solid #2a3048'}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('p',{style:{fontSize:13,color:'#e2e8f0'}},a.notes))),
-    (wos||[]).length>0&&h('div',{className:'card',style:{marginBottom:16}},h('div',{className:'card-header'},h('span',{className:'card-title'},'Open Work Orders ('+(wos||[]).length+')')),wos.map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},h('span',{className:'mono'},wo.order_number),h('span',{style:{flex:1,fontSize:13,color:'#e2e8f0'}},wo.title),h('span',{className:'badge '+priorityCls[wo.priority]},wo.priority)))),
-    h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Service History'),h('button',{className:'btn btn-ghost',style:{fontSize:11,padding:'4px 10px'},onClick:()=>setPage('servicelogs')},'Add Log')),!logs||logs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f',fontSize:13}},'No service records yet'):(logs||[]).map(log=>h('div',{key:log.id,style:{padding:'12px 16px',borderBottom:'0.5px solid #2a3048'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),h('div',{style:{fontSize:12,color:'#6b7a9f'}},fmtDate(log.serviced_at))),h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16}},log.technician?.name&&h('span',null,log.technician.name),log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),log.cost&&h('span',null,fmtCur(log.cost))))))
-  );
-}
-
-function AssetForm({id,setPage}){
-  const isEdit=Boolean(id);
-  const{data:ex}=useQuery(()=>id?sb.from('assets').select('*').eq('id',id).single():{data:null},[id]);
-  const[f,setF]=useState({name:'',asset_type:'vehicle',asset_number:'',year:'',make:'',model:'',vin:'',license_plate:'',odometer_miles:'',engine_hours:'',status:'active',notes:''});
-  const[saving,setSaving]=useState(false);const[error,setError]=useState(null);
-  useEffect(()=>{if(ex&&isEdit)setF({name:ex.name||'',asset_type:ex.asset_type||'vehicle',asset_number:ex.asset_number||'',year:ex.year||'',make:ex.make||'',model:ex.model||'',vin:ex.vin||'',license_plate:ex.license_plate||'',odometer_miles:ex.odometer_miles||'',engine_hours:ex.engine_hours||'',status:ex.status||'active',notes:ex.notes||''});},[ex,isEdit]);
-  const s=(k,v)=>setF(x=>({...x,[k]:v}));
-  const save=async()=>{if(!f.name.trim()){setError('Name required');return;}setSaving(true);setError(null);const payload={name:f.name,asset_type:f.asset_type,asset_number:f.asset_number||null,year:f.year?parseInt(f.year):null,make:f.make||null,model:f.model||null,vin:f.vin||null,license_plate:f.license_plate||null,odometer_miles:f.odometer_miles?parseInt(f.odometer_miles):0,engine_hours:f.engine_hours?parseFloat(f.engine_hours):0,status:f.status,notes:f.notes||null,updated_at:new Date().toISOString()};const{data,error:err}=isEdit?await sb.from('assets').update(payload).eq('id',id).select().single():await sb.from('assets').insert(payload).select().single();setSaving(false);if(err){setError(err.message);return;}setPage('asset-'+data.id);};
-  return h('div',{className:'page'},
-    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},h('button',{className:'back-btn',onClick:()=>setPage(isEdit?'asset-'+id:'fleet')},h(IBack)),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?'Edit Asset':'Add Asset')),
-    h('div',{className:'card',style:{padding:20,maxWidth:640}},
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Asset type *'),h('div',{className:'type-select'},['vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:'type-btn'+(f.asset_type===t?' active':''),onClick:()=>s('asset_type',t)},t)))),
-      h('div',{className:'form-grid form-grid-2',style:{marginBottom:16}},h('div',null,h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',placeholder:'2022 Kenworth T680',value:f.name,onChange:e=>s('name',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Asset #'),h('input',{className:'form-input',placeholder:'VH-01',value:f.asset_number,onChange:e=>s('asset_number',e.target.value)}))),
-      h('div',{className:'form-grid form-grid-3',style:{marginBottom:16}},h('div',null,h('label',{className:'form-label'},'Year'),h('input',{type:'number',className:'form-input',placeholder:'2022',value:f.year,onChange:e=>s('year',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Make'),h('input',{className:'form-input',placeholder:'Kenworth',value:f.make,onChange:e=>s('make',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Model'),h('input',{className:'form-input',placeholder:'T680',value:f.model,onChange:e=>s('model',e.target.value)}))),
-      h('div',{className:'form-grid form-grid-2',style:{marginBottom:16}},h('div',null,h('label',{className:'form-label'},'VIN'),h('input',{className:'form-input',style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12},placeholder:'17-char VIN',value:f.vin,onChange:e=>s('vin',e.target.value)})),h('div',null,h('label',{className:'form-label'},'License Plate'),h('input',{className:'form-input',placeholder:'ABC-1234',value:f.license_plate,onChange:e=>s('license_plate',e.target.value)}))),
-      h('div',{className:'form-grid form-grid-3',style:{marginBottom:16}},h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:f.status,onChange:e=>s('status',e.target.value)},['active','in_shop','down','retired'].map(s2=>h('option',{key:s2,value:s2},s2.replace('_',' '))))),f.asset_type!=='trailer'&&h('div',null,h('label',{className:'form-label'},'Odometer (mi)'),h('input',{type:'number',className:'form-input',placeholder:'0',value:f.odometer_miles,onChange:e=>s('odometer_miles',e.target.value)})),f.asset_type==='equipment'&&h('div',null,h('label',{className:'form-label'},'Engine Hours'),h('input',{type:'number',step:0.1,className:'form-input',placeholder:'0.0',value:f.engine_hours,onChange:e=>s('engine_hours',e.target.value)}))),
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('textarea',{className:'form-textarea',rows:3,value:f.notes,onChange:e=>s('notes',e.target.value)})),
-      error&&h('div',{className:'error-box'},error),
-      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save changes':'Add asset'),h('button',{className:'btn btn-ghost',onClick:()=>setPage(isEdit?'asset-'+id:'fleet')},'Cancel'))
-    )
-  );
-}
-
-function WorkOrders({setPage}){
-  const[search,setSearch]=useState('');const[statusF,setStatusF]=useState('');const[priorityF,setPriorityF]=useState('');
-  const{data:wos,loading,refetch}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('created_at',{ascending:false}));
-  const filtered=(wos||[]).filter(wo=>{if(statusF&&wo.status!==statusF)return false;if(priorityF&&wo.priority!==priorityF)return false;if(search){const q=search.toLowerCase();return wo.title?.toLowerCase().includes(q)||wo.order_number?.toLowerCase().includes(q)||wo.asset?.name?.toLowerCase().includes(q)||wo.technician?.name?.toLowerCase().includes(q);}return true;});
-  const chStatus=async(e,wo)=>{e.stopPropagation();const u={status:e.target.value,updated_at:new Date().toISOString()};if(e.target.value==='completed')u.completed_at=new Date().toISOString();await sb.from('work_orders').update(u).eq('id',wo.id);refetch();};
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Work Orders'),h('p',null,filtered.length+' orders')),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')),
-    h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search work orders...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},h('option',{value:''},'All statuses'),['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' ')))),h('select',{className:'form-select',style:{width:140},value:priorityF,onChange:e=>setPriorityF(e.target.value)},h('option',{value:''},'All priorities'),['urgent','high','normal','low'].map(p=>h('option',{key:p,value:p},p)))),
-    h('div',{className:'card'},
-      h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Order #','Title','Asset','Technician','Priority','Status','Due',''].map(c=>h('th',{key:c},c)))),
-        h('tbody',null,loading?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):filtered.length===0?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'No work orders found')):
-          filtered.map(wo=>h('tr',{key:wo.id,style:{cursor:'pointer'},onClick:()=>setPage('wo-'+wo.id)},
-            h('td',null,h('span',{className:'mono'},wo.order_number)),
-            h('td',null,h('span',{style:{maxWidth:200,display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title)),
-            h('td',{style:{color:'#94a3b8',fontSize:12}},wo.asset?.name||'—'),
-            h('td',{style:{color:'#94a3b8',fontSize:12}},wo.technician?.name||'Unassigned'),
-            h('td',null,h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority})),
-            h('td',{onClick:e=>e.stopPropagation()},h('select',{className:'form-select',style:{width:130,fontSize:12,padding:'4px 8px'},value:wo.status,onChange:e=>chStatus(e,wo)},['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
-            h('td',{style:{color:'#6b7a9f',fontSize:12}},wo.due_date?new Date(wo.due_date).toLocaleDateString():'—'),
-            h('td',null,h('button',{className:'btn-icon',onClick:e=>{e.stopPropagation();setPage('wo-'+wo.id);}},h(IEdit)))
-          ))
-        )
-      )),
-      h('div',{className:'table-mobile'},loading?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):filtered.map(wo=>h('div',{key:wo.id,className:'divide-row',style:{flexDirection:'column',alignItems:'flex-start',gap:6},onClick:()=>setPage('wo-'+wo.id)},
-        h('div',{style:{display:'flex',gap:8,alignItems:'center',width:'100%'}},h('span',{className:'mono'},wo.order_number),h('div',{style:{marginLeft:'auto',display:'flex',gap:4}},h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority}),h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]}))),
-        h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},wo.title),
-        h('div',{style:{fontSize:11,color:'#6b7a9f'}},(wo.asset?.name||'No asset')+' · '+(wo.technician?.name||'Unassigned'))
-      )))
-    )
-  );
-}
-
-// ── The full Work Order Form — tabs: Info, Time, Parts, Lights, Body, Fluids, Brakes, Tires, Electrical, Findings
-function WOForm({id,setPage}){
-  const isEdit=Boolean(id);
-  const{data:wo,loading:loadWO,refetch:refetchWO}=useQuery(()=>id?sb.from('work_orders').select('*,asset:assets(id,name,asset_number,asset_type,year,make,model,vin,license_plate,odometer_miles,engine_hours),technician:technicians(id,name)').eq('id',id).single():{data:null},[id]);
-  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type').order('name'));
-  const{data:techs}=useQuery(()=>sb.from('technicians').select('id,name').eq('status','active').order('name'));
-  const{data:allParts}=useQuery(()=>sb.from('parts').select('id,name,part_number,unit_cost').order('name'));
-  const{data:timeEntries,refetch:refetchTime}=useQuery(()=>id?sb.from('work_order_time_entries').select('*,technician:technicians(name)').eq('work_order_id',id).order('logged_at',{ascending:false}):{data:[]},[id]);
-  const{data:woParts,refetch:refetchParts}=useQuery(()=>id?sb.from('work_order_parts').select('*').eq('work_order_id',id).order('created_at'):{data:[]},[id]);
-
-  const[activeTab,setActiveTab]=useState('info');
-  const[saving,setSaving]=useState(false);const[error,setError]=useState(null);
-
-  // Main form fields
-  const[f,setF]=useState({title:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
-  const sf=(k,v)=>setF(x=>({...x,[k]:v}));
-
-  // Inspection data — all stored as jsonb
-  const[insp,setInsp]=useState({
-    // Lights
-    headlights:'',taillights:'',brake_lights:'',turn_f:'',turn_r:'',hazards:'',reverse:'',marker_lights:'',interior:'',dash_lights:'',work_lights:'',strobes:'',lights_notes:'',
-    // Body
-    windshield:'',wipers:'',mirror_l:'',mirror_r:'',hood:'',bumper_f:'',bumper_r:'',door_l:'',door_r:'',bed_box:'',undercarriage:'',rust:'',mud_flaps:'',running_boards:'',fifth_wheel:'',body_notes:'',
-    // Fluids
-    engine_oil:'',coolant:'',brake_fluid:'',power_steering:'',trans_fluid:'',differential:'',washer_fluid:'',def:'',hydraulic:'',transfer_case:'',oil_condition:'',coolant_condition:'',fluids_notes:'',
-    // Brakes (condition)
-    brake_lf:'',brake_rf:'',brake_lr:'',brake_rr:'',parking_brake:'',brake_lines:'',calipers:'',abs:'',
-    // Brakes (depth mm)
-    mm_lf:'',mm_rf:'',mm_lr:'',mm_rr:'',brakes_notes:'',
-    // Tires (tread 32nds)
-    t32_lf:'',t32_rf:'',t32_lr:'',t32_rr:'',
-    // Tires (PSI)
-    psi_lf:'',psi_rf:'',psi_lr:'',psi_rr:'',
-    // Tires (condition)
-    tc_lf:'',tc_rf:'',tc_lr:'',tc_rr:'',
-    spare:'',spare_cond:'',valve_stems:'',lug_nuts:'',wheel_seals:'',alignment:'',tires_notes:'',
-    // Electrical
-    battery:'',terminals:'',voltage:'',alternator:'',starter:'',serp_belt:'',timing_belt:'',coolant_hoses:'',fuel_lines:'',air_filter:'',cabin_filter:'',exhaust:'',dpf:'',dtc:'',ac_heat:'',horn:'',elec_notes:''
-  });
-  const si=(k,v)=>setInsp(x=>({...x,[k]:v}));
-
-  // Time entry form
-  const[tf,setTf]=useState({technician_id:'',hours:'',notes:'',logged_at:new Date().toISOString().slice(0,16)});
-  const[addingTime,setAddingTime]=useState(false);
-
-  // Parts form
-  const[pf,setPf]=useState({part_id:'',part_name:'',part_number:'',qty:'1',unit_cost:''});
-  const[addingPart,setAddingPart]=useState(false);const[showPf,setShowPf]=useState(false);
-
-  useEffect(()=>{
-    if(wo&&isEdit){
-      setF({title:wo.title||'',asset_id:wo.asset_id||'',technician_id:wo.technician_id||'',priority:wo.priority||'normal',status:wo.status||'open',category:wo.category||'',due_date:wo.due_date||'',estimated_hours:wo.estimated_hours||'',mileage_in:wo.mileage_in||'',mileage_out:wo.mileage_out||'',labor_cost:wo.labor_cost||'',complaint:wo.complaint||'',findings:wo.findings||'',work_performed:wo.work_performed||'',recommendations:wo.recommendations||''});
-      if(wo.inspection_data&&Object.keys(wo.inspection_data).length>0)setInsp(p=>({...p,...wo.inspection_data}));
-    }
-  },[wo,isEdit]);
-
-  const selAsset=assets?.find(a=>a.id===f.asset_id)||wo?.asset;
-
-  const doSave=async(statusOverride)=>{
-    if(!f.title.trim()){setError('Title is required');setActiveTab('info');return;}
-    setSaving(true);setError(null);
-    const payload={...f,status:statusOverride||f.status,asset_id:f.asset_id||null,technician_id:f.technician_id||null,estimated_hours:f.estimated_hours?parseFloat(f.estimated_hours):null,mileage_in:f.mileage_in?parseInt(f.mileage_in):null,mileage_out:f.mileage_out?parseInt(f.mileage_out):null,labor_cost:f.labor_cost?parseFloat(f.labor_cost):null,inspection_data:insp,updated_at:new Date().toISOString()};
-    if((statusOverride||f.status)==='completed')payload.completed_at=new Date().toISOString();
-    const{data:saved,error:err}=isEdit?await sb.from('work_orders').update(payload).eq('id',id).select().single():await sb.from('work_orders').insert(payload).select().single();
-    setSaving(false);if(err){setError(err.message);return;}setPage('wo-'+saved.id);
-  };
-
-  const addTime=async()=>{if(!tf.hours)return;setAddingTime(true);await sb.from('work_order_time_entries').insert({work_order_id:id,technician_id:tf.technician_id||null,hours:parseFloat(tf.hours),notes:tf.notes||null,logged_at:tf.logged_at?new Date(tf.logged_at).toISOString():new Date().toISOString()});setTf({technician_id:'',hours:'',notes:'',logged_at:new Date().toISOString().slice(0,16)});setAddingTime(false);refetchTime();};
-  const rmTime=async eid=>{await sb.from('work_order_time_entries').delete().eq('id',eid);refetchTime();};
-  const selPart=e=>{const p=allParts?.find(x=>x.id===e.target.value);if(p)setPf(x=>({...x,part_id:p.id,part_name:p.name,part_number:p.part_number||'',unit_cost:p.unit_cost!=null?String(p.unit_cost):''}));else setPf(x=>({...x,part_id:''}));};
-  const addPart=async()=>{if(!pf.part_name&&!pf.part_id)return;setAddingPart(true);const sp=allParts?.find(p=>p.id===pf.part_id);await sb.from('work_order_parts').insert({work_order_id:id,part_id:pf.part_id||null,part_name:pf.part_name||(sp?.name||''),part_number:pf.part_number||(sp?.part_number||''),quantity_used:parseFloat(pf.qty)||1,unit_cost:pf.unit_cost?parseFloat(pf.unit_cost):(sp?.unit_cost||null)});setPf({part_id:'',part_name:'',part_number:'',qty:'1',unit_cost:''});setShowPf(false);setAddingPart(false);refetchParts();};
-  const rmPart=async pid=>{await sb.from('work_order_parts').delete().eq('id',pid);refetchParts();};
-
-  const totalHrs=(timeEntries||[]).reduce((s,e)=>s+parseFloat(e.hours||0),0);
-  const partsTotal=(woParts||[]).reduce((s,p)=>s+(parseFloat(p.quantity_used||0)*parseFloat(p.unit_cost||0)),0);
-  const laborCost=f.labor_cost?parseFloat(f.labor_cost):0;
-  const grandTotal=laborCost+partsTotal;
-
-  // Inspection helpers
-  const IS=({field,label,opts})=>h('div',{className:'insp-item'},h('label',null,label),h('select',{className:'isel '+iClass(insp[field]),value:insp[field],onChange:e=>si(field,e.target.value)},h('option',{value:''},'—'),opts.map(o=>h('option',{key:o,value:o},o))));
-  const IN=({field,label})=>h('div',{className:'insp-item insp-full'},h('label',null,label),h('input',{placeholder:'Notes...',value:insp[field],onChange:e=>si(field,e.target.value)}));
-  const CB=({pos,field,unit})=>h('div',{className:'corner-box'},h('div',{className:'pos'},pos),h('input',{type:'number',step:0.5,min:0,placeholder:'—',value:insp[field],onChange:e=>si(field,e.target.value)}),h('div',{className:'unit'},unit));
-  const GWB=['Good','Fair','Bad'];const FML=['Full','Moderate','Low'];const PF2=['Pass','Fail'];const YN=['Yes','No'];const NA=['N/A'];
-  const TC=['Good','Wear Indicators','Cracking','Cupping','Replace'];
-
-  const TABS=[{id:'info',label:'ℹ Info'},{id:'time',label:'⏱ Time'},{id:'parts',label:'🔧 Parts'},{id:'lights',label:'💡 Lights'},{id:'body',label:'🚗 Body'},{id:'fluids',label:'🛢 Fluids'},{id:'brakes',label:'🛑 Brakes'},{id:'tires',label:'🔵 Tires'},{id:'electrical',label:'⚡ Electrical'},{id:'findings',label:'📋 Findings'}];
-
-  const handlePrint=()=>{
-    const pa=document.getElementById('printArea');
-    const asset=wo?.asset||{};const tech=wo?.technician||{};
-    pa.innerHTML=`<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#000;font-size:11px}
-    .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:14px}
-    .hdr h1{font-size:18px;font-weight:700}.hdr .sub{font-size:12px;color:#333;margin-top:3px}
-    .hdr .meta{text-align:right;font-size:11px;line-height:1.7}
-    .sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#444;margin:12px 0 6px;border-bottom:1px solid #ccc;padding-bottom:3px}
-    .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 16px;margin-bottom:10px}
-    .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:10px}
-    .fl{font-size:10px;color:#666;text-transform:uppercase;display:block;margin-bottom:1px}
-    .fv{font-size:12px;font-weight:500;border-bottom:0.5px solid #ddd;padding-bottom:2px;min-height:16px}
-    .ta{border:0.5px solid #ccc;border-radius:3px;padding:8px;min-height:48px;margin-bottom:10px;font-size:12px;width:100%}
-    .ig{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px}
-    .ii{border:0.5px solid #ccc;border-radius:3px;padding:4px 6px}
-    .ip{font-size:9px;color:#666;margin-bottom:1px}.iv{font-size:11px;font-weight:600}
-    table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
-    th{background:#f0f0f0;padding:5px 8px;text-align:left;font-weight:600;border:0.5px solid #ccc}
-    td{padding:4px 8px;border:0.5px solid #ddd}
-    .tr td{font-weight:700;background:#f8f8f8}
-    .costs{max-width:260px;margin:0 0 12px}
-    .sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px;padding-top:12px;border-top:1px solid #ccc}
-    .sl{border-bottom:1px solid #999;height:32px;margin-bottom:3px}.slb{font-size:9px;color:#666;text-transform:uppercase}</style>
-    <div class="hdr"><div><h1>Work Order ${wo?.order_number||''}</h1><div class="sub">${f.title||'—'}</div></div><div class="meta">Status: <b>${statusLabel[f.status]||f.status}</b><br>Priority: <b>${f.priority}</b><br>Date: ${new Date().toLocaleDateString()}<br>Due: ${f.due_date?new Date(f.due_date).toLocaleDateString():'—'}</div></div>
-    <div class="sec">Vehicle</div><div class="g3"><div><span class="fl">Asset</span><div class="fv">${asset.name||'—'}</div></div><div><span class="fl">Asset #</span><div class="fv">${asset.asset_number||'—'}</div></div><div><span class="fl">Year Make Model</span><div class="fv">${[asset.year,asset.make,asset.model].filter(Boolean).join(' ')||'—'}</div></div><div><span class="fl">VIN</span><div class="fv">${asset.vin||'—'}</div></div><div><span class="fl">License</span><div class="fv">${asset.license_plate||'—'}</div></div><div><span class="fl">Mileage In</span><div class="fv">${f.mileage_in||'—'}</div></div></div>
-    <div class="sec">Work Order</div><div class="g3"><div><span class="fl">Technician</span><div class="fv">${tech.name||'Unassigned'}</div></div><div><span class="fl">Category</span><div class="fv">${f.category||'—'}</div></div><div><span class="fl">Est Hours</span><div class="fv">${f.estimated_hours||'—'}</div></div></div>
-    <div class="sec">Complaint / Requested Work</div><div class="ta">${f.complaint||'—'}</div>
-    ${(timeEntries||[]).length>0?`<div class="sec">Time Log — ${totalHrs.toFixed(2)} hrs total</div><table><thead><tr><th>Date</th><th>Tech</th><th>Hours</th><th>Notes</th></tr></thead><tbody>${(timeEntries||[]).map(e=>`<tr><td>${fmtDate(e.logged_at)}</td><td>${e.technician?.name||'—'}</td><td>${e.hours}</td><td>${e.notes||'—'}</td></tr>`).join('')}<tr class="tr"><td colspan="2">Total</td><td>${totalHrs.toFixed(2)} hrs</td><td></td></tr></tbody></table>`:''}
-    ${(woParts||[]).length>0?`<div class="sec">Parts Used</div><table><thead><tr><th>Part</th><th>Part #</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead><tbody>${(woParts||[]).map(p=>`<tr><td>${p.part_name||'—'}</td><td>${p.part_number||'—'}</td><td>${p.quantity_used}</td><td>${p.unit_cost?'$'+parseFloat(p.unit_cost).toFixed(2):'—'}</td><td>${p.unit_cost?'$'+(parseFloat(p.quantity_used)*parseFloat(p.unit_cost)).toFixed(2):'—'}</td></tr>`).join('')}<tr class="tr"><td colspan="4">Parts Total</td><td>$${partsTotal.toFixed(2)}</td></tr></tbody></table>`:''}
-    <div class="sec">Cost Summary</div><table class="costs"><tbody><tr><td>Labor</td><td style="text-align:right">${f.labor_cost?'$'+parseFloat(f.labor_cost).toFixed(2):'—'}</td></tr><tr><td>Parts</td><td style="text-align:right">$${partsTotal.toFixed(2)}</td></tr><tr class="tr"><td>Grand Total</td><td style="text-align:right">$${grandTotal.toFixed(2)}</td></tr></tbody></table>
-    <div class="g2"><div><div class="sec">Findings / Diagnosis</div><div class="ta">${f.findings||'—'}</div></div><div><div class="sec">Work Performed</div><div class="ta">${f.work_performed||'—'}</div></div></div>
-    <div class="sec">Recommendations</div><div class="ta">${f.recommendations||'—'}</div>
-    ${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).length>0?`<div class="sec">Vehicle Inspection</div><div class="ig">${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).map(([k,v])=>`<div class="ii"><div class="ip">${k.replace(/_/g,' ')}</div><div class="iv">${v}</div></div>`).join('')}</div>`:''}
-    <div class="sec">Mileage Out</div><div class="g3"><div><span class="fl">Mileage Out</span><div class="fv">${f.mileage_out||'—'}</div></div></div>
-    <div class="sigs"><div><div class="sl"></div><div class="slb">Technician Signature / Date</div></div><div><div class="sl"></div><div class="slb">Supervisor Approval / Date</div></div></div>`;
-    window.print();setTimeout(()=>{pa.innerHTML='';},3000);
-  };
-
-  if(loadWO&&isEdit)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Loading...');
-
-  return h('div',{className:'page'},
-    // Header row
-    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      h('button',{className:'back-btn',onClick:()=>setPage(isEdit?'wo-'+id:'workorders')},h(IBack)),
-      h('div',{style:{flex:1,minWidth:0}},isEdit&&h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4}},h('span',{className:'mono',style:{fontSize:12}},wo?.order_number),h(PBadge,{cls:priorityCls[f.priority],label:f.priority}),h(PBadge,{cls:statusCls[f.status],label:statusLabel[f.status]})),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?(f.title||'Work Order'):'New Work Order')),
-      h('div',{className:'btn-row no-print'},
-        isEdit&&h('button',{className:'btn btn-success',onClick:handlePrint},h(IPrint),' Print / PDF'),
-        h('button',{className:'btn btn-primary',onClick:()=>doSave(),disabled:saving},saving?'Saving...':isEdit?'Save':'Create WO'),
-        isEdit&&h('select',{className:'btn btn-ghost',style:{cursor:'pointer',paddingRight:12},onChange:e=>{if(e.target.value)doSave(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'Change Status'),['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},statusLabel[s]))),
-        isEdit&&h('button',{className:'btn btn-danger',onClick:async()=>{if(!confirm('Delete?'))return;await sb.from('work_orders').delete().eq('id',id);setPage('workorders');}},h(ITrash))
-      )
-    ),
-    error&&h('div',{className:'error-box',style:{marginBottom:12}},error),
-    // Tab bar
-    h('div',{style:{display:'flex',gap:2,marginBottom:16,overflowX:'auto',paddingBottom:2}},TABS.map(t=>h('button',{key:t.id,className:'tab'+(activeTab===t.id?' active':''),onClick:()=>setActiveTab(t.id)},t.label))),
-
-    // ── INFO tab ────────────────────────────────────────────────────────────
-    activeTab==='info'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'Work Order Info')),
-        h('div',{className:'form-group'},h('label',{className:'form-label'},'Title / Job Description *'),h('input',{className:'form-input',placeholder:'e.g. 45k mile PM, brake job, oil change, pre-trip inspection...',value:f.title,onChange:e=>sf('title',e.target.value)})),
-        h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
-          h('div',null,h('label',{className:'form-label'},'Asset / Vehicle'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>sf('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
-          h('div',null,h('label',{className:'form-label'},'Assigned Technician'),h('select',{className:'form-select',value:f.technician_id,onChange:e=>sf('technician_id',e.target.value)},h('option',{value:''},'Unassigned'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))))
-        ),
-        selAsset&&h('div',{style:{background:'rgba(59,126,255,.07)',border:'0.5px solid rgba(59,126,255,.2)',borderRadius:10,padding:12,marginBottom:12,display:'flex',gap:20,flexWrap:'wrap',fontSize:12,color:'#e2e8f0'}},
-          selAsset.year&&h('span',null,selAsset.year),selAsset.make&&h('span',null,selAsset.make),selAsset.model&&h('span',null,selAsset.model),
-          selAsset.vin&&h('span',{style:{color:'#6b7a9f',fontFamily:"'JetBrains Mono',monospace",fontSize:11}},selAsset.vin),
-          selAsset.license_plate&&h('span',{style:{color:'#6b7a9f'}},selAsset.license_plate),
-          selAsset.odometer_miles&&h('span',{style:{color:'#4ade80'}},selAsset.odometer_miles.toLocaleString()+' mi on file')
-        ),
-        h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
-          h('div',null,h('label',{className:'form-label'},'Priority'),h('select',{className:'form-select',value:f.priority,onChange:e=>sf('priority',e.target.value)},['urgent','high','normal','low'].map(p=>h('option',{key:p,value:p},p)))),
-          h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:f.status,onChange:e=>sf('status',e.target.value)},['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
-          h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>sf('category',e.target.value)},h('option',{value:''},'Select...'),['preventive','repair','inspection','tire','oil change','brake job','electrical','hydraulics','bodywork','other'].map(c=>h('option',{key:c,value:c},c))))
-        ),
-        h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
-          h('div',null,h('label',{className:'form-label'},'Due Date'),h('input',{type:'date',className:'form-input',value:f.due_date,onChange:e=>sf('due_date',e.target.value)})),
-          h('div',null,h('label',{className:'form-label'},'Est. Hours'),h('input',{type:'number',step:0.5,className:'form-input',placeholder:'0.0',value:f.estimated_hours,onChange:e=>sf('estimated_hours',e.target.value)})),
-          h('div',null,h('label',{className:'form-label'},'Mileage In'),h('input',{type:'number',className:'form-input',placeholder:'Current odometer',value:f.mileage_in,onChange:e=>sf('mileage_in',e.target.value)}))
-        )
-      ),
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'Complaint / Requested Work')),
-        h('textarea',{className:'form-textarea',rows:4,placeholder:'Describe what the driver/customer reported or what service is needed...',value:f.complaint,onChange:e=>sf('complaint',e.target.value)})
-      )
-    ),
-
-    // ── TIME tab ─────────────────────────────────────────────────────────────
-    activeTab==='time'&&h('div',{className:'wo-page'},
-      !isEdit?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f',background:'#181c27',borderRadius:12}},'Save the work order first, then log time.'):
-      h('div',null,
-        h('div',{className:'wo-section'},
-          h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},h(IClock),'  Log Time Entry'),h('span',{className:'wo-section-sub'},totalHrs.toFixed(2)+' hrs logged')),
-          h('div',{className:'form-grid form-grid-3',style:{marginBottom:10}},
-            h('div',null,h('label',{className:'form-label'},'Technician'),h('select',{className:'form-select',value:tf.technician_id,onChange:e=>setTf(x=>({...x,technician_id:e.target.value}))},h('option',{value:''},'—'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name)))),
-            h('div',null,h('label',{className:'form-label'},'Hours *'),h('input',{type:'number',step:0.25,min:0.25,className:'form-input',placeholder:'1.5',value:tf.hours,onChange:e=>setTf(x=>({...x,hours:e.target.value}))})),
-            h('div',null,h('label',{className:'form-label'},'Date'),h('input',{type:'datetime-local',className:'form-input',value:tf.logged_at,onChange:e=>setTf(x=>({...x,logged_at:e.target.value}))}))
+      // Simple working app
+      return h('div', {style:{display:'flex',height:'100vh',overflow:'hidden',background:'#0f1117',color:'#e2e8f0',fontFamily:"'system-ui',sans-serif"}},
+        // Sidebar
+        h('div', {style:{width:220,background:'#181c27',borderRight:'0.5px solid #2a3048',display:'flex',flexDirection:'column',flexShrink:0}},
+          h('div', {style:{padding:'18px 20px 14px',borderBottom:'0.5px solid #2a3048'}},
+            h('div', {style:{fontSize:15,fontWeight:600,letterSpacing:'-0.02em'}}, 'FleetOps'),
+            h('div', {style:{fontSize:11,color:'#6b7a9f',marginTop:2}}, 'Maintenance Platform')
           ),
-          h('div',{style:{display:'flex',gap:8,alignItems:'flex-end'}},
-            h('div',{style:{flex:1}},h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'What was done?',value:tf.notes,onChange:e=>setTf(x=>({...x,notes:e.target.value}))})),
-            h('button',{className:'btn btn-primary',onClick:addTime,disabled:addingTime||!tf.hours},addingTime?'Adding...':'+ Add Entry')
+          h('nav', {style:{flex:1,padding:'12px 10px',overflowY:'auto'}},
+            [
+              {id:'dashboard', label:'Dashboard'},
+              {id:'workorders', label:'Work Orders', badge: openWOs.length},
+              {id:'fleet', label:'Fleet'},
+              {id:'parts', label:'Parts Inventory', badge: lowParts.length},
+              {id:'technicians', label:'Technicians'},
+              {id:'servicelogs', label:'Service Logs'},
+            ].map(item => h('button', {
+              key: item.id,
+              onClick: () => setNav(item.id),
+              style: {
+                display:'flex', alignItems:'center', gap:8, width:'100%', padding:'8px 10px',
+                borderRadius:8, fontSize:13, cursor:'pointer', border:'none', textAlign:'left',
+                background: nav===item.id ? 'rgba(59,126,255,.15)' : 'transparent',
+                color: nav===item.id ? '#3b7eff' : '#6b7a9f',
+                fontWeight: nav===item.id ? 500 : 400,
+                marginBottom:1, transition:'all .15s', fontFamily:'inherit'
+              }
+            },
+              item.label,
+              item.badge > 0 && h('span', {style:{marginLeft:'auto',background:'rgba(239,68,68,.2)',color:'#f87171',fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:10}}, item.badge)
+            ))
           )
         ),
-        (timeEntries||[]).length>0&&h('div',{className:'card'},
-          h('div',{className:'card-header'},h('span',{className:'card-title'},h(IClock),'  Time Entries'),h('span',{style:{fontSize:13,color:'#60a5fa',fontWeight:600}},totalHrs.toFixed(2)+' hrs total')),
-          h('div',{style:{padding:'0 0 8px'}},(timeEntries||[]).map(e=>h('div',{key:e.id,style:{display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:'0.5px solid #2a3048'}},
-            h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0',fontWeight:500}},e.technician?.name||'Unassigned'),h('div',{style:{fontSize:11,color:'#6b7a9f'}},fmtDate(e.logged_at)+(e.notes?' · '+e.notes:''))),
-            h('div',{style:{fontSize:16,fontWeight:700,color:'#60a5fa',minWidth:64,textAlign:'right'}},e.hours+' hrs'),
-            h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>rmTime(e.id)},h(ITrash))
-          )))
-        )
-      )
-    ),
-
-    // ── PARTS tab ────────────────────────────────────────────────────────────
-    activeTab==='parts'&&h('div',{className:'wo-page'},
-      !isEdit?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f',background:'#181c27',borderRadius:12}},'Save the work order first, then add parts.'):
-      h('div',null,
-        h('div',{className:'wo-section'},
-          h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},h(IParts),'  Parts Used'),h('span',{className:'wo-section-sub'},'$'+partsTotal.toFixed(2)+' total')),
-          (woParts||[]).length>0&&h('div',{style:{marginBottom:12}},(woParts||[]).map(p=>h('div',{key:p.id,style:{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'0.5px solid #2a3048'}},
-            h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0',fontWeight:500}},p.part_name||'—'),h('div',{style:{fontSize:11,color:'#6b7a9f'}},(p.part_number?p.part_number+' · ':'')+'Qty: '+p.quantity_used+(p.unit_cost?' · $'+parseFloat(p.unit_cost).toFixed(2)+' ea':''))),
-            p.unit_cost&&h('div',{style:{fontSize:14,fontWeight:700,color:'#e2e8f0',minWidth:70,textAlign:'right'}},'$'+(parseFloat(p.quantity_used)*parseFloat(p.unit_cost)).toFixed(2)),
-            h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>rmPart(p.id)},h(ITrash))
-          ))),
-          !showPf?h('button',{className:'btn btn-ghost',onClick:()=>setShowPf(true)},h(IPlus),' Add Part'):
-          h('div',{style:{background:'#1e2333',borderRadius:10,padding:16,marginTop:8}},
-            h('div',{className:'form-group'},h('label',{className:'form-label'},'Pick from inventory'),h('select',{className:'form-select',value:pf.part_id,onChange:selPart},h('option',{value:''},'— Select from inventory or fill in below —'),(allParts||[]).map(p=>h('option',{key:p.id,value:p.id},p.name+(p.part_number?' ('+p.part_number+')':'')+(p.unit_cost?' — $'+parseFloat(p.unit_cost).toFixed(2):'')))),),
-            h('div',{className:'form-grid form-grid-2',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Part Name'),h('input',{className:'form-input',placeholder:'Oil Filter',value:pf.part_name,onChange:e=>setPf(x=>({...x,part_name:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:pf.part_number,onChange:e=>setPf(x=>({...x,part_number:e.target.value}))}))),
-            h('div',{className:'form-grid form-grid-2',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Qty Used'),h('input',{type:'number',step:0.01,min:0.01,className:'form-input',value:pf.qty,onChange:e=>setPf(x=>({...x,qty:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Unit Cost ($)'),h('input',{type:'number',step:0.01,className:'form-input',placeholder:'0.00',value:pf.unit_cost,onChange:e=>setPf(x=>({...x,unit_cost:e.target.value}))}))),
-            h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:addPart,disabled:addingPart},addingPart?'Adding...':'Add Part'),h('button',{className:'btn btn-ghost',onClick:()=>{setShowPf(false);setPf({part_id:'',part_name:'',part_number:'',qty:'1',unit_cost:''});}}, 'Cancel'))
+        // Main content
+        h('div', {style:{flex:1,overflow:'auto',padding:24}},
+          nav === 'dashboard' && h('div', null,
+            h('h2', {style:{fontSize:18,fontWeight:600,marginBottom:20}}, 'Dashboard'),
+            h('div', {style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}},
+              [
+                {label:'Total Assets', value:assets.length, sub:'Vehicles, trailers & equipment'},
+                {label:'Open Work Orders', value:openWOs.length, sub: openWOs.filter(w=>w.priority==='urgent').length + ' urgent', warn: openWOs.filter(w=>w.priority==='urgent').length > 0},
+                {label:'Active Technicians', value:techs.filter(t=>t.status==='active').length, sub:'Assigned technicians'},
+                {label:'Parts Low / Out', value:lowParts.length, sub:parts.filter(p=>p.quantity_on_hand===0).length + ' out of stock', warn:true},
+              ].map((m,i) => h('div', {key:i, style:{background:'#181c27',borderRadius:8,padding:'14px 16px'}},
+                h('div', {style:{fontSize:11,color:'#6b7a9f',marginBottom:6}}, m.label),
+                h('div', {style:{fontSize:26,fontWeight:600,lineHeight:1,marginBottom:4}}, m.value),
+                h('div', {style:{fontSize:11,color:m.warn&&m.value>0?'#f59e0b':'#6b7a9f'}}, m.sub)
+              ))
+            ),
+            h('div', {style:{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:16}},
+              h('div', {style:{background:'#1e2333',border:'0.5px solid #2a3048',borderRadius:12}},
+                h('div', {style:{padding:'14px 16px',borderBottom:'0.5px solid #2a3048',fontWeight:600,fontSize:13}}, 'Open Work Orders'),
+                openWOs.length === 0
+                  ? h('div', {style:{padding:24,textAlign:'center',color:'#6b7a9f',fontSize:13}}, 'No open work orders')
+                  : openWOs.slice(0,6).map(wo => h('div', {key:wo.id, style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',display:'flex',gap:10,alignItems:'center',cursor:'pointer'}, onClick:()=>setNav('workorders')},
+                    h('span', {style:{fontFamily:'monospace',fontSize:11,color:'#6b7a9f',width:56,flexShrink:0}}, wo.order_number),
+                    h('div', {style:{flex:1,minWidth:0}},
+                      h('div', {style:{fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, wo.title),
+                      h('div', {style:{fontSize:11,color:'#6b7a9f'}}, (wo.asset?.name||'No asset') + ' · ' + (wo.technician?.name||'Unassigned'))
+                    ),
+                    h('span', {style:{fontSize:10,padding:'2px 8px',borderRadius:10,background:wo.priority==='urgent'?'rgba(239,68,68,.2)':wo.priority==='high'?'rgba(245,158,11,.2)':'rgba(59,126,255,.2)',color:wo.priority==='urgent'?'#f87171':wo.priority==='high'?'#fbbf24':'#60a5fa'}}, wo.priority)
+                  ))
+              ),
+              h('div', {style:{background:'#1e2333',border:'0.5px solid #2a3048',borderRadius:12}},
+                h('div', {style:{padding:'14px 16px',borderBottom:'0.5px solid #2a3048',fontWeight:600,fontSize:13}}, 'Fleet Status'),
+                assets.slice(0,8).map(a => h('div', {key:a.id, style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',display:'flex',gap:10,alignItems:'center'}},
+                  h('span', {style:{width:8,height:8,borderRadius:'50%',background:a.status==='active'?'#22c55e':a.status==='in_shop'?'#f59e0b':a.status==='down'?'#ef4444':'#6b7a9f',flexShrink:0}}),
+                  h('div', {style:{flex:1,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, a.name),
+                  h('span', {style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}}, a.status.replace('_',' '))
+                ))
+              )
+            )
+          ),
+          nav === 'workorders' && h('div', null,
+            h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}},
+              h('h2', {style:{fontSize:18,fontWeight:600}}, 'Work Orders'),
+              h('button', {style:{background:'#3b7eff',color:'#fff',border:'none',padding:'7px 16px',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:500}}, '+ New Work Order')
+            ),
+            h('div', {style:{background:'#1e2333',border:'0.5px solid #2a3048',borderRadius:12,overflow:'auto'}},
+              h('table', {style:{width:'100%',fontSize:13,borderCollapse:'collapse'}},
+                h('thead', null, h('tr', null,
+                  ['Order #','Title','Asset','Technician','Priority','Status','Due'].map(c => h('th', {key:c, style:{textAlign:'left',fontSize:11,color:'#6b7a9f',padding:'10px 16px',borderBottom:'0.5px solid #2a3048'}}, c))
+                )),
+                h('tbody', null,
+                  wos.length === 0
+                    ? h('tr', null, h('td', {colSpan:7, style:{textAlign:'center',color:'#6b7a9f',padding:32}}, 'No work orders yet'))
+                    : wos.slice(0,20).map(wo => h('tr', {key:wo.id, style:{cursor:'pointer'}},
+                      h('td', {style:{padding:'11px 16px',borderBottom:'0.5px solid #2a3048',fontFamily:'monospace',fontSize:11,color:'#6b7a9f'}}, wo.order_number),
+                      h('td', {style:{padding:'11px 16px',borderBottom:'0.5px solid #2a3048',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, wo.title),
+                      h('td', {style:{padding:'11px 16px',borderBottom:'0.5px solid #2a3048',color:'#94a3b8',fontSize:12}}, wo.asset?.name||'—'),
+                      h('td', {style:{padding:'11px 16px',borderBottom:'0.5px solid #2a3048',color:'#94a3b8',fontSize:12}}, wo.technician?.name||'Unassigned'),
+                      h('td', {style:{padding:'11px 16px',borderBottom:'0.5px solid #2a3048'}},
+                        h('span', {style:{fontSize:10,padding:'2px 8px',borderRadius:10,background:wo.priority==='urgent'?'rgba(239,68,68,.2)':wo.priority==='high'?'rgba(245,158,11,.2)':'rgba(59,126,255,.2)',color:wo.priority==='urgent'?'#f87171':wo.priority==='high'?'#fbbf24':'#60a5fa'}}, wo.priority)
+                      ),
+                      h('td', {style:{padding:'11px 16px',borderBottom:'0.5px solid #2a3048'}},
+                        h('span', {style:{fontSize:10,padding:'2px 8px',borderRadius:10,background:wo.status==='completed'?'rgba(34,197,94,.2)':wo.status==='in_progress'?'rgba(59,126,255,.2)':'rgba(245,158,11,.2)',color:wo.status==='completed'?'#4ade80':wo.status==='in_progress'?'#60a5fa':'#fbbf24'}}, wo.status.replace('_',' '))
+                      ),
+                      h('td', {style:{padding:'11px 16px',borderBottom:'0.5px solid #2a3048',color:'#6b7a9f',fontSize:12}}, wo.due_date ? new Date(wo.due_date).toLocaleDateString() : '—')
+                    ))
+                )
+              )
+            )
+          ),
+          nav === 'fleet' && h('div', null,
+            h('h2', {style:{fontSize:18,fontWeight:600,marginBottom:20}}, 'Fleet (' + assets.length + ' assets)'),
+            h('div', {style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:12}},
+              assets.map(a => h('div', {key:a.id, style:{background:'#1e2333',border:'0.5px solid #2a3048',borderRadius:12,padding:16}},
+                h('div', {style:{display:'flex',justifyContent:'space-between',marginBottom:10}},
+                  h('span', {style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}}, a.asset_type),
+                  h('span', {style:{fontSize:10,padding:'2px 8px',borderRadius:10,background:a.status==='active'?'rgba(34,197,94,.2)':'rgba(245,158,11,.2)',color:a.status==='active'?'#4ade80':'#fbbf24'}}, a.status.replace('_',' '))
+                ),
+                h('div', {style:{fontSize:14,fontWeight:500,marginBottom:4}}, a.name),
+                h('div', {style:{fontSize:12,color:'#6b7a9f',marginBottom:10}}, a.asset_number || 'No ID'),
+                h('div', {style:{fontSize:12,color:'#94a3b8'}}, [a.year, a.make, a.model].filter(Boolean).join(' ') || '—')
+              ))
+            )
+          ),
+          nav === 'parts' && h('div', null,
+            h('h2', {style:{fontSize:18,fontWeight:600,marginBottom:20}}, 'Parts Inventory'),
+            h('div', {style:{background:'#1e2333',border:'0.5px solid #2a3048',borderRadius:12,overflow:'auto'}},
+              h('table', {style:{width:'100%',fontSize:13,borderCollapse:'collapse'}},
+                h('thead', null, h('tr', null,
+                  ['Part #','Name','Category','On Hand','Reorder At','Unit Cost','Supplier'].map(c => h('th', {key:c, style:{textAlign:'left',fontSize:11,color:'#6b7a9f',padding:'10px 16px',borderBottom:'0.5px solid #2a3048'}}, c))
+                )),
+                h('tbody', null,
+                  parts.length === 0
+                    ? h('tr', null, h('td', {colSpan:7, style:{textAlign:'center',color:'#6b7a9f',padding:32}}, 'No parts yet'))
+                    : parts.map(p => {
+                      const isLow = p.quantity_on_hand <= p.reorder_point;
+                      const isOut = p.quantity_on_hand === 0;
+                      return h('tr', {key:p.id},
+                        h('td', {style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',fontFamily:'monospace',fontSize:11,color:'#6b7a9f'}}, p.part_number||'—'),
+                        h('td', {style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',fontWeight:500}}, p.name),
+                        h('td', {style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',color:'#6b7a9f',fontSize:12,textTransform:'capitalize'}}, p.category||'—'),
+                        h('td', {style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',fontWeight:600,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80'}}, p.quantity_on_hand),
+                        h('td', {style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',color:'#6b7a9f',fontSize:12}}, p.reorder_point),
+                        h('td', {style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048'}}, p.unit_cost ? '$'+parseFloat(p.unit_cost).toFixed(2) : '—'),
+                        h('td', {style:{padding:'10px 16px',borderBottom:'0.5px solid #2a3048',color:'#6b7a9f',fontSize:12}}, p.supplier||'—')
+                      );
+                    })
+                )
+              )
+            )
+          ),
+          nav === 'technicians' && h('div', null,
+            h('h2', {style:{fontSize:18,fontWeight:600,marginBottom:20}}, 'Technicians'),
+            h('div', {style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}},
+              techs.map(t => h('div', {key:t.id, style:{background:'#1e2333',border:'0.5px solid #2a3048',borderRadius:12,padding:16,display:'flex',gap:12}},
+                h('div', {style:{width:40,height:40,borderRadius:'50%',background:'rgba(59,126,255,.2)',color:'#60a5fa',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:500,flexShrink:0}},
+                  t.name.trim().split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase()
+                ),
+                h('div', null,
+                  h('div', {style:{fontSize:14,fontWeight:500,marginBottom:2}}, t.name),
+                  t.specialty && h('div', {style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}}, t.specialty),
+                  t.email && h('div', {style:{fontSize:12,color:'#6b7a9f'}}, t.email)
+                )
+              ))
+            )
+          ),
+          nav === 'servicelogs' && h('div', null,
+            h('h2', {style:{fontSize:18,fontWeight:600,marginBottom:20}}, 'Service Logs'),
+            h('div', {style:{color:'#6b7a9f',fontSize:13}}, 'Service log view coming soon.')
           )
         )
-      )
-    ),
-    // ── LIGHTS tab ───────────────────────────────────────────────────────────
-    activeTab==='lights'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'💡 Lighting Inspection')),
-        h('div',{className:'insp-grid'},
-          h(IS,{field:'headlights',label:'Headlights',opts:GWB}),
-          h(IS,{field:'taillights',label:'Taillights',opts:GWB}),
-          h(IS,{field:'brake_lights',label:'Brake Lights',opts:GWB}),
-          h(IS,{field:'turn_f',label:'Turn Signals — Front',opts:GWB}),
-          h(IS,{field:'turn_r',label:'Turn Signals — Rear',opts:GWB}),
-          h(IS,{field:'hazards',label:'Hazard Lights',opts:GWB}),
-          h(IS,{field:'reverse',label:'Reverse Lights',opts:[...GWB,...NA]}),
-          h(IS,{field:'marker_lights',label:'Marker / Clearance',opts:[...GWB,...NA]}),
-          h(IS,{field:'interior',label:'Interior / Cab Lights',opts:[...GWB,...NA]}),
-          h(IS,{field:'dash_lights',label:'Dash Warning Lights',opts:['None','Check Engine','ABS','Other']}),
-          h(IS,{field:'work_lights',label:'Work / Flood Lights',opts:[...GWB,...NA]}),
-          h(IS,{field:'strobes',label:'Strobe / Safety Lights',opts:[...GWB,...NA]}),
-          h(IN,{field:'lights_notes',label:'Lighting Notes'})
-        )
-      )
-    ),
+      );
+    }
 
-    // ── BODY tab ────────────────────────────────────────────────────────────
-    activeTab==='body'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'🚗 Body & Glass Inspection')),
-        h('div',{className:'insp-grid'},
-          h(IS,{field:'windshield',label:'Windshield / Glass',opts:GWB}),
-          h(IS,{field:'wipers',label:'Wipers / Blades',opts:GWB}),
-          h(IS,{field:'mirror_l',label:'Left Mirror',opts:GWB}),
-          h(IS,{field:'mirror_r',label:'Right Mirror',opts:GWB}),
-          h(IS,{field:'hood',label:'Hood / Latches',opts:GWB}),
-          h(IS,{field:'bumper_f',label:'Front Bumper',opts:GWB}),
-          h(IS,{field:'bumper_r',label:'Rear Bumper',opts:GWB}),
-          h(IS,{field:'door_l',label:'Driver Door / Hinges',opts:GWB}),
-          h(IS,{field:'door_r',label:'Passenger Door',opts:[...GWB,...NA]}),
-          h(IS,{field:'bed_box',label:'Bed / Box / Cargo',opts:[...GWB,...NA]}),
-          h(IS,{field:'undercarriage',label:'Undercarriage / Frame',opts:GWB}),
-          h(IS,{field:'rust',label:'Rust / Corrosion',opts:['None','Minor','Moderate','Severe']}),
-          h(IS,{field:'mud_flaps',label:'Mud Flaps',opts:[...GWB,...NA]}),
-          h(IS,{field:'running_boards',label:'Running Boards / Steps',opts:[...GWB,...NA]}),
-          h(IS,{field:'fifth_wheel',label:'5th Wheel / Hitch / Coupler',opts:[...GWB,...NA]}),
-          h(IN,{field:'body_notes',label:'Body Notes'})
-        )
-      )
-    ),
-
-    // ── FLUIDS tab ──────────────────────────────────────────────────────────
-    activeTab==='fluids'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'🛢 Fluid Levels')),
-        h('div',{className:'insp-grid'},
-          h(IS,{field:'engine_oil',label:'Engine Oil',opts:FML}),
-          h(IS,{field:'coolant',label:'Coolant / Antifreeze',opts:FML}),
-          h(IS,{field:'brake_fluid',label:'Brake Fluid',opts:FML}),
-          h(IS,{field:'power_steering',label:'Power Steering',opts:[...FML,...NA]}),
-          h(IS,{field:'trans_fluid',label:'Transmission Fluid',opts:[...FML,...NA]}),
-          h(IS,{field:'differential',label:'Differential Fluid',opts:[...FML,...NA]}),
-          h(IS,{field:'washer_fluid',label:'Washer Fluid',opts:FML}),
-          h(IS,{field:'def',label:'DEF (Diesel Exhaust)',opts:[...FML,...NA]}),
-          h(IS,{field:'hydraulic',label:'Hydraulic Fluid',opts:[...FML,...NA]}),
-          h(IS,{field:'transfer_case',label:'Transfer Case Fluid',opts:[...FML,...NA]}),
-          h(IS,{field:'oil_condition',label:'Oil Condition',opts:['Clean','Dirty','Very Dirty','Metal Particles']}),
-          h(IS,{field:'coolant_condition',label:'Coolant Condition',opts:['Good','Needs Flush','Contaminated']}),
-          h(IN,{field:'fluids_notes',label:'Fluids Notes'})
-        )
-      )
-    ),
-
-    // ── BRAKES tab ──────────────────────────────────────────────────────────
-    activeTab==='brakes'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'🛑 Brake Inspection')),
-        h('div',{style:{marginBottom:20}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'PAD / SHOE THICKNESS (mm) — New ≈ 10–12mm  ·  Replace at ≤ 3mm'),
-          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'mm_lf',unit:'mm'}),h(CB,{pos:'RF',field:'mm_rf',unit:'mm'}),h(CB,{pos:'LR',field:'mm_lr',unit:'mm'}),h(CB,{pos:'RR',field:'mm_rr',unit:'mm'}))
-        ),
-        h('div',{style:{marginBottom:16}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'ROTOR / DRUM CONDITION'),
-          h('div',{className:'insp-grid'},
-            h(IS,{field:'brake_lf',label:'LF Rotor / Drum',opts:[...GWB,...NA]}),h(IS,{field:'brake_rf',label:'RF Rotor / Drum',opts:[...GWB,...NA]}),
-            h(IS,{field:'brake_lr',label:'LR Rotor / Drum',opts:[...GWB,...NA]}),h(IS,{field:'brake_rr',label:'RR Rotor / Drum',opts:[...GWB,...NA]})
-          )
-        ),
-        h('div',{className:'insp-grid'},
-          h(IS,{field:'parking_brake',label:'Parking Brake',opts:GWB}),
-          h(IS,{field:'brake_lines',label:'Brake Lines / Hoses',opts:GWB}),
-          h(IS,{field:'calipers',label:'Calipers / Wheel Cylinders',opts:[...GWB,...NA]}),
-          h(IS,{field:'abs',label:'ABS System',opts:['Functional','Fault Code','Not Equipped']}),
-          h(IN,{field:'brakes_notes',label:'Brake Notes'})
-        )
-      )
-    ),
-
-    // ── TIRES tab ───────────────────────────────────────────────────────────
-    activeTab==='tires'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'🔵 Tire Inspection')),
-        h('div',{style:{marginBottom:20}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'TREAD DEPTH (32nds) — New ≈ 10–12/32"  ·  Legal minimum 2/32"  ·  Replace ≤ 4/32"'),
-          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'t32_lf',unit:'/32"'}),h(CB,{pos:'RF',field:'t32_rf',unit:'/32"'}),h(CB,{pos:'LR',field:'t32_lr',unit:'/32"'}),h(CB,{pos:'RR',field:'t32_rr',unit:'/32"'}))
-        ),
-        h('div',{style:{marginBottom:20}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'TIRE PRESSURE (PSI)'),
-          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'psi_lf',unit:'PSI'}),h(CB,{pos:'RF',field:'psi_rf',unit:'PSI'}),h(CB,{pos:'LR',field:'psi_lr',unit:'PSI'}),h(CB,{pos:'RR',field:'psi_rr',unit:'PSI'}))
-        ),
-        h('div',{style:{marginBottom:16}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'TIRE CONDITION'),
-          h('div',{className:'insp-grid'},
-            h(IS,{field:'tc_lf',label:'LF Condition',opts:TC}),h(IS,{field:'tc_rf',label:'RF Condition',opts:TC}),
-            h(IS,{field:'tc_lr',label:'LR Condition',opts:TC}),h(IS,{field:'tc_rr',label:'RR Condition',opts:TC})
-          )
-        ),
-        h('div',{className:'insp-grid'},
-          h(IS,{field:'spare',label:'Spare Tire Present',opts:[...YN,...NA]}),
-          h(IS,{field:'spare_cond',label:'Spare Condition',opts:[...GWB,...NA]}),
-          h(IS,{field:'valve_stems',label:'Valve Stems',opts:GWB}),
-          h(IS,{field:'lug_nuts',label:'Lug Nuts / Torque',opts:GWB}),
-          h(IS,{field:'wheel_seals',label:'Wheel Seals',opts:['No Leak','Seeping','Leaking',...NA]}),
-          h(IS,{field:'alignment',label:'Wear Pattern / Alignment',opts:['Normal','Outer Wear','Inner Wear','Center Wear','Feathering']}),
-          h(IN,{field:'tires_notes',label:'Tire Notes'})
-        )
-      )
-    ),
-
-    // ── ELECTRICAL tab ──────────────────────────────────────────────────────
-    activeTab==='electrical'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'⚡ Electrical & Engine')),
-        h('div',{className:'insp-grid'},
-          h(IS,{field:'battery',label:'Battery',opts:GWB}),
-          h(IS,{field:'terminals',label:'Battery Terminals',opts:['Clean','Corrosion','Bad']}),
-          h(IS,{field:'voltage',label:'Battery Voltage',opts:['12.6V+ Good','12.4V Fair','<12.2V Weak']}),
-          h(IS,{field:'alternator',label:'Alternator / Charging',opts:GWB}),
-          h(IS,{field:'starter',label:'Starter',opts:GWB}),
-          h(IS,{field:'serp_belt',label:'Serpentine Belt',opts:[...GWB,...NA]}),
-          h(IS,{field:'timing_belt',label:'Timing Belt / Chain',opts:[...GWB,...NA]}),
-          h(IS,{field:'coolant_hoses',label:'Coolant Hoses',opts:GWB}),
-          h(IS,{field:'fuel_lines',label:'Fuel Lines / Filter',opts:GWB}),
-          h(IS,{field:'air_filter',label:'Air Filter',opts:['Clean','Dirty','Replace']}),
-          h(IS,{field:'cabin_filter',label:'Cabin Air Filter',opts:['Clean','Dirty','Replace',...NA]}),
-          h(IS,{field:'exhaust',label:'Exhaust System',opts:GWB}),
-          h(IS,{field:'dpf',label:'DPF / Emissions',opts:[...GWB,...NA]}),
-          h(IS,{field:'dtc',label:'DTC / Fault Codes',opts:['None','Active','Pending','History']}),
-          h(IS,{field:'ac_heat',label:'A/C & Heat',opts:[...GWB,...NA]}),
-          h(IS,{field:'horn',label:'Horn',opts:['Works','Does Not Work']}),
-          h(IN,{field:'elec_notes',label:'Electrical Notes'})
-        )
-      )
-    ),
-
-    // ── FINDINGS tab ─────────────────────────────────────────────────────────
-    activeTab==='findings'&&h('div',{className:'wo-page'},
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'📋 Findings & Work Performed')),
-        h('div',{className:'form-group'},h('label',{className:'form-label'},'Technician Findings / Diagnosis'),h('textarea',{className:'form-textarea',rows:4,placeholder:'What did you find? Measurements, conditions, diagnosis results...',value:f.findings,onChange:e=>sf('findings',e.target.value)})),
-        h('div',{className:'form-group'},h('label',{className:'form-label'},'Work Performed'),h('textarea',{className:'form-textarea',rows:4,placeholder:'Describe all work completed on this visit...',value:f.work_performed,onChange:e=>sf('work_performed',e.target.value)})),
-        h('div',{className:'form-group'},h('label',{className:'form-label'},'Recommendations / Follow-Up'),h('textarea',{className:'form-textarea',rows:3,placeholder:'Future repairs, upcoming maintenance, parts to order...',value:f.recommendations,onChange:e=>sf('recommendations',e.target.value)}))
-      ),
-      h('div',{className:'wo-section'},
-        h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'💰 Labor & Costs')),
-        h('div',{className:'form-grid form-grid-3',style:{marginBottom:16}},
-          h('div',null,h('label',{className:'form-label'},'Mileage Out'),h('input',{type:'number',className:'form-input',placeholder:'Odometer at completion',value:f.mileage_out,onChange:e=>sf('mileage_out',e.target.value)})),
-          h('div',null,h('label',{className:'form-label'},'Labor Cost ($)'),h('input',{type:'number',step:0.01,className:'form-input',placeholder:'0.00',value:f.labor_cost,onChange:e=>sf('labor_cost',e.target.value)})),
-          h('div',null,h('label',{className:'form-label'},'Actual Hours (override)'),h('input',{type:'number',step:0.25,className:'form-input',placeholder:totalHrs.toFixed(2)+' logged',value:f.estimated_hours,onChange:e=>sf('estimated_hours',e.target.value)}))
-        ),
-        isEdit&&h('div',{className:'cost-bar'},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Cost Summary'),
-          h('div',{className:'cost-line'},'Labor',h('span',null,f.labor_cost?'$'+parseFloat(f.labor_cost).toFixed(2):'—')),
-          h('div',{className:'cost-line'},'Parts ('+(woParts||[]).length+' items)',h('span',null,'$'+partsTotal.toFixed(2))),
-          h('div',{className:'cost-line'},'Time logged',h('span',null,totalHrs.toFixed(2)+' hrs')),
-          h('div',{className:'cost-line total'},'Grand Total',h('span',null,'$'+grandTotal.toFixed(2)))
-        ),
-        isEdit&&h('button',{className:'btn btn-success',style:{width:'100%',justifyContent:'center',padding:12,marginTop:8},onClick:()=>doSave('completed')},h(ICheck),' Mark Complete & Save')
-      )
-    )
-  );// end WOForm return
-}// end WOForm
-
-function Parts(){
-  const{data:parts,loading,refetch}=useQuery(()=>sb.from('parts').select('*').order('name'));
-  const[search,setSearch]=useState('');const[catF,setCatF]=useState('');const[modal,setModal]=useState(null);
-  const cats=[...new Set((parts||[]).map(p=>p.category).filter(Boolean))].sort();
-  const filtered=(parts||[]).filter(p=>{if(catF&&p.category!==catF)return false;if(search){const q=search.toLowerCase();return p.name?.toLowerCase().includes(q)||p.part_number?.toLowerCase().includes(q)||p.supplier?.toLowerCase().includes(q);}return true;});
-  const lowParts=filtered.filter(p=>p.quantity_on_hand<=p.reorder_point);const outParts=filtered.filter(p=>p.quantity_on_hand===0);
-  const del=async id=>{if(!confirm('Delete?'))return;await sb.from('parts').delete().eq('id',id);refetch();};
-  const expCols=[{k:'part_number',l:'part_number'},{k:'name',l:'name'},{k:'category',l:'category'},{k:'quantity_on_hand',l:'quantity_on_hand'},{k:'reorder_point',l:'reorder_point'},{k:'unit_cost',l:'unit_cost'},{k:'supplier',l:'supplier'},{k:'location',l:'location'}];
-  const PM=({part,onClose})=>{
-    const isEdit=Boolean(part?.id);
-    const[f,setF]=useState({part_number:part?.part_number||'',name:part?.name||'',category:part?.category||'',quantity_on_hand:part?.quantity_on_hand??0,reorder_point:part?.reorder_point??5,unit_cost:part?.unit_cost||'',supplier:part?.supplier||'',location:part?.location||''});
-    const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);
-    const s=(k,v)=>setF(x=>({...x,[k]:v}));
-    const save=async()=>{if(!f.name.trim()){setErr('Name required');return;}setSaving(true);const payload={...f,quantity_on_hand:parseInt(f.quantity_on_hand)||0,reorder_point:parseInt(f.reorder_point)||5,unit_cost:f.unit_cost?parseFloat(f.unit_cost):null,updated_at:new Date().toISOString()};const{error:e}=isEdit?await sb.from('parts').update(payload).eq('id',part.id):await sb.from('parts').insert(payload);setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();};
-    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},h('h3',null,isEdit?'Edit Part':'Add Part'),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:f.part_number,onChange:e=>s('part_number',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>s('category',e.target.value)},h('option',{value:''},'Select...'),['filters','brakes','fluids','electrical','belts','tires','accessories','other'].map(c=>h('option',{key:c,value:c},c))))),h('div',{className:'form-group'},h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',value:f.name,onChange:e=>s('name',e.target.value)})),h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Qty on hand'),h('input',{type:'number',className:'form-input',value:f.quantity_on_hand,onChange:e=>s('quantity_on_hand',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Reorder at'),h('input',{type:'number',className:'form-input',value:f.reorder_point,onChange:e=>s('reorder_point',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Unit cost'),h('input',{type:'number',step:.01,className:'form-input',placeholder:'0.00',value:f.unit_cost,onChange:e=>s('unit_cost',e.target.value)}))),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Supplier'),h('input',{className:'form-input',value:f.supplier,onChange:e=>s('supplier',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Bin/Shelf'),h('input',{className:'form-input',placeholder:'A-12',value:f.location,onChange:e=>s('location',e.target.value)}))),err&&h('div',{className:'error-box'},err),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add part'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))));
-  };
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Parts Inventory'),h('p',null,(parts||[]).length+' parts total')),h('div',{className:'btn-row'},h('button',{className:'btn btn-ghost',onClick:()=>dlCSV('fleetops_parts.csv',toCSV(parts||[],expCols))},h(IDownload),' Export'),h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add Part'))),
-    outParts.length>0&&h('div',{className:'alert alert-danger'},h(IAlert),outParts.length+' out of stock: '+outParts.map(p=>p.name).join(', ')),
-    lowParts.length>outParts.length&&h('div',{className:'alert alert-warn'},h(IAlert),(lowParts.length-outParts.length)+' below reorder point'),
-    h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search parts...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:160},value:catF,onChange:e=>setCatF(e.target.value)},h('option',{value:''},'All categories'),cats.map(c=>h('option',{key:c,value:c},c)))),
-    h('div',{className:'card'},
-      h('div',{className:'table-wrap'},h('table',null,h('thead',null,h('tr',null,['Part #','Name','Cat','On Hand','Reorder','Cost','Supplier','Bin',''].map(c=>h('th',{key:c},c)))),h('tbody',null,loading?h('tr',null,h('td',{colSpan:9,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;return h('tr',{key:p.id},h('td',null,h('span',{className:'mono'},p.part_number||'—')),h('td',{style:{fontWeight:500}},p.name),h('td',{style:{color:'#6b7a9f',fontSize:12,textTransform:'capitalize'}},p.category||'—'),h('td',null,h('span',{style:{fontWeight:600,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80'}},p.quantity_on_hand)),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.reorder_point),h('td',null,fmtCur(p.unit_cost)),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.supplier||'—'),h('td',{style:{color:'#6b7a9f',fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},p.location||'—'),h('td',null,h('div',{className:'btn-row'},h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit)),h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>del(p.id)},h(ITrash)))));}))),
-      h('div',{className:'table-mobile'},loading?h('div',{style:{padding:24,color:'#6b7a9f',textAlign:'center'}},'Loading...'):filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;return h('div',{key:p.id,className:'divide-row'},h('div',{style:{flex:1}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},p.name),h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},p.part_number,' · ',p.category)),h('div',{style:{fontSize:18,fontWeight:700,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80',marginRight:8}},p.quantity_on_hand),h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit)));}))
-    ),
-    modal!==null&&h(PM,{part:modal.id?modal:null,onClose:()=>setModal(null)})
-  );
+    status('Rendering app...');
+    ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+    
+  } catch(e) {
+    err('Boot error:\n' + (e.stack || e.message));
+  }
 }
 
-function Technicians(){
-  const{data:techs,loading,refetch}=useQuery(()=>sb.from('technicians').select('*').order('name'));
-  const{data:wos}=useQuery(()=>sb.from('work_orders').select('technician_id,status').in('status',['open','in_progress']));
-  const[modal,setModal]=useState(null);
-  const obt=id=>(wos||[]).filter(w=>w.technician_id===id).length;
-  const del=async id=>{if(!confirm('Remove?'))return;await sb.from('technicians').delete().eq('id',id);refetch();};
-  const TM=({tech,onClose})=>{
-    const isEdit=Boolean(tech?.id);
-    const[f,setF]=useState({name:tech?.name||'',email:tech?.email||'',phone:tech?.phone||'',specialty:tech?.specialty||'',status:tech?.status||'active'});
-    const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);
-    const s=(k,v)=>setF(x=>({...x,[k]:v}));
-    const save=async()=>{if(!f.name.trim()){setErr('Name required');return;}setSaving(true);const{error:e}=isEdit?await sb.from('technicians').update(f).eq('id',tech.id):await sb.from('technicians').insert(f);setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();};
-    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},h('h3',null,isEdit?'Edit Technician':'Add Technician'),h('div',{className:'form-group'},h('label',{className:'form-label'},'Full name *'),h('input',{className:'form-input',placeholder:'Juan Martinez',value:f.name,onChange:e=>s('name',e.target.value)})),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Email'),h('input',{type:'email',className:'form-input',value:f.email,onChange:e=>s('email',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Phone'),h('input',{type:'tel',className:'form-input',value:f.phone,onChange:e=>s('phone',e.target.value)}))),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Specialty'),h('select',{className:'form-select',value:f.specialty,onChange:e=>s('specialty',e.target.value)},h('option',{value:''},'General'),['diesel','hydraulics','electrical','tires','bodywork','hvac','welding'].map(c=>h('option',{key:c,value:c},c)))),h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:f.status,onChange:e=>s('status',e.target.value)},h('option',{value:'active'},'Active'),h('option',{value:'inactive'},'Inactive')))),err&&h('div',{className:'error-box'},err),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))));
-  };
-  const active=(techs||[]).filter(t=>t.status==='active');const inactive=(techs||[]).filter(t=>t.status==='inactive');const mx=Math.max(1,...active.map(t=>obt(t.id)));
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Technicians'),h('p',null,active.length+' active')),h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add')),
-    loading?h('div',{style:{textAlign:'center',color:'#6b7a9f',padding:40}},'Loading...'):
-    h(Fragment,null,
-      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}},active.map(t=>{const cnt=obt(t.id);return h('div',{key:t.id,className:'card',style:{padding:16,display:'flex',gap:12,alignItems:'flex-start'}},h('div',{className:'avatar'},initials(t.name)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},h('div',{style:{fontSize:14,fontWeight:500,color:'#e2e8f0'}},t.name),t.specialty&&h('span',{className:'badge b-normal',style:{textTransform:'capitalize'}},t.specialty)),t.email&&h('div',{style:{fontSize:12,color:'#6b7a9f'}},t.email),t.phone&&h('div',{style:{fontSize:12,color:'#6b7a9f'}},t.phone),h('div',{style:{marginTop:8}},h('div',{className:'workload-info'},h('span',{style:{fontSize:12,color:cnt>0?'#60a5fa':'#6b7a9f'}},cnt+' open order'+(cnt!==1?'s':''))),h('div',{className:'workload-bar-bg'},h('div',{className:'workload-bar',style:{width:(cnt/mx)*100+'%'}})))),h('div',{className:'btn-row'},h('button',{className:'btn-icon',onClick:()=>setModal(t)},h(IEdit)),h('button',{className:'btn-icon',onClick:()=>del(t.id)},h(ITrash))));})),
-      inactive.length>0&&h('div',{style:{marginTop:20}},h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.08em',fontWeight:600,marginBottom:8}},'Inactive'),h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:8}},inactive.map(t=>h('div',{key:t.id,className:'card',style:{padding:14,display:'flex',gap:10,alignItems:'center',opacity:.5}},h('div',{className:'avatar'},initials(t.name)),h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0'}},t.name),t.specialty&&h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},t.specialty)),h('button',{className:'btn-icon',onClick:()=>setModal(t)},h(IEdit))))))
-    ),
-    modal!==null&&h(TM,{tech:modal.id?modal:null,onClose:()=>setModal(null)})
-  );
+// Boot after page loads
+if (document.readyState === 'complete') {
+  setTimeout(boot, 100);
+} else {
+  window.addEventListener('load', () => setTimeout(boot, 100));
 }
-
-function ServiceLogs(){
-  const[assetF,setAssetF]=useState('');const[search,setSearch]=useState('');const[showM,setShowM]=useState(false);
-  const{data:logs,loading,refetch}=useQuery(()=>{let q=sb.from('service_logs').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('serviced_at',{ascending:false});if(assetF)q=q.eq('asset_id',assetF);return q;},[assetF]);
-  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number').order('name'));
-  const{data:techs}=useQuery(()=>sb.from('technicians').select('id,name').eq('status','active').order('name'));
-  const filtered=(logs||[]).filter(l=>{if(!search)return true;const q=search.toLowerCase();return l.service_type?.toLowerCase().includes(q)||l.asset?.name?.toLowerCase().includes(q)||l.technician?.name?.toLowerCase().includes(q);});
-  const LM=({onClose})=>{
-    const[f,setF]=useState({asset_id:'',technician_id:'',service_type:'',description:'',odometer_miles:'',engine_hours:'',cost:'',serviced_at:new Date().toISOString().slice(0,16),next_service_miles:'',next_service_date:''});
-    const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);const s=(k,v)=>setF(x=>({...x,[k]:v}));
-    const save=async()=>{if(!f.asset_id||!f.service_type){setErr('Asset and service type required');return;}setSaving(true);const p={asset_id:f.asset_id,technician_id:f.technician_id||null,service_type:f.service_type,description:f.description||null,odometer_miles:f.odometer_miles?parseInt(f.odometer_miles):null,engine_hours:f.engine_hours?parseFloat(f.engine_hours):null,cost:f.cost?parseFloat(f.cost):null,serviced_at:f.serviced_at||new Date().toISOString(),next_service_miles:f.next_service_miles?parseInt(f.next_service_miles):null,next_service_date:f.next_service_date||null};const{error:e}=await sb.from('service_logs').insert(p);setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();};
-    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},h('h3',null,'Log Service'),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select...'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':'') )))),h('div',null,h('label',{className:'form-label'},'Technician'),h('select',{className:'form-select',value:f.technician_id,onChange:e=>s('technician_id',e.target.value)},h('option',{value:''},'Unassigned'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))))),h('div',{className:'form-group'},h('label',{className:'form-label'},'Service Type *'),h('select',{className:'form-select',value:f.service_type,onChange:e=>s('service_type',e.target.value)},h('option',{value:''},'Select...'),['Oil change','PM service','Brake job','Tire rotation','Tire replacement','Inspection','Filter replacement','Fluid flush','Belt replacement','Electrical repair','Hydraulic repair','Bodywork','Other'].map(st=>h('option',{key:st,value:st},st)))),h('div',{className:'form-group'},h('label',{className:'form-label'},'Date'),h('input',{type:'datetime-local',className:'form-input',value:f.serviced_at,onChange:e=>s('serviced_at',e.target.value)})),h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Odometer (mi)'),h('input',{type:'number',className:'form-input',value:f.odometer_miles,onChange:e=>s('odometer_miles',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Eng. Hours'),h('input',{type:'number',step:.1,className:'form-input',value:f.engine_hours,onChange:e=>s('engine_hours',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Cost ($)'),h('input',{type:'number',step:.01,className:'form-input',placeholder:'0.00',value:f.cost,onChange:e=>s('cost',e.target.value)}))),h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('textarea',{className:'form-textarea',rows:3,value:f.description,onChange:e=>s('description',e.target.value)})),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Next Service Miles'),h('input',{type:'number',className:'form-input',value:f.next_service_miles,onChange:e=>s('next_service_miles',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Next Service Date'),h('input',{type:'date',className:'form-input',value:f.next_service_date,onChange:e=>s('next_service_date',e.target.value)}))),err&&h('div',{className:'error-box'},err),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Log service'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))));
-  };
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Service Logs'),h('p',null,filtered.length+' records')),h('button',{className:'btn btn-primary',onClick:()=>setShowM(true)},h(IPlus),' Log Service')),
-    h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search logs...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:200},value:assetF,onChange:e=>setAssetF(e.target.value)},h('option',{value:''},'All assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name)))),
-    h('div',{className:'card'},loading?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'Loading...'):filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No service records found'):
-      filtered.map(log=>h('div',{key:log.id,style:{padding:'14px 16px',borderBottom:'0.5px solid #2a3048'}},
-        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}},
-          h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',gap:10,alignItems:'center',marginBottom:4,flexWrap:'wrap'}},h('span',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),h('span',{style:{fontSize:12,color:'#3b7eff'}},log.asset?.name)),h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16,flexWrap:'wrap'}},log.technician?.name&&h('span',null,log.technician.name),log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),log.engine_hours&&h('span',null,log.engine_hours+' hrs'),log.cost&&h('span',null,fmtCur(log.cost))),log.description&&h('div',{style:{fontSize:12,color:'#6b7a9f',marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},log.description),log.next_service_date&&h('div',{style:{fontSize:12,color:'#fbbf24',marginTop:4}},'Next: '+fmtDate(log.next_service_date)+(log.next_service_miles?' or '+log.next_service_miles.toLocaleString()+' mi':''))),
-          h('div',{style:{fontSize:12,color:'#6b7a9f',flexShrink:0,textAlign:'right'}},fmtDate(log.serviced_at))
-        )
-      ))
-    ),
-    showM&&h(LM,{onClose:()=>setShowM(false)})
-  );
-}
-
-function App(){
-  const[page,setPage]=useState('dashboard');const[drawerOpen,setDrawerOpen]=useState(false);
-  const{data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
-  const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point'));
-  const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.quantity_on_hand<=p.reorder_point).length};
-  const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'FleetOps';
-  const render=()=>{
-    if(page==='dashboard')return h(Dashboard,{setPage});
-    if(page==='workorders')return h(WorkOrders,{setPage});
-    if(page==='wo-new')return h(WOForm,{id:null,setPage});
-    if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage});
-    if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage});
-    if(page==='fleet')return h(Fleet,{setPage});
-    if(page==='asset-new')return h(AssetForm,{id:null,setPage});
-    if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
-    if(page.startsWith('asset-'))return h(AssetDetail,{id:page.replace('asset-',''),setPage});
-    if(page==='parts')return h(Parts,null);
-    if(page==='technicians')return h(Technicians,null);
-    if(page==='servicelogs')return h(ServiceLogs,null);
-    return h(Dashboard,{setPage});
-  };
-  return h('div',{className:'shell'},
-    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,onClose:null})),
-    h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,onClose:()=>setDrawerOpen(false)}))),
-    h('div',{className:'main'},h('div',{className:'mobile-bar'},h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),h('span',null,lbl)),render())
-  );
-}
-ReactDOM.createRoot(document.getElementById('root')).render(h(App));
 </script>
 </body>
 </html>
