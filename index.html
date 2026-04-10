@@ -184,8 +184,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script>
 
 const {createElement:h,useState,useEffect,useCallback,useRef,Fragment}=React;
-const SUPA_URL='https://zmxynpheteglskqnadbg.supabase.co';
+const SUPA_URL='https://zmxynphetgelskqnadbg.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpteHlucGhldGdlbHNrcW5hZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Mzg5ODgsImV4cCI6MjA5MDIxNDk4OH0.BDHe4XsGCvHY0sIxN5ncIV7-EYEj4lq-nuxFfvySZgU';
+const SAMSARA_SYNC_URL='https://zmxynpheteglskqnadbg.supabase.co/functions/v1/samsara-sync';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
 function useQuery(fn,deps=[]){
@@ -323,11 +324,28 @@ function SamsaraBtn({refetch}){
   const doSync=async()=>{
     setSyncing(true);setResult(null);
     try{
-      const resp=await fetch('https://zmxynpheteglskqnadbg.supabase.co/functions/v1/samsara-sync',{method:'POST',headers:{'Content-Type':'application/json'}});
-      const data=await resp.json();
+      const resp=await fetch(SAMSARA_SYNC_URL,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':SUPA_KEY,
+          'Authorization':'Bearer '+SUPA_KEY
+        }
+      });
+      let data=null;
+      try{
+        data=await resp.json();
+      }catch(_err){
+        data={};
+      }
+      if(!resp.ok){
+        throw new Error(data?.error||data?.message||('Sync failed ('+resp.status+')'));
+      }
       setResult(data);
-      if(data.synced>0)refetch();
-    }catch(e){setResult({error:e.message});}
+      if((data?.synced||0)>0&&typeof refetch==='function')refetch();
+    }catch(e){
+      setResult({error:e.message||'Sync failed'});
+    }
     setSyncing(false);
   };
   return h('div',{style:{position:'relative',display:'inline-block'}},
