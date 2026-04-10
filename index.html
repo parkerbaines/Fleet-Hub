@@ -494,7 +494,34 @@ function WOForm({id,setPage}){
   const addTime=async()=>{if(!tf.hours)return;setAddingTime(true);await sb.from('work_order_time_entries').insert({work_order_id:id,technician_id:tf.technician_id||null,hours:parseFloat(tf.hours),notes:tf.notes||null,logged_at:tf.logged_at?new Date(tf.logged_at).toISOString():new Date().toISOString()});setTf({technician_id:'',hours:'',notes:'',logged_at:new Date().toISOString().slice(0,16)});setAddingTime(false);refetchTime();};
   const rmTime=async eid=>{await sb.from('work_order_time_entries').delete().eq('id',eid);refetchTime();};
   const selPart=e=>{const p=allParts?.find(x=>x.id===e.target.value);if(p)setPf(x=>({...x,part_id:p.id,part_name:p.name,part_number:p.part_number||'',unit_cost:p.unit_cost!=null?String(p.unit_cost):''}));else setPf(x=>({...x,part_id:''}));};
-  const addPart=async()=>{if(!pf.part_name&&!pf.part_id)return;setAddingPart(true);const sp=allParts?.find(p=>p.id===pf.part_id);await sb.from('work_order_parts').insert({work_order_id:id,part_id:pf.part_id||null,part_name:pf.part_name||(sp?.name||''),part_number:pf.part_number||(sp?.part_number||''),quantity_used:parseFloat(pf.qty)||1,unit_cost:pf.unit_cost?parseFloat(pf.unit_cost):(sp?.unit_cost||null)});setPf({part_id:'',part_name:'',part_number:'',qty:'1',unit_cost:''});setShowPf(false);setAddingPart(false);refetchParts();};
+  const addPart=async()=>{
+    if(!pf.part_name&&!pf.part_id)return;
+    setAddingPart(true);
+    const sp=allParts?.find(p=>p.id===pf.part_id);
+    let finalPartId=pf.part_id||null;
+    // If no existing part selected, save it to parts inventory first
+    if(!pf.part_id&&pf.part_name.trim()){
+      const{data:newPart}=await sb.from('parts').insert({
+        name:pf.part_name.trim(),
+        part_number:pf.part_number||null,
+        unit_cost:pf.unit_cost?parseFloat(pf.unit_cost):null,
+        quantity_on_hand:0,
+        reorder_point:5,
+        updated_at:new Date().toISOString(),
+      }).select().single();
+      if(newPart)finalPartId=newPart.id;
+    }
+    await sb.from('work_order_parts').insert({
+      work_order_id:id,
+      part_id:finalPartId,
+      part_name:pf.part_name||(sp?.name||''),
+      part_number:pf.part_number||(sp?.part_number||''),
+      quantity_used:parseFloat(pf.qty)||1,
+      unit_cost:pf.unit_cost?parseFloat(pf.unit_cost):(sp?.unit_cost||null),
+    });
+    setPf({part_id:'',part_name:'',part_number:'',qty:'1',unit_cost:''});
+    setShowPf(false);setAddingPart(false);refetchParts();
+  };
   const rmPart=async pid=>{await sb.from('work_order_parts').delete().eq('id',pid);refetchParts();};
 
   const totalHrs=(timeEntries||[]).reduce((s,e)=>s+parseFloat(e.hours||0),0);
@@ -514,9 +541,6 @@ function WOForm({id,setPage}){
   const brakeColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n>=6)return '#22c55e';if(n>=3)return '#f59e0b';return '#ef4444';};
   // Color scale for tire tread (32nds): >=6 green, 3-5 yellow, <=2 red
   const treadColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n>=6)return '#22c55e';if(n>=3)return '#f59e0b';return '#ef4444';};
-  // Color scale for tire PSI: needs target but we'll use 25-45 normal range; flag extremes
-  // <20 or >65 = red, 20-24 or 56-65 = yellow, 25-55 = green
-  const psiColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n<20||n>65)return '#ef4444';if(n<25||n>55)return '#f59e0b';return '#22c55e';};
 
   const CB=({pos,field,unit,colorFn})=>{const cbRef=useRef(null);const col=colorFn?colorFn(insp[field]):'#2a3048';useEffect(()=>{if(cbRef.current&&document.activeElement!==cbRef.current)cbRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'corner-box',style:{borderBottom:'3px solid '+col}},h('div',{className:'pos'},pos),h('input',{ref:cbRef,type:'text',inputMode:'decimal',defaultValue:insp[field]||'',placeholder:'—',style:{color:col!=='#2a3048'?col:'#e2e8f0'},onBlur:e=>{si(field,e.target.value);if(cbRef.current)cbRef.current.style.color=colorFn?colorFn(e.target.value):'#e2e8f0';},onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}),h('div',{className:'unit',style:{color:col!=='#2a3048'?col:'#6b7a9f'}},unit));}
   const GWB=['Good','Fair','Bad'];const FML=['Full','Moderate','Low'];const PF2=['Pass','Fail'];const YN=['Yes','No'];const NA=['N/A'];
@@ -663,7 +687,7 @@ function WOForm({id,setPage}){
           ))),
           !showPf?h('button',{className:'btn btn-ghost',onClick:()=>setShowPf(true)},h(IPlus),' Add Part'):
           h('div',{style:{background:'#1e2333',borderRadius:10,padding:16,marginTop:8}},
-            h('div',{className:'form-group'},h('label',{className:'form-label'},'Pick from inventory'),h('select',{className:'form-select',value:pf.part_id,onChange:selPart},h('option',{value:''},'— Select from inventory or fill in below —'),(allParts||[]).map(p=>h('option',{key:p.id,value:p.id},p.name+(p.part_number?' ('+p.part_number+')':'')+(p.unit_cost?' — $'+parseFloat(p.unit_cost).toFixed(2):'')))),),
+            h('div',{style:{fontSize:11,color:'#4ade80',marginBottom:10,padding:'6px 10px',background:'rgba(34,197,94,.07)',borderRadius:6}},'✓ New parts are auto-saved to Parts Inventory'),h('div',{className:'form-group'},h('label',{className:'form-label'},'Pick from inventory'),h('select',{className:'form-select',value:pf.part_id,onChange:selPart},h('option',{value:''},'— Select from inventory or fill in below —'),(allParts||[]).map(p=>h('option',{key:p.id,value:p.id},p.name+(p.part_number?' ('+p.part_number+')':'')+(p.unit_cost?' — $'+parseFloat(p.unit_cost).toFixed(2):'')))),),
             h('div',{className:'form-grid form-grid-2',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Part Name'),h('input',{className:'form-input',placeholder:'Oil Filter',value:pf.part_name,onChange:e=>setPf(x=>({...x,part_name:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:pf.part_number,onChange:e=>setPf(x=>({...x,part_number:e.target.value}))}))),
             h('div',{className:'form-grid form-grid-2',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Qty Used'),h('input',{type:'number',step:0.01,min:0.01,className:'form-input',value:pf.qty,onChange:e=>setPf(x=>({...x,qty:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Unit Cost ($)'),h('input',{type:'number',step:0.01,className:'form-input',placeholder:'0.00',value:pf.unit_cost,onChange:e=>setPf(x=>({...x,unit_cost:e.target.value}))}))),
             h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:addPart,disabled:addingPart},addingPart?'Adding...':'Add Part'),h('button',{className:'btn btn-ghost',onClick:()=>{setShowPf(false);setPf({part_id:'',part_name:'',part_number:'',qty:'1',unit_cost:''});}}, 'Cancel'))
@@ -774,8 +798,7 @@ function WOForm({id,setPage}){
           h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'t32_lf',unit:'/32"',colorFn:treadColor}),h(CB,{pos:'RF',field:'t32_rf',unit:'/32"',colorFn:treadColor}),h(CB,{pos:'LR',field:'t32_lr',unit:'/32"',colorFn:treadColor}),h(CB,{pos:'RR',field:'t32_rr',unit:'/32"',colorFn:treadColor}))
         ),
         h('div',{style:{marginBottom:20}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600}},'TIRE PRESSURE (PSI)'),h('div',{style:{display:'flex',gap:12,marginBottom:10,fontSize:11}},h('span',{style:{color:'#22c55e'}},'● 25–55 PSI Normal'),h('span',{style:{color:'#f59e0b'}},'● 20–24 / 56–65 Check'),h('span',{style:{color:'#ef4444'}},'● <20 / >65 Critical')),
-          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'psi_lf',unit:'PSI',colorFn:psiColor}),h(CB,{pos:'RF',field:'psi_rf',unit:'PSI',colorFn:psiColor}),h(CB,{pos:'LR',field:'psi_lr',unit:'PSI',colorFn:psiColor}),h(CB,{pos:'RR',field:'psi_rr',unit:'PSI',colorFn:psiColor}))
+          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600}},'TIRE PRESSURE (PSI)'),h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'psi_lf',unit:'PSI'}),h(CB,{pos:'RF',field:'psi_rf',unit:'PSI'}),h(CB,{pos:'LR',field:'psi_lr',unit:'PSI'}),h(CB,{pos:'RR',field:'psi_rr',unit:'PSI'}))
         ),
         h('div',{style:{marginBottom:16}},
           h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'TIRE CONDITION'),
