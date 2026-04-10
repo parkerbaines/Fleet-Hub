@@ -186,7 +186,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
 const {createElement:h,useState,useEffect,useCallback,useRef,Fragment}=React;
 const SUPA_URL='https://zmxynphetgelskqnadbg.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpteHlucGhldGdlbHNrcW5hZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Mzg5ODgsImV4cCI6MjA5MDIxNDk4OH0.BDHe4XsGCvHY0sIxN5ncIV7-EYEj4lq-nuxFfvySZgU';
-const SAMSARA_SYNC_URL='https://zmxynpheteglskqnadbg.supabase.co/functions/v1/samsara-sync';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
 function useQuery(fn,deps=[]){
@@ -321,8 +320,11 @@ function Dashboard({setPage}){
 function SamsaraBtn({refetch}){
   const[syncing,setSyncing]=useState(false);
   const[result,setResult]=useState(null);
+  const SAMSARA_SYNC_URL='https://zmxynpheteglskqnadbg.supabase.co/functions/v1/samsara-sync';
+
   const doSync=async()=>{
-    setSyncing(true);setResult(null);
+    setSyncing(true);
+    setResult(null);
     try{
       const resp=await fetch(SAMSARA_SYNC_URL,{
         method:'POST',
@@ -332,34 +334,40 @@ function SamsaraBtn({refetch}){
           'Authorization':'Bearer '+SUPA_KEY
         }
       });
-      let data=null;
+
+      const raw=await resp.text();
+      let data={};
       try{
-        data=await resp.json();
+        data=raw?JSON.parse(raw):{};
       }catch(_err){
-        data={};
+        data={error:raw||'Invalid response from Samsara sync endpoint'};
       }
+
       if(!resp.ok){
-        throw new Error(data?.error||data?.message||('Sync failed ('+resp.status+')'));
+        throw new Error(data.error||data.message||('HTTP '+resp.status));
       }
+
       setResult(data);
-      if((data?.synced||0)>0&&typeof refetch==='function')refetch();
+      if((data.synced||0)>0&&typeof refetch==='function')refetch();
     }catch(e){
-      setResult({error:e.message||'Sync failed'});
+      setResult({error:e?.message||'Failed to fetch Samsara sync endpoint'});
+    }finally{
+      setSyncing(false);
     }
-    setSyncing(false);
   };
+
   return h('div',{style:{position:'relative',display:'inline-block'}},
     h('button',{className:'btn btn-ghost',style:{fontSize:12,gap:6,color:syncing?'#6b7a9f':'#60a5fa',borderColor:syncing?'#2a3048':'rgba(59,126,255,.4)'},onClick:doSync,disabled:syncing},
       syncing?'⏳ Syncing...':'🛰 Samsara Sync'
     ),
-    result&&h('div',{style:{position:'absolute',top:'100%',right:0,marginTop:6,background:'#1e2333',border:'.5px solid #2a3048',borderRadius:10,padding:14,zIndex:50,minWidth:260,boxShadow:'0 8px 24px rgba(0,0,0,.4)'}},
+    result&&h('div',{style:{position:'absolute',top:'100%',right:0,marginTop:6,background:'#1e2333',border:'.5px solid #2a3048',borderRadius:10,padding:14,zIndex:50,minWidth:260,maxWidth:340,boxShadow:'0 8px 24px rgba(0,0,0,.4)'}},
       result.error
-        ? h('div',{style:{color:'#f87171',fontSize:12}},'✗ '+result.error)
+        ? h('div',{style:{color:'#f87171',fontSize:12,whiteSpace:'pre-wrap'}},'✗ '+result.error)
         : h('div',null,
-            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' of '+result.samsara_vehicles+' vehicles'),
-            result.matched?.length>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Updated: '+(result.matched||[]).map(m=>m.asset+(m.odometer_miles?' — '+m.odometer_miles.toLocaleString()+' mi':'')).join(', ')),
-            result.unmatched?.length>0&&h('div',{style:{fontSize:11,color:'#fbbf24',marginBottom:4}},'No match in FleetOps: '+(result.unmatched||[]).join(', ')),
-            result.errors?.length>0&&h('div',{style:{fontSize:11,color:'#f87171'}},result.errors.join(', ')),
+            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+(result.synced||0)+' of '+(result.samsara_vehicles||0)+' vehicles'),
+            result.matched?.length>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4,whiteSpace:'pre-wrap'}},'Updated: '+(result.matched||[]).map(m=>m.asset+(m.odometer_miles?' — '+Number(m.odometer_miles).toLocaleString()+' mi':'' )).join(', ')),
+            result.unmatched?.length>0&&h('div',{style:{fontSize:11,color:'#fbbf24',marginBottom:4,whiteSpace:'pre-wrap'}},'No match in FleetOps: '+(result.unmatched||[]).join(', ')),
+            result.errors?.length>0&&h('div',{style:{fontSize:11,color:'#f87171',whiteSpace:'pre-wrap'}},(result.errors||[]).join(', ')),
             h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:6}},'Tip: VINs must match between Samsara and FleetOps for auto-matching.')
           ),
       h('button',{style:{marginTop:8,fontSize:11,color:'#6b7a9f',background:'none',border:'none',cursor:'pointer'},onClick:()=>setResult(null)},'Dismiss')
