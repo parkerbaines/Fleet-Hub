@@ -288,7 +288,7 @@ function Dashboard({setPage}){
   const{data:parts}=useQuery(()=>sb.from('parts').select('*'));
   const openWOs=wos||[];const urgent=openWOs.filter(w=>w.priority==='urgent').length;
   const down=(assets||[]).filter(a=>a.status==='down').length;const inShop=(assets||[]).filter(a=>a.status==='in_shop').length;
-  const lowParts=(parts||[]).filter(p=>p.quantity_on_hand<=p.reorder_point);const outOfStock=lowParts.filter(p=>p.quantity_on_hand===0);
+  const lowParts=(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point);const outOfStock=lowParts.filter(p=>p.track_inventory!==false&&p.quantity_on_hand===0);
   return h('div',{className:'page'},
     h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')),
     urgent>0&&h('div',{className:'alert alert-danger',style:{marginBottom:16}},h(IAlert),urgent+' urgent work order'+(urgent>1?'s':'')+' need attention',h('button',{className:'card-link',style:{marginLeft:'auto'},onClick:()=>setPage('workorders')},'View →')),
@@ -318,7 +318,8 @@ function Dashboard({setPage}){
 }
 
 function Fleet({setPage}){
-  const[typeF,setTypeF]=useState('');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
+  const[typeF,setTypeF]=useState('');
+  const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
   const{data:assets,loading,refetch}=useQuery(()=>{let q=sb.from('assets').select('*').order('asset_type').order('name');if(typeF)q=q.eq('asset_type',typeF);return q;},[typeF]);
   const filtered=(assets||[]).filter(a=>{if(statusF&&a.status!==statusF)return false;if(search){const q=search.toLowerCase();return a.name?.toLowerCase().includes(q)||a.asset_number?.toLowerCase().includes(q)||a.vin?.toLowerCase().includes(q);}return true;});
   const handleExport=()=>{const cols=[{k:'name',l:'name'},{k:'asset_number',l:'asset_number'},{k:'asset_type',l:'asset_type'},{k:'year',l:'year'},{k:'make',l:'make'},{k:'model',l:'model'},{k:'vin',l:'vin'},{k:'license_plate',l:'license_plate'},{k:'odometer_miles',l:'odometer_miles'},{k:'engine_hours',l:'engine_hours'},{k:'status',l:'status'},{k:'notes',l:'notes'}];dlCSV('fleetops_fleet_'+new Date().toISOString().slice(0,10)+'.csv',toCSV(filtered,cols));};
@@ -517,20 +518,24 @@ function WOForm({id,setPage}){
     setSaving(true);setError(null);
     const payload={...f,status:statusOverride||f.status,asset_type:f.asset_type||null,asset_id:f.asset_id||null,technician_id:f.technician_id||null,estimated_hours:f.estimated_hours?parseFloat(f.estimated_hours):null,mileage_in:f.mileage_in?parseInt(f.mileage_in):null,mileage_out:f.mileage_out?parseInt(f.mileage_out):null,labor_cost:f.labor_cost?parseFloat(f.labor_cost):null,inspection_data:insp,updated_at:new Date().toISOString()};
     if((statusOverride||f.status)==='completed')payload.completed_at=new Date().toISOString();
+    if(statusOverride)setF(x=>({...x,status:statusOverride}));
     const{data:saved,error:err}=isEdit?await sb.from('work_orders').update(payload).eq('id',id).select().single():await sb.from('work_orders').insert(payload).select().single();
     setSaving(false);if(err){setError(err.message);return;}
     // Auto-create service log when WO is completed
     if((statusOverride||f.status)==='completed'&&saved?.asset_id){
-      const woAsset=assets?.find(a=>a.id===saved.asset_id);
-      await sb.from('service_logs').insert({
-        asset_id:saved.asset_id,
-        asset_type:saved.asset_type||woAsset?.asset_type||null,
-        service_type:saved.category||saved.title||'Work Order',
-        description:'WO '+saved.order_number+': '+saved.title+(saved.work_performed?'\n'+saved.work_performed:''),
-        odometer_miles:saved.mileage_out||saved.mileage_in||saved.odometer_at_service||null,
-        cost:grandTotal>0?grandTotal:null,
-        serviced_at:saved.completed_at||new Date().toISOString(),
-      });
+      try{
+        const woAsset=assets?.find(a=>a.id===saved.asset_id);
+        const logDesc=('WO '+(saved.order_number||'')+': '+(saved.title||''))+(saved.work_performed?' | '+saved.work_performed:'');
+        await sb.from('service_logs').insert({
+          asset_id:saved.asset_id,
+          asset_type:f.asset_type||woAsset?.asset_type||null,
+          service_type:saved.category?saved.category.charAt(0).toUpperCase()+saved.category.slice(1):(saved.title||'Work Order'),
+          description:logDesc.slice(0,500),
+          odometer_miles:saved.mileage_out?parseInt(saved.mileage_out):saved.mileage_in?parseInt(saved.mileage_in):null,
+          cost:grandTotal>0?parseFloat(grandTotal.toFixed(2)):null,
+          serviced_at:saved.completed_at||new Date().toISOString(),
+        });
+      }catch(logErr){console.warn('Service log creation failed:',logErr);}
     }
     setPage('wo-'+saved.id);
   };
@@ -1132,7 +1137,7 @@ function App(){
   const[page,setPage]=useState('dashboard');const[drawerOpen,setDrawerOpen]=useState(false);
   const{data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
   const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point'));
-  const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.quantity_on_hand<=p.reorder_point).length};
+  const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point).length};
   const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'FleetOps';
   const render=()=>{
     if(page==='dashboard')return h(Dashboard,{setPage});
