@@ -1250,26 +1250,4 @@ h1, h2, h3, h4, h5 {
   color: #111827;
 }
 
-/* Subtext / labels */
-.small,
-.muted,
-.subtext {
-  color: #4b5563 !important;
-}
 
-/* Table rows (your biggest issue) */
-tr, td {
-  color: #1f2937 !important;
-}
-
-/* Card text (dashboard boxes) */
-.card p,
-.metric-sub {
-  color: #4b5563 !important;
-}
-
-/* Fix super light leftover text */
-.light,
-.text-light {
-  color: #4b5563 !important;
-}
