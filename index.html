@@ -510,7 +510,15 @@ function WOForm({id,setPage}){
   // Inspection helpers
   const IS=({field,label,opts})=>h('div',{className:'insp-item'},h('label',null,label),h('select',{className:'isel '+iClass(insp[field]),value:insp[field],onChange:e=>si(field,e.target.value)},h('option',{value:''},'—'),opts.map(o=>h('option',{key:o,value:o},o))));
   const IN=({field,label,placeholder})=>h('div',{className:'insp-item insp-full'},h('label',null,label),h('input',{placeholder:placeholder||'Notes...',value:insp[field]||'',onChange:e=>si(field,e.target.value)}));
-  const CB=({pos,field,unit})=>{const cbRef=useRef(null);useEffect(()=>{if(cbRef.current&&document.activeElement!==cbRef.current)cbRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'corner-box'},h('div',{className:'pos'},pos),h('input',{ref:cbRef,type:'text',inputMode:'decimal',defaultValue:insp[field]||'',placeholder:'—',onBlur:e=>si(field,e.target.value),onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}),h('div',{className:'unit'},unit));}
+  // Color scale for brake pad depth (mm): >=6 green, 3-5 yellow, <=2 red
+  const brakeColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n>=6)return '#22c55e';if(n>=3)return '#f59e0b';return '#ef4444';};
+  // Color scale for tire tread (32nds): >=6 green, 3-5 yellow, <=2 red
+  const treadColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n>=6)return '#22c55e';if(n>=3)return '#f59e0b';return '#ef4444';};
+  // Color scale for tire PSI: needs target but we'll use 25-45 normal range; flag extremes
+  // <20 or >65 = red, 20-24 or 56-65 = yellow, 25-55 = green
+  const psiColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n<20||n>65)return '#ef4444';if(n<25||n>55)return '#f59e0b';return '#22c55e';};
+
+  const CB=({pos,field,unit,colorFn})=>{const cbRef=useRef(null);const col=colorFn?colorFn(insp[field]):'#2a3048';useEffect(()=>{if(cbRef.current&&document.activeElement!==cbRef.current)cbRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'corner-box',style:{borderBottom:'3px solid '+col}},h('div',{className:'pos'},pos),h('input',{ref:cbRef,type:'text',inputMode:'decimal',defaultValue:insp[field]||'',placeholder:'—',style:{color:col!=='#2a3048'?col:'#e2e8f0'},onBlur:e=>{si(field,e.target.value);if(cbRef.current)cbRef.current.style.color=colorFn?colorFn(e.target.value):'#e2e8f0';},onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}),h('div',{className:'unit',style:{color:col!=='#2a3048'?col:'#6b7a9f'}},unit));}
   const GWB=['Good','Fair','Bad'];const FML=['Full','Moderate','Low'];const PF2=['Pass','Fail'];const YN=['Yes','No'];const NA=['N/A'];
   const TC=['Good','Wear Indicators','Cracking','Cupping','Replace'];
 
@@ -737,8 +745,8 @@ function WOForm({id,setPage}){
       h('div',{className:'wo-section'},
         h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'🛑 Brake Inspection')),
         h('div',{style:{marginBottom:20}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'PAD / SHOE THICKNESS (mm) — New ≈ 10–12mm  ·  Replace at ≤ 3mm'),
-          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'mm_lf',unit:'mm'}),h(CB,{pos:'RF',field:'mm_rf',unit:'mm'}),h(CB,{pos:'LR',field:'mm_lr',unit:'mm'}),h(CB,{pos:'RR',field:'mm_rr',unit:'mm'}))
+          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600}},'PAD / SHOE THICKNESS (mm) — New ≈ 10–12mm  ·  Replace at ≤ 3mm'),h('div',{style:{display:'flex',gap:12,marginBottom:10,fontSize:11}},h('span',{style:{color:'#22c55e'}},'● ≥6mm Good'),h('span',{style:{color:'#f59e0b'}},'● 3–5mm Worn'),h('span',{style:{color:'#ef4444'}},'● ≤2mm Replace')),
+          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'mm_lf',unit:'mm',colorFn:brakeColor}),h(CB,{pos:'RF',field:'mm_rf',unit:'mm',colorFn:brakeColor}),h(CB,{pos:'LR',field:'mm_lr',unit:'mm',colorFn:brakeColor}),h(CB,{pos:'RR',field:'mm_rr',unit:'mm',colorFn:brakeColor}))
         ),
         h('div',{style:{marginBottom:16}},
           h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'ROTOR / DRUM CONDITION'),
@@ -762,12 +770,12 @@ function WOForm({id,setPage}){
       h('div',{className:'wo-section'},
         h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'🔵 Tire Inspection')),
         h('div',{style:{marginBottom:20}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'TREAD DEPTH (32nds) — New ≈ 10–12/32"  ·  Legal minimum 2/32"  ·  Replace ≤ 4/32"'),
-          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'t32_lf',unit:'/32"'}),h(CB,{pos:'RF',field:'t32_rf',unit:'/32"'}),h(CB,{pos:'LR',field:'t32_lr',unit:'/32"'}),h(CB,{pos:'RR',field:'t32_rr',unit:'/32"'}))
+          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600}},'TREAD DEPTH (32nds) — New ≈ 10–12/32"  ·  Legal minimum 2/32"  ·  Replace ≤ 4/32"'),h('div',{style:{display:'flex',gap:12,marginBottom:10,fontSize:11}},h('span',{style:{color:'#22c55e'}},'● ≥6/32 Good'),h('span',{style:{color:'#f59e0b'}},'● 3–5/32 Worn'),h('span',{style:{color:'#ef4444'}},'● ≤2/32 Replace')),
+          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'t32_lf',unit:'/32"',colorFn:treadColor}),h(CB,{pos:'RF',field:'t32_rf',unit:'/32"',colorFn:treadColor}),h(CB,{pos:'LR',field:'t32_lr',unit:'/32"',colorFn:treadColor}),h(CB,{pos:'RR',field:'t32_rr',unit:'/32"',colorFn:treadColor}))
         ),
         h('div',{style:{marginBottom:20}},
-          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'TIRE PRESSURE (PSI)'),
-          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'psi_lf',unit:'PSI'}),h(CB,{pos:'RF',field:'psi_rf',unit:'PSI'}),h(CB,{pos:'LR',field:'psi_lr',unit:'PSI'}),h(CB,{pos:'RR',field:'psi_rr',unit:'PSI'}))
+          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600}},'TIRE PRESSURE (PSI)'),h('div',{style:{display:'flex',gap:12,marginBottom:10,fontSize:11}},h('span',{style:{color:'#22c55e'}},'● 25–55 PSI Normal'),h('span',{style:{color:'#f59e0b'}},'● 20–24 / 56–65 Check'),h('span',{style:{color:'#ef4444'}},'● <20 / >65 Critical')),
+          h('div',{className:'corner-grid'},h(CB,{pos:'LF',field:'psi_lf',unit:'PSI',colorFn:psiColor}),h(CB,{pos:'RF',field:'psi_rf',unit:'PSI',colorFn:psiColor}),h(CB,{pos:'LR',field:'psi_lr',unit:'PSI',colorFn:psiColor}),h(CB,{pos:'RR',field:'psi_rr',unit:'PSI',colorFn:psiColor}))
         ),
         h('div',{style:{marginBottom:16}},
           h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10,fontWeight:600}},'TIRE CONDITION'),
