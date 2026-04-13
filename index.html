@@ -318,7 +318,7 @@ function dlTmpl(type){const d={vehicle:{c:['name','asset_number','year','make','
 
 const NAV=[{id:'dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},{id:'workorders',label:'Work Orders',Icon:IWO,section:'Operations',badge:'wo'},{id:'servicelogs',label:'Service Logs',Icon:ILogs,section:'Operations'},{id:'fleet',label:'Fleet',Icon:IFleet,section:'Assets'},{id:'parts',label:'Parts Inventory',Icon:IParts,section:'Resources',badge:'parts'},{id:'technicians',label:'Technicians',Icon:ITech,section:'Resources'}];
 
-function SidebarNav({page,setPage,badges,onClose}){
+function SidebarNav({page,setPage,badges,onClose,toggleTheme,isDark}){
   const secs=[...new Set(NAV.map(n=>n.section))];
   return h(Fragment,null,
     h('div',{className:'sidebar-logo'},
@@ -326,7 +326,7 @@ function SidebarNav({page,setPage,badges,onClose}){
         h('h1',null,'FleetOps'),
         h('button',{
           onClick:toggleTheme,
-          style:{background:'none',border:'none',cursor:'pointer',fontSize:16,padding:'2px 4px',borderRadius:6,color:'var(--text-3)',transition:'color .15s'},
+          style:{background:'none',border:'none',cursor:'pointer',fontSize:16,padding:'2px 4px',borderRadius:6,color:'#6b7a9f'},
           title:'Toggle dark/light mode'
         },isDark?'☀️':'🌙')
       ),
@@ -1278,8 +1278,8 @@ function App(){
     return h(Dashboard,{setPage});
   };
   return h('div',{className:'shell'},
-    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,onClose:null})),
-    h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,onClose:()=>setDrawerOpen(false)}))),
+    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,onClose:null,toggleTheme,isDark})),
+    h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,onClose:()=>setDrawerOpen(false),toggleTheme,isDark}))),
     h('div',{className:'main'},h('div',{className:'mobile-bar'},h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),h('span',null,lbl)),render())
   );
 }
