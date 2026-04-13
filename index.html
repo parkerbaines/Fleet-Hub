@@ -255,6 +255,36 @@ body.light .workload-bar-bg{background:#e2e8f0}
 body.light .nav-badge{background:rgba(239,68,68,.15)}
 body.light .search-wrap svg,.body.light .sw svg{color:#a0aec0}
 
+/* ── Print ───────────────────────────────────────────────────────── */
+@media print{
+  .shell,.sidebar,.mobile-bar,.overlay,.no-print,.noprint{display:none!important}
+  #printArea{display:block!important;padding:20px;font-family:Arial,sans-serif;color:#000;font-size:11px}
+  body{background:white!important}
+}
+#printArea{display:none}
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media(max-width:1024px){
+  .sidebar{display:none}
+  .mobile-bar{display:flex}
+  .metrics{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+  .page{padding:16px}
+}
+@media(max-width:640px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .form-grid-3,.fg3{grid-template-columns:1fr 1fr}
+  .form-grid-4,.fg4{grid-template-columns:1fr 1fr}
+  .form-grid-2,.fg2{grid-template-columns:1fr}
+  .detail-grid,.dgrid{grid-template-columns:1fr 1fr}
+  .corner-grid,.cgrid{grid-template-columns:1fr 1fr}
+  .insp-grid,.igrid{grid-template-columns:1fr}
+  table{display:none}
+  .table-mobile,.tmob{display:block}
+}
+@media(min-width:641px){
+  .table-mobile,.tmob{display:none}
+}
+
 </style>
 </head>
 <body>
@@ -564,7 +594,7 @@ function WorkOrders({setPage}){
 function WOForm({id,setPage}){
   const isEdit=Boolean(id);
   const{data:wo,loading:loadWO,refetch:refetchWO}=useQuery(()=>id?sb.from('work_orders').select('*,asset:assets(id,name,asset_number,asset_type,year,make,model,vin,license_plate,odometer_miles,engine_hours),technician:technicians(id,name)').eq('id',id).single():{data:null},[id]);
-  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type').order('name'));
+  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type,odometer_miles,engine_hours').order('name'));
   const{data:techs}=useQuery(()=>sb.from('technicians').select('id,name,hourly_rate').eq('status','active').order('name'));
   const{data:allParts}=useQuery(()=>sb.from('parts').select('id,name,part_number,unit_cost').order('name'));
   const{data:timeEntries,refetch:refetchTime}=useQuery(()=>id?sb.from('work_order_time_entries').select('*,technician:technicians(name)').eq('work_order_id',id).order('logged_at',{ascending:false}):{data:[]},[id]);
@@ -783,14 +813,14 @@ function WOForm({id,setPage}){
         h('div',{className:'form-group'},h('label',{className:'form-label'},'Title / Job Description *'),h('input',{className:'form-input',placeholder:'e.g. 45k mile PM, brake job, oil change, pre-trip inspection...',value:f.title,onChange:e=>sf('title',e.target.value)})),
         h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
           h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type,onChange:e=>{sf('asset_type',e.target.value);sf('asset_id','');}},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-          h('div',null,h('label',{className:'form-label'},'Asset'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;sf('asset_id',aid);const a=assets?.find(x=>x.id===aid);if(a&&!f.mileage_in){sf('mileage_in',a.odometer_miles||'');}}},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
+          h('div',null,h('label',{className:'form-label'},'Asset'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;sf('asset_id',aid);const a=assets?.find(x=>x.id===aid);if(a){if(!f.mileage_in&&a.odometer_miles)sf('mileage_in',String(a.odometer_miles));}}},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
           h('div',null,h('label',{className:'form-label'},'Assigned Technician'),h('select',{className:'form-select',value:f.technician_id,onChange:e=>sf('technician_id',e.target.value)},h('option',{value:''},'Unassigned'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))))
         ),
         selAsset&&h('div',{style:{background:'rgba(59,126,255,.07)',border:'0.5px solid rgba(59,126,255,.2)',borderRadius:10,padding:12,marginBottom:12,display:'flex',gap:20,flexWrap:'wrap',fontSize:12,color:'#e2e8f0'}},
           selAsset.year&&h('span',null,selAsset.year),selAsset.make&&h('span',null,selAsset.make),selAsset.model&&h('span',null,selAsset.model),
           selAsset.vin&&h('span',{style:{color:'#6b7a9f',fontFamily:"'JetBrains Mono',monospace",fontSize:11}},selAsset.vin),
           selAsset.license_plate&&h('span',{style:{color:'#6b7a9f'}},selAsset.license_plate),
-          selAsset.odometer_miles&&h('span',{style:{color:'#4ade80'}},selAsset.odometer_miles.toLocaleString()+' mi on file')
+          (selAsset.odometer_miles||selAsset.engine_hours)&&h('span',{style:{color:'#4ade80',fontWeight:500}},selAsset.odometer_miles?selAsset.odometer_miles.toLocaleString()+' mi':selAsset.engine_hours+' hrs',' (current — auto-filled)')
         ),
         h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
           h('div',null,h('label',{className:'form-label'},'Priority'),h('select',{className:'form-select',value:f.priority,onChange:e=>sf('priority',e.target.value)},['urgent','high','normal','low'].map(p=>h('option',{key:p,value:p},p)))),
@@ -1175,7 +1205,7 @@ function ServiceLogs(){
       // Asset type then asset
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type,onChange:e=>{s('asset_type',e.target.value);s('asset_id','');}},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':'')))))
+        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;s('asset_id',aid);const a=(assets||[]).find(x=>x.id===aid);if(a&&!f.odometer_miles&&a.odometer_miles)s('odometer_miles',String(a.odometer_miles));}},h('option',{value:''},'Select...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':'')))))
       ),
       // Vendor
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
@@ -1255,8 +1285,8 @@ function ServiceLogs(){
   );
 }
 
-function ServiceIntervals(){
-  const{data:types,refetch:refetchTypes}=useQuery(()=>sb.from('interval_types').select('*').order('name'));
+function ServiceIntervals({setPage}){
+  const{data:types,loading:tLoad,refetch:refetchTypes}=useQuery(()=>sb.from('interval_types').select('*').order('name'));
   const{data:assignments,refetch:refetchAssign}=useQuery(()=>sb.from('asset_intervals').select('*,asset:assets(id,name,asset_number,asset_type,odometer_miles),interval_type:interval_types(name,interval_miles,interval_days,category)').order('next_service_miles',{ascending:true,nullsFirst:false}));
   const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type,odometer_miles').neq('status','retired').order('name'));
   const[tab,setTab]=useState('overview');
@@ -1264,98 +1294,186 @@ function ServiceIntervals(){
   const[showAssignModal,setShowAssignModal]=useState(false);
   const[editType,setEditType]=useState(null);
   const[filterCat,setFilterCat]=useState('');
+  const[selected,setSelected]=useState(new Set());
+  const[snoozeModal,setSnoozeModal]=useState(null); // {id, name}
+  const[resolveModal,setResolveModal]=useState(null); // assignment
 
-  const statusColor=(miles_until)=>{
-    if(miles_until===null||miles_until===undefined)return{bg:'rgba(107,122,159,.15)',color:'#94a3b8',label:'No data'};
-    if(miles_until<=0)return{bg:'rgba(239,68,68,.15)',color:'#f87171',label:'OVERDUE'};
-    if(miles_until<=500)return{bg:'rgba(245,158,11,.15)',color:'#fbbf24',label:'Due soon'};
-    return{bg:'rgba(34,197,94,.15)',color:'#4ade80',label:'OK'};
+  const now=new Date();
+
+  const getStatus=(a)=>{
+    const cur=a.asset?.odometer_miles||0;
+    const milesUntil=a.next_service_miles!=null?a.next_service_miles-cur:null;
+    const daysUntil=a.next_service_date?Math.ceil((new Date(a.next_service_date)-now)/86400000):null;
+    // Check if snoozed
+    if(a.snoozed_until&&new Date(a.snoozed_until)>now)return{state:'snoozed',milesUntil,daysUntil};
+    if(a.snoozed_until_miles&&cur<a.snoozed_until_miles)return{state:'snoozed',milesUntil,daysUntil};
+    if(milesUntil!=null&&milesUntil<=0)return{state:'overdue',milesUntil,daysUntil};
+    if(daysUntil!=null&&daysUntil<=0)return{state:'overdue',milesUntil,daysUntil};
+    if(milesUntil!=null&&milesUntil<=500)return{state:'due_soon',milesUntil,daysUntil};
+    if(daysUntil!=null&&daysUntil<=14)return{state:'due_soon',milesUntil,daysUntil};
+    return{state:'ok',milesUntil,daysUntil};
+  };
+
+  const stateStyle={
+    overdue:{bg:'rgba(239,68,68,.15)',color:'#f87171',label:'OVERDUE'},
+    due_soon:{bg:'rgba(245,158,11,.15)',color:'#fbbf24',label:'Due Soon'},
+    ok:{bg:'rgba(34,197,94,.15)',color:'#4ade80',label:'OK'},
+    snoozed:{bg:'rgba(107,122,159,.15)',color:'#94a3b8',label:'Snoozed'},
+  };
+
+  const cats=[...new Set((types||[]).map(t=>t.category).filter(Boolean))].sort();
+  const filtered=(assignments||[]).filter(a=>!filterCat||a.interval_type?.category===filterCat);
+  const overdue=filtered.filter(a=>getStatus(a).state==='overdue');
+  const dueSoon=filtered.filter(a=>getStatus(a).state==='due_soon');
+
+  const toggleSelect=(id)=>setSelected(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  const toggleAll=()=>setSelected(prev=>prev.size===filtered.length?new Set():new Set(filtered.map(a=>a.id)));
+
+  const bulkDelete=async()=>{
+    if(!confirm(`Remove ${selected.size} interval assignment(s)?`))return;
+    for(const id of selected)await sb.from('asset_intervals').delete().eq('id',id);
+    setSelected(new Set());refetchAssign();
+  };
+
+  // Dismiss: advance next_service by one interval
+  const dismiss=async(a)=>{
+    const cur=a.asset?.odometer_miles||0;
+    const it=a.interval_type;
+    const newNextMiles=it?.interval_miles?(a.next_service_miles||cur)+it.interval_miles:null;
+    const newNextDate=it?.interval_days&&a.next_service_date?new Date(new Date(a.next_service_date).getTime()+it.interval_days*86400000).toISOString().slice(0,10):null;
+    await sb.from('asset_intervals').update({next_service_miles:newNextMiles,next_service_date:newNextDate,snoozed_until:null,snoozed_until_miles:null,updated_at:new Date().toISOString()}).eq('id',a.id);
+    refetchAssign();
   };
 
   const TypeModal=({type,onClose})=>{
     const isEdit=Boolean(type?.id);
     const[f,setF]=useState({name:type?.name||'',description:type?.description||'',interval_miles:type?.interval_miles||'',interval_days:type?.interval_days||'',category:type?.category||''});
     const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
-    const s=(k,v)=>setF(x=>({...x,[k]:v}));
+    const sv=(k,v)=>setF(x=>({...x,[k]:v}));
     const save=async()=>{
       if(!f.name.trim()){setErr('Name required');return;}setSaving(true);
-      const payload={name:f.name,description:f.description||null,interval_miles:f.interval_miles?parseInt(f.interval_miles):null,interval_days:f.interval_days?parseInt(f.interval_days):null,category:f.category||null};
-      const{error:e}=isEdit?await sb.from('interval_types').update(payload).eq('id',type.id):await sb.from('interval_types').insert(payload);
+      const p={name:f.name,description:f.description||null,interval_miles:f.interval_miles?parseInt(f.interval_miles):null,interval_days:f.interval_days?parseInt(f.interval_days):null,category:f.category||null};
+      const{error:e}=isEdit?await sb.from('interval_types').update(p).eq('id',type.id):await sb.from('interval_types').insert(p);
       setSaving(false);if(e){setErr(e.message);return;}onClose();refetchTypes();
     };
     const del=async()=>{if(!confirm('Delete this interval type?'))return;await sb.from('interval_types').delete().eq('id',type.id);onClose();refetchTypes();};
     return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
       h('h3',null,isEdit?'Edit Interval Type':'New Interval Type'),
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',placeholder:'e.g. Oil Change',value:f.name,onChange:e=>s('name',e.target.value)})),
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Description'),h('input',{className:'form-input',placeholder:'Optional details',value:f.description,onChange:e=>s('description',e.target.value)})),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',placeholder:'e.g. Oil Change',value:f.name,onChange:e=>sv('name',e.target.value)})),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Description'),h('input',{className:'form-input',placeholder:'Optional',value:f.description,onChange:e=>sv('description',e.target.value)})),
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
-        h('div',null,h('label',{className:'form-label'},'Every X Miles'),h('input',{type:'number',className:'form-input',placeholder:'e.g. 5000',value:f.interval_miles,onChange:e=>s('interval_miles',e.target.value)})),
-        h('div',null,h('label',{className:'form-label'},'Every X Days'),h('input',{type:'number',className:'form-input',placeholder:'e.g. 90',value:f.interval_days,onChange:e=>s('interval_days',e.target.value)}))
+        h('div',null,h('label',{className:'form-label'},'Every X Miles'),h('input',{type:'number',className:'form-input',placeholder:'5000',value:f.interval_miles,onChange:e=>sv('interval_miles',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Every X Days'),h('input',{type:'number',className:'form-input',placeholder:'90',value:f.interval_days,onChange:e=>sv('interval_days',e.target.value)}))
       ),
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>s('category',e.target.value)},h('option',{value:''},'Select...'),['oil','brakes','tires','filters','fluids','transmission','inspection','preventive','electrical','other'].map(c=>h('option',{key:c,value:c},c.charAt(0).toUpperCase()+c.slice(1))))),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>sv('category',e.target.value)},h('option',{value:''},'Select...'),['oil','brakes','tires','filters','fluids','transmission','inspection','preventive','electrical','other'].map(c=>h('option',{key:c,value:c},c.charAt(0).toUpperCase()+c.slice(1))))),
       err&&h('div',{className:'error-box'},err),
       h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Create'),isEdit&&h('button',{className:'btn btn-danger',onClick:del},'Delete'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
     ));
   };
 
   const AssignModal=({onClose})=>{
-    const[f,setF]=useState({asset_id:'',interval_type_id:'',last_service_miles:'',last_service_date:'',notes:''});
+    const[f,setF]=useState({asset_ids:[],interval_type_id:'',last_service_miles:'',last_service_date:'',notes:''});
     const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
-    const s=(k,v)=>setF(x=>({...x,[k]:v}));
-    const selAsset=assets?.find(a=>a.id===f.asset_id);
+    const sv=(k,v)=>setF(x=>({...x,[k]:v}));
+    const toggleAsset=(id)=>sv('asset_ids',f.asset_ids.includes(id)?f.asset_ids.filter(x=>x!==id):[...f.asset_ids,id]);
     const selType=types?.find(t=>t.id===f.interval_type_id);
-    const nextMiles=selType?.interval_miles&&f.last_service_miles?parseInt(f.last_service_miles)+selType.interval_miles:null;
-    const nextDate=selType?.interval_days&&f.last_service_date?new Date(new Date(f.last_service_date).getTime()+selType.interval_days*86400000).toISOString().slice(0,10):null;
     const save=async()=>{
-      if(!f.asset_id||!f.interval_type_id){setErr('Asset and interval type required');return;}setSaving(true);
-      const payload={asset_id:f.asset_id,interval_type_id:f.interval_type_id,last_service_miles:f.last_service_miles?parseInt(f.last_service_miles):(selAsset?.odometer_miles||null),last_service_date:f.last_service_date||null,next_service_miles:nextMiles,next_service_date:nextDate,notes:f.notes||null,updated_at:new Date().toISOString()};
-      const{error:e}=await sb.from('asset_intervals').upsert(payload,{onConflict:'asset_id,interval_type_id'});
-      setSaving(false);if(e){setErr(e.message);return;}onClose();refetchAssign();
+      if(!f.asset_ids.length||!f.interval_type_id){setErr('Select at least one asset and an interval type');return;}setSaving(true);
+      for(const aid of f.asset_ids){
+        const a=assets?.find(x=>x.id===aid);
+        const lastMi=f.last_service_miles?parseInt(f.last_service_miles):(a?.odometer_miles||null);
+        const nextMi=selType?.interval_miles&&lastMi?lastMi+selType.interval_miles:null;
+        const nextDate=selType?.interval_days&&f.last_service_date?new Date(new Date(f.last_service_date).getTime()+selType.interval_days*86400000).toISOString().slice(0,10):null;
+        await sb.from('asset_intervals').upsert({asset_id:aid,interval_type_id:f.interval_type_id,last_service_miles:lastMi,last_service_date:f.last_service_date||null,next_service_miles:nextMi,next_service_date:nextDate,notes:f.notes||null,updated_at:new Date().toISOString()},{onConflict:'asset_id,interval_type_id'});
+      }
+      setSaving(false);onClose();refetchAssign();
     };
-    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
       h('h3',null,'Assign Service Interval'),
-      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{s('asset_id',e.target.value);const a=assets?.find(x=>x.id===e.target.value);if(a&&!f.last_service_miles)s('last_service_miles',a.odometer_miles||'');}},h('option',{value:''},'Select asset...'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
-        h('div',null,h('label',{className:'form-label'},'Interval Type *'),h('select',{className:'form-select',value:f.interval_type_id,onChange:e=>s('interval_type_id',e.target.value)},h('option',{value:''},'Select type...'),(types||[]).map(t=>h('option',{key:t.id,value:t.id},t.name+(t.interval_miles?' — every '+t.interval_miles.toLocaleString()+' mi':'')+(t.interval_days?' / '+t.interval_days+'d':'')))))
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Interval Type *'),h('select',{className:'form-select',value:f.interval_type_id,onChange:e=>sv('interval_type_id',e.target.value)},h('option',{value:''},'Select type...'),(types||[]).map(t=>h('option',{key:t.id,value:t.id},t.name+(t.interval_miles?' — every '+t.interval_miles.toLocaleString()+' mi':'')+(t.interval_days?' / '+t.interval_days+'d':''))))),
+      h('div',{className:'form-group'},
+        h('label',{className:'form-label'},'Select Assets * (check all that apply)'),
+        h('div',{style:{background:'#0f1117',border:'0.5px solid #2a3048',borderRadius:8,padding:8,maxHeight:200,overflowY:'auto'}},
+          (assets||[]).map(a=>h('label',{key:a.id,style:{display:'flex',alignItems:'center',gap:10,padding:'6px 8px',cursor:'pointer',borderRadius:6,':hover':{background:'#1e2333'}}},
+            h('input',{type:'checkbox',checked:f.asset_ids.includes(a.id),onChange:()=>toggleAsset(a.id),style:{width:16,height:16,cursor:'pointer'}}),
+            h('div',null,h('div',{style:{fontSize:13,color:'#e2e8f0'}},a.name+(a.asset_number?' ('+a.asset_number+')':'')),a.odometer_miles&&h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.odometer_miles.toLocaleString()+' mi current'))
+          ))
+        ),
+        f.asset_ids.length>0&&h('div',{style:{fontSize:12,color:'#4ade80',marginTop:4}},f.asset_ids.length+' asset(s) selected')
       ),
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
-        h('div',null,h('label',{className:'form-label'},'Last Service Mileage'),h('input',{type:'number',className:'form-input',placeholder:selAsset?.odometer_miles?'Current: '+selAsset.odometer_miles.toLocaleString()+' mi':'0',value:f.last_service_miles,onChange:e=>s('last_service_miles',e.target.value)})),
-        h('div',null,h('label',{className:'form-label'},'Last Service Date'),h('input',{type:'date',className:'form-input',value:f.last_service_date,onChange:e=>s('last_service_date',e.target.value)}))
+        h('div',null,h('label',{className:'form-label'},'Last Service Mileage (optional)'),h('input',{type:'number',className:'form-input',placeholder:'Leave blank to use current odometer',value:f.last_service_miles,onChange:e=>sv('last_service_miles',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Last Service Date'),h('input',{type:'date',className:'form-input',value:f.last_service_date,onChange:e=>sv('last_service_date',e.target.value)}))
       ),
-      (nextMiles||nextDate)&&h('div',{style:{background:'rgba(59,126,255,.08)',border:'0.5px solid rgba(59,126,255,.2)',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:12}},
-        h('div',{style:{color:'#6b7a9f',marginBottom:4}},'Calculated next service:'),
-        nextMiles&&h('div',{style:{color:'#60a5fa',fontWeight:500}},'📍 '+nextMiles.toLocaleString()+' miles'),
-        nextDate&&h('div',{style:{color:'#60a5fa',fontWeight:500}},'📅 '+new Date(nextDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}))
-      ),
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'Optional',value:f.notes,onChange:e=>s('notes',e.target.value)})),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'Optional',value:f.notes,onChange:e=>sv('notes',e.target.value)})),
       err&&h('div',{className:'error-box'},err),
-      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Assign'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Assign to '+f.asset_ids.length+' Asset(s)'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
     ));
   };
 
-  const cats=[...new Set((types||[]).map(t=>t.category).filter(Boolean))].sort();
-  const filtered=(assignments||[]).filter(a=>!filterCat||a.interval_type?.category===filterCat);
-  const overdue=filtered.filter(a=>{
-    const cur=a.asset?.odometer_miles||0;
-    return (a.next_service_miles&&cur>=a.next_service_miles)||(a.next_service_date&&new Date(a.next_service_date)<new Date());
-  });
-  const dueSoon=filtered.filter(a=>{
-    const cur=a.asset?.odometer_miles||0;
-    const milesUntil=a.next_service_miles?a.next_service_miles-cur:null;
-    const daysUntil=a.next_service_date?Math.ceil((new Date(a.next_service_date)-new Date())/86400000):null;
-    return !overdue.includes(a)&&((milesUntil!==null&&milesUntil<=500)||(daysUntil!==null&&daysUntil<=14));
-  });
+  const SnoozeModal=({item,onClose})=>{
+    const[snoozeType,setSnoozeType]=useState('miles');
+    const[miles,setMiles]=useState('500');
+    const[days,setDays]=useState('7');
+    const[saving,setSaving]=useState(false);
+    const save=async()=>{
+      setSaving(true);
+      const update={snoozed_until:null,snoozed_until_miles:null,updated_at:new Date().toISOString()};
+      if(snoozeType==='miles'){update.snoozed_until_miles=(item.asset?.odometer_miles||0)+parseInt(miles||500);}
+      else{update.snoozed_until=new Date(Date.now()+parseInt(days||7)*86400000).toISOString();}
+      await sb.from('asset_intervals').update(update).eq('id',item.id);
+      setSaving(false);onClose();refetchAssign();
+    };
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,'Snooze: '+item.interval_type?.name),
+      h('p',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Mute this alert for a set number of miles or days.'),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:14}},
+        h('button',{className:'btn '+(snoozeType==='miles'?'btn-primary':'btn-ghost'),onClick:()=>setSnoozeType('miles')},'By Miles'),
+        h('button',{className:'btn '+(snoozeType==='days'?'btn-primary':'btn-ghost'),onClick:()=>setSnoozeType('days')},'By Days')
+      ),
+      snoozeType==='miles'
+        ? h('div',{className:'form-group'},h('label',{className:'form-label'},'Snooze for how many miles?'),h('select',{className:'form-select',value:miles,onChange:e=>setMiles(e.target.value)},['250','500','1000','2500','5000'].map(v=>h('option',{key:v,value:v},v+' miles'))))
+        : h('div',{className:'form-group'},h('label',{className:'form-label'},'Snooze for how many days?'),h('select',{className:'form-select',value:days,onChange:e=>setDays(e.target.value)},['7','14','30','60','90'].map(v=>h('option',{key:v,value:v},v+' days')))),
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Snooze'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+    ));
+  };
+
+  const ResolveModal=({item,setPage,onClose})=>{
+    const[choice,setChoice]=useState('wo');
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,'Resolve: '+item.interval_type?.name),
+      h('p',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Mark this interval as serviced by creating a record.'),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:20}},
+        h('button',{className:'btn '+(choice==='wo'?'btn-primary':'btn-ghost'),onClick:()=>setChoice('wo')},'📋 Work Order'),
+        h('button',{className:'btn '+(choice==='log'?'btn-primary':'btn-ghost'),onClick:()=>setChoice('log')},'🔧 Service Log')
+      ),
+      h('p',{style:{fontSize:12,color:'#6b7a9f',marginBottom:16}},choice==='wo'?'Opens a new work order pre-filled for this asset and service.':'Opens a new service log pre-filled for this asset.'),
+      h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-success',onClick:async()=>{
+          // Update last_service to current
+          const cur=item.asset?.odometer_miles||0;
+          const it=item.interval_type;
+          const newNextMiles=it?.interval_miles?cur+it.interval_miles:null;
+          const newNextDate=it?.interval_days?new Date(Date.now()+it.interval_days*86400000).toISOString().slice(0,10):null;
+          await sb.from('asset_intervals').update({last_service_miles:cur,last_service_date:new Date().toISOString().slice(0,10),next_service_miles:newNextMiles,next_service_date:newNextDate,snoozed_until:null,snoozed_until_miles:null,updated_at:new Date().toISOString()}).eq('id',item.id);
+          refetchAssign();onClose();
+          if(choice==='wo')setPage('wo-new');else setPage('servicelogs');
+        }},'✓ Mark Serviced & '+(choice==='wo'?'Open Work Order':'Open Service Log')),
+        h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel')
+      )
+    ));
+  };
 
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Service Intervals'),h('p',null,(assignments||[]).length+' assignments · '+overdue.length+' overdue · '+dueSoon.length+' due soon')),
       h('div',{className:'btn-row'},
         h('button',{className:'btn btn-ghost',onClick:()=>{setEditType(null);setShowTypeModal(true);}},h(IPlus),' New Interval Type'),
-        h('button',{className:'btn btn-primary',onClick:()=>setShowAssignModal(true)},h(IPlus),' Assign to Asset')
+        h('button',{className:'btn btn-primary',onClick:()=>setShowAssignModal(true)},h(IPlus),' Assign to Assets')
       )
     ),
 
-    overdue.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:12}},h(IAlert),overdue.length+' interval'+(overdue.length>1?'s':'')+' overdue: '+overdue.map(a=>a.asset?.name+' — '+a.interval_type?.name).join(', ')),
+    overdue.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:12}},h(IAlert),overdue.length+' interval'+(overdue.length>1?'s':'')+' overdue'),
     dueSoon.length>0&&h('div',{className:'alert alert-warn',style:{marginBottom:12}},h(IAlert),dueSoon.length+' due within 500 miles or 14 days'),
 
     h('div',{style:{display:'flex',gap:2,background:'#181c27',borderRadius:10,padding:4,marginBottom:16,width:'fit-content'}},
@@ -1364,31 +1482,40 @@ function ServiceIntervals(){
 
     tab==='overview'&&h('div',null,
       h('div',{className:'filters'},
-        h('select',{className:'form-select',style:{width:180},value:filterCat,onChange:e=>setFilterCat(e.target.value)},
-          h('option',{value:''},'All Categories'),
-          cats.map(c=>h('option',{key:c,value:c},c.charAt(0).toUpperCase()+c.slice(1)))
-        )
+        h('select',{className:'form-select',style:{width:180},value:filterCat,onChange:e=>setFilterCat(e.target.value)},h('option',{value:''},'All Categories'),cats.map(c=>h('option',{key:c,value:c},c.charAt(0).toUpperCase()+c.slice(1)))),
+        selected.size>0&&h('button',{className:'btn btn-danger',onClick:bulkDelete},'🗑 Remove '+selected.size+' Selected')
       ),
       h('div',{className:'card'},
         filtered.length===0
-          ? h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No intervals assigned yet. Click "Assign to Asset" to get started.')
+          ? h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No intervals assigned yet. Click "Assign to Assets" to get started.')
           : h('div',{className:'table-wrap'},h('table',null,
-              h('thead',null,h('tr',null,['Asset','Interval','Current Miles','Last Service','Next Miles','Miles Until','Next Date','Status',''].map(c=>h('th',{key:c},c)))),
+              h('thead',null,h('tr',null,
+                h('th',null,h('input',{type:'checkbox',checked:selected.size===filtered.length&&filtered.length>0,onChange:toggleAll,style:{width:16,height:16,cursor:'pointer'}})),
+                ['Asset','Interval','Current Mi','Last Service','Next Due','Miles Until','Status','Actions'].map(c=>h('th',{key:c},c))
+              )),
               h('tbody',null,filtered.map(a=>{
+                const st=getStatus(a);
+                const ss=stateStyle[st.state]||stateStyle.ok;
                 const cur=a.asset?.odometer_miles||0;
-                const milesUntil=a.next_service_miles!=null?a.next_service_miles-cur:null;
-                const st=statusColor(milesUntil);
-                const daysUntil=a.next_service_date?Math.ceil((new Date(a.next_service_date)-new Date())/86400000):null;
-                return h('tr',{key:a.id},
-                  h('td',null,h('div',{style:{fontWeight:500}},a.asset?.name||'—'),h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.asset?.asset_number||'')),
-                  h('td',null,h('div',null,a.interval_type?.name||'—'),a.interval_type?.category&&h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.interval_type.category)),
+                return h('tr',{key:a.id,style:{opacity:st.state==='snoozed'?.6:1}},
+                  h('td',null,h('input',{type:'checkbox',checked:selected.has(a.id),onChange:()=>toggleSelect(a.id),style:{width:16,height:16,cursor:'pointer'}})),
+                  h('td',null,h('div',{style:{fontWeight:500,fontSize:13}},a.asset?.name||'—'),h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.asset?.asset_number||'')),
+                  h('td',null,h('div',{style:{fontSize:13}},a.interval_type?.name||'—'),a.interval_type?.category&&h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.interval_type.category)),
                   h('td',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12}},cur?cur.toLocaleString()+' mi':'—'),
-                  h('td',{style:{fontSize:12,color:'#6b7a9f'}},a.last_service_miles?a.last_service_miles.toLocaleString()+' mi':'—'),
-                  h('td',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12}},a.next_service_miles?a.next_service_miles.toLocaleString()+' mi':'—'),
-                  h('td',null,milesUntil!=null?h('span',{style:{fontWeight:700,color:st.color}},milesUntil<=0?milesUntil.toLocaleString()+' mi OVER':('+'+milesUntil.toLocaleString()+' mi')):h('span',{style:{color:'#6b7a9f'}},'—')),
-                  h('td',{style:{fontSize:12,color:'#6b7a9f'}},a.next_service_date?new Date(a.next_service_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+(daysUntil!=null?daysUntil<=0?' ('+Math.abs(daysUntil)+'d over)':' ('+daysUntil+'d)':''):'—'),
-                  h('td',null,h('span',{style:{fontSize:10,fontWeight:600,padding:'2px 10px',borderRadius:10,background:st.bg,color:st.color}},st.label)),
-                  h('td',null,h('button',{className:'btn-icon',onClick:async()=>{if(!confirm('Remove this interval assignment?'))return;await sb.from('asset_intervals').delete().eq('id',a.id);refetchAssign();}},h(ITrash)))
+                  h('td',{style:{fontSize:12,color:'#6b7a9f'}},a.last_service_miles?a.last_service_miles.toLocaleString()+' mi'+(a.last_service_date?' · '+new Date(a.last_service_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):''):'—'),
+                  h('td',null,
+                    a.next_service_miles&&h('div',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12}},a.next_service_miles.toLocaleString()+' mi'),
+                    a.next_service_date&&h('div',{style:{fontSize:11,color:'#6b7a9f'}},new Date(a.next_service_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}))
+                  ),
+                  h('td',null,st.milesUntil!=null
+                    ? h('span',{style:{fontWeight:700,fontSize:13,color:ss.color}},st.milesUntil<=0?Math.abs(st.milesUntil).toLocaleString()+' mi OVER':'+'+st.milesUntil.toLocaleString()+' mi')
+                    : st.daysUntil!=null?h('span',{style:{color:ss.color,fontSize:12}},st.daysUntil<=0?Math.abs(st.daysUntil)+'d over':st.daysUntil+'d left'):h('span',{style:{color:'#6b7a9f'}},'—')),
+                  h('td',null,h('span',{style:{fontSize:10,fontWeight:600,padding:'2px 10px',borderRadius:10,background:ss.bg,color:ss.color}},ss.label+(st.state==='snoozed'?' 💤':''))),
+                  h('td',null,h('div',{style:{display:'flex',gap:4}},
+                    h('button',{style:{fontSize:11,padding:'4px 8px',borderRadius:6,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80',cursor:'pointer',fontFamily:'inherit'},onClick:()=>setResolveModal(a)},'✓ Resolve'),
+                    h('button',{style:{fontSize:11,padding:'4px 8px',borderRadius:6,background:'rgba(245,158,11,.1)',border:'0.5px solid rgba(245,158,11,.3)',color:'#fbbf24',cursor:'pointer',fontFamily:'inherit'},onClick:()=>setSnoozeModal(a)},'💤 Snooze'),
+                    h('button',{style:{fontSize:11,padding:'4px 8px',borderRadius:6,background:'rgba(59,126,255,.1)',border:'0.5px solid rgba(59,126,255,.3)',color:'#60a5fa',cursor:'pointer',fontFamily:'inherit'},onClick:()=>dismiss(a)},'→ Dismiss')
+                  ))
                 );
               }))
             ))
@@ -1406,7 +1533,7 @@ function ServiceIntervals(){
                 h('td',{style:{textTransform:'capitalize',color:'#6b7a9f',fontSize:12}},t.category||'—'),
                 h('td',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12}},t.interval_miles?t.interval_miles.toLocaleString()+' mi':'—'),
                 h('td',{style:{fontSize:12,color:'#6b7a9f'}},t.interval_days?t.interval_days+'d':'—'),
-                h('td',{style:{fontSize:12,color:'#6b7a9f',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.description||'—'),
+                h('td',{style:{fontSize:12,color:'#6b7a9f',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.description||'—'),
                 h('td',null,h('button',{className:'btn-icon',onClick:()=>{setEditType(t);setShowTypeModal(true);}},h(IEdit)))
               )))
             ))
@@ -1414,7 +1541,9 @@ function ServiceIntervals(){
     ),
 
     showTypeModal&&h(TypeModal,{type:editType,onClose:()=>{setShowTypeModal(false);setEditType(null);}}),
-    showAssignModal&&h(AssignModal,{onClose:()=>setShowAssignModal(false)})
+    showAssignModal&&h(AssignModal,{onClose:()=>setShowAssignModal(false)}),
+    snoozeModal&&h(SnoozeModal,{item:snoozeModal,onClose:()=>setSnoozeModal(null)}),
+    resolveModal&&h(ResolveModal,{item:resolveModal,setPage,onClose:()=>setResolveModal(null)})
   );
 }
 
@@ -1450,7 +1579,7 @@ function App(){
     if(page==='parts')return h(Parts,null);
     if(page==='technicians')return h(Technicians,null);
     if(page==='servicelogs')return h(ServiceLogs,null);
-    if(page==='intervals')return h(ServiceIntervals,null);
+    if(page==='intervals')return h(ServiceIntervals,{setPage});
     return h(Dashboard,{setPage});
   };
   return h('div',{className:'shell'},
