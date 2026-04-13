@@ -844,7 +844,7 @@ function WOForm({id,setPage}){
   return h('div',{className:'page'},
     // Header row
     h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      h('button',{className:'back-btn',onClick:()=>setPage(isEdit?'wo-'+id:'workorders')},h(IBack)),
+      h('button',{className:'back-btn',onClick:()=>setPage('workorders')},h(IBack)),
       h('div',{style:{flex:1,minWidth:0}},isEdit&&h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4}},h('span',{className:'mono',style:{fontSize:12}},wo?.order_number),h(PBadge,{cls:priorityCls[f.priority],label:f.priority}),h(PBadge,{cls:statusCls[f.status],label:statusLabel[f.status]})),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?(f.title||'Work Order'):'New Work Order')),
       h('div',{className:'btn-row no-print'},
         isEdit&&h('button',{className:'btn btn-success',onClick:handlePrint},h(IPrint),' Print / PDF'),
@@ -1348,7 +1348,25 @@ function ServiceLogs(){
         )
       ),
       detailLog.description&&h('div',{style:{marginBottom:12}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('div',{style:{fontSize:13,background:'#181c27',borderRadius:8,padding:12}},detailLog.description)),
-      detailLog.invoice_name&&h('button',{style:{fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer',marginTop:8},onClick:()=>{if(detailLog.invoice_data){const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}}},'Download Invoice: '+detailLog.invoice_name)
+      detailLog.invoice_name&&h('div',{style:{marginTop:12}},
+        detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:application/pdf')
+          ? h('div',null,
+              h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600,textTransform:'uppercase',letterSpacing:'.04em'}},'Invoice Preview'),
+              h('iframe',{
+                src:detailLog.invoice_data,
+                style:{width:'100%',height:500,borderRadius:8,border:'.5px solid #2a3048',background:'#fff'},
+                title:'Invoice PDF'
+              }),
+              h('button',{style:{marginTop:8,fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'⬇ Download: '+detailLog.invoice_name)
+            )
+          : detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:image')
+            ? h('div',null,
+                h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600,textTransform:'uppercase',letterSpacing:'.04em'}},'Invoice Preview'),
+                h('img',{src:detailLog.invoice_data,style:{maxWidth:'100%',borderRadius:8,border:'.5px solid #2a3048'}}),
+                h('button',{style:{marginTop:8,fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'⬇ Download: '+detailLog.invoice_name)
+              )
+            : h('button',{style:{fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{if(detailLog.invoice_data){const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}}},'📄 Download Invoice: '+detailLog.invoice_name)
+      )
     ))
   );
 }
@@ -1414,8 +1432,14 @@ function ServiceIntervals({setPage}){
   };
 
   const TypeModal=({type,onClose})=>{
+    const{data:assigned,refetch:refetchAssigned}=useQuery(()=>type?.id?sb.from('asset_intervals').select('*,asset:assets(id,name,asset_number,asset_type,odometer_miles)').eq('interval_type_id',type.id):{data:[]},[type?.id]);
     const isEdit=Boolean(type?.id);
     const[f,setF]=useState({name:type?.name||'',description:type?.description||'',interval_miles:type?.interval_miles||'',interval_days:type?.interval_days||'',category:type?.category||'',reminder_miles:type?.reminder_miles||'',reminder_days:type?.reminder_days||'',notify_email:type?.notify_email||''});
+    const[assetTab,setAssetTab]=useState('definition');
+    const[addingAssets,setAddingAssets]=useState(false);
+    const[newAssetTypeF,setNewAssetTypeF]=useState('');
+    const[newPerMiles,setNewPerMiles]=useState({});
+    const[newSelectedIds,setNewSelectedIds]=useState([]);
     const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
     const sv=(k,v)=>setF(x=>({...x,[k]:v}));
     const save=async()=>{
@@ -1443,7 +1467,54 @@ function ServiceIntervals({setPage}){
         h('div',null,h('label',{className:'form-label'},'Notify email (optional)'),h('input',{type:'email',className:'form-input',placeholder:'email@example.com',value:f.notify_email||'',onChange:e=>sv('notify_email',e.target.value)}))
       ),
     err&&h('div',{className:'error-box'},err),
-      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Create'),isEdit&&h('button',{className:'btn btn-danger',onClick:del},'Delete'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Create'),isEdit&&h('button',{className:'btn btn-danger',onClick:del},'Delete'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel')),
+      isEdit&&h('div',{style:{marginTop:20,borderTop:'.5px solid #2a3048',paddingTop:16}},
+        h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:12}},
+          'Assigned Assets ('+(assigned||[]).length+')',
+          h('button',{onClick:()=>setAddingAssets(!addingAssets),style:{marginLeft:10,fontSize:11,padding:'3px 10px',borderRadius:10,border:'.5px solid '+(addingAssets?'#3b7eff':'#2a3048'),background:addingAssets?'rgba(59,126,255,.15)':'transparent',color:addingAssets?'#3b7eff':'#6b7a9f',cursor:'pointer',fontFamily:'inherit'}},addingAssets?'Done Adding':'+ Add Assets')
+        ),
+        (assigned||[]).length>0&&h('div',{style:{background:'#0f1117',borderRadius:8,overflow:'hidden',marginBottom:12}},
+          (assigned||[]).map((a,i)=>h('div',{key:a.id,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderBottom:i<(assigned||[]).length-1?'.5px solid #2a3048':'none'}},
+            h('div',{style:{flex:1,minWidth:0}},
+              h('div',{style:{fontSize:13,color:'#e2e8f0',fontWeight:500}},a.asset?.name+(a.asset?.asset_number?' ('+a.asset.asset_number+')':'')),
+              h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.asset?.asset_type+(a.asset?.odometer_miles?' · '+a.asset.odometer_miles.toLocaleString()+' mi current':'')+(a.last_service_miles?' · last svc: '+a.last_service_miles.toLocaleString()+' mi':''))
+            ),
+            h('div',{style:{textAlign:'right',fontSize:11,color:'#6b7a9f'}},
+              a.next_service_miles&&h('div',null,'Next: '+a.next_service_miles.toLocaleString()+' mi')
+            ),
+            h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:async()=>{if(!confirm('Remove assignment?'))return;await sb.from('asset_intervals').delete().eq('id',a.id);refetchAssigned();}},h(ITrash))
+          ))
+        ),
+        addingAssets&&h('div',{style:{background:'#0f1117',border:'.5px solid #2a3048',borderRadius:8,padding:10,marginBottom:8}},
+          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:8,fontWeight:600}},'Add assets to this interval:'),
+          h('div',{style:{display:'flex',gap:6,marginBottom:8}},
+            ['','vehicle','trailer','equipment'].map(t=>h('button',{key:t,onClick:()=>setNewAssetTypeF(t),style:{padding:'3px 10px',borderRadius:12,fontSize:11,border:'.5px solid '+(newAssetTypeF===t?'#3b7eff':'#2a3048'),background:newAssetTypeF===t?'rgba(59,126,255,.15)':'transparent',color:newAssetTypeF===t?'#3b7eff':'#6b7a9f',cursor:'pointer',fontFamily:'inherit'}},t?t.charAt(0).toUpperCase()+t.slice(1):'All'))
+          ),
+          h('div',{style:{maxHeight:160,overflowY:'auto',marginBottom:8}},
+            (assets||[]).filter(a=>(!newAssetTypeF||a.asset_type===newAssetTypeF)&&!(assigned||[]).find(x=>x.asset_id===a.id)).map(a=>h('label',{key:a.id,style:{display:'flex',alignItems:'center',gap:8,padding:'5px 4px',cursor:'pointer'}},
+              h('input',{type:'checkbox',checked:newSelectedIds.includes(a.id),onChange:()=>setNewSelectedIds(prev=>prev.includes(a.id)?prev.filter(x=>x!==a.id):[...prev,a.id]),style:{width:14,height:14,cursor:'pointer'}}),
+              h('div',null,
+                h('div',{style:{fontSize:12,color:'#e2e8f0'}},a.name+(a.asset_number?' ('+a.asset_number+')':'')),
+                h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type+(a.odometer_miles?' · '+a.odometer_miles.toLocaleString()+' mi':''))
+              )
+            ))
+          ),
+          newSelectedIds.length>0&&h('div',{style:{marginBottom:8}},
+            h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6}},'Last service mileage per asset (optional):'),
+            newSelectedIds.map(id=>{const a=(assets||[]).find(x=>x.id===id);return a?h('div',{key:id,style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},h('span',{style:{fontSize:12,color:'#e2e8f0',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name),h('input',{type:'number',placeholder:a.odometer_miles?String(a.odometer_miles):'miles',value:newPerMiles[id]||'',onChange:e=>setNewPerMiles(prev=>({...prev,[id]:e.target.value})),style:{width:120,background:'#181c27',border:'.5px solid #2a3048',borderRadius:6,padding:'4px 8px',fontSize:12,color:'#e2e8f0',fontFamily:'inherit',outline:'none'}}),h('span',{style:{fontSize:11,color:'#6b7a9f'}},'mi')):null;})
+          ),
+          h('button',{className:'btn btn-primary',style:{fontSize:12,padding:'5px 12px'},disabled:!newSelectedIds.length,onClick:async()=>{
+            const selType2=type;
+            for(const aid of newSelectedIds){
+              const a=(assets||[]).find(x=>x.id===aid);
+              const mi=newPerMiles[aid]?parseInt(newPerMiles[aid]):(a?.odometer_miles||null);
+              const nextMi=selType2?.interval_miles&&mi?mi+selType2.interval_miles:null;
+              await sb.from('asset_intervals').upsert({asset_id:aid,interval_type_id:type.id,last_service_miles:mi,next_service_miles:nextMi,updated_at:new Date().toISOString()},{onConflict:'asset_id,interval_type_id'});
+            }
+            setNewSelectedIds([]);setNewPerMiles({});setAddingAssets(false);refetchAssigned();refetchAssign();
+          }},'Add '+newSelectedIds.length+' Asset(s)')
+        )
+      )
     ));
   };
 
@@ -1605,6 +1676,11 @@ function ServiceIntervals({setPage}){
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Service Intervals'),h('p',null,(assignments||[]).length+' assignments · '+overdue.length+' overdue · '+dueSoon.length+' due soon')),
       h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:async()=>{
+          const r=await fetch('https://zmxynphetgelskqnadbg.supabase.co/functions/v1/interval-notify',{method:'POST',headers:{'Content-Type':'application/json'}});
+          const d=await r.json();
+          alert(d.error?'Error: '+d.error:'Notifications sent! '+d.notified?.length+' sent, '+d.skipped?.length+' skipped.\n\nSent:\n'+(d.notified?.join('\n')||'none')+'\n\nNote: Email requires Resend API key configuration. Check Supabase edge function logs for details.');
+        }},'📧 Send Reminders'),
         h('button',{className:'btn btn-ghost',onClick:()=>{setEditType(null);setShowTypeModal(true);}},h(IPlus),' New Interval Type'),
         h('button',{className:'btn btn-primary',onClick:()=>setShowAssignModal(true)},h(IPlus),' Assign to Assets')
       )
