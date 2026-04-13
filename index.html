@@ -1245,20 +1245,19 @@ function ServiceLogs(){
 
 function App(){
   const[page,setPage]=useState('dashboard');const[drawerOpen,setDrawerOpen]=useState(false);
-  const[isDark,setIsDark]=useState(()=>{
-    const saved=localStorage.getItem('fleetops_theme');
-    if(saved)return saved==='dark';
-    return true; // default dark
-  });
+  const[isDark,setIsDark]=useState(true);
   const toggleTheme=()=>{
     const next=!isDark;
     setIsDark(next);
-    localStorage.setItem('fleetops_theme',next?'dark':'light');
+    try{localStorage.setItem('fleetops_theme',next?'dark':'light');}catch(e){}
     document.body.classList.toggle('light',!next);
   };
   useEffect(()=>{
-    document.body.classList.toggle('light',!isDark);
-  },[isDark]);
+    try{
+      const saved=localStorage.getItem('fleetops_theme');
+      if(saved==='light'){setIsDark(false);document.body.classList.add('light');}
+    }catch(e){}
+  },[]);
   const{data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
   const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point'));
   const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point).length};
