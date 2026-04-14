@@ -509,6 +509,7 @@ function Dashboard({setPage}){
   );
 }
 
+/* COLUMN_MANAGER_NORMALIZED */
 function useColumns(tableKey, defaultCols) {
   const storageKey = 'cols_' + tableKey;
   const[cols, setCols] = useState(() => {
