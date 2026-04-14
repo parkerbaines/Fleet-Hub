@@ -370,6 +370,20 @@ function toCSV(rows,cols){return[cols.map(c=>c.l).join(','),...rows.map(r=>cols.
 function dlCSV(fn,ct){const b=new Blob([ct],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=fn;a.click();URL.revokeObjectURL(u);}
 function dlTmpl(type){const d={vehicle:{c:['name','asset_number','year','make','model','vin','license_plate','odometer_miles','status','notes'],s:['2022 Kenworth T680','VH-01','2022','Kenworth','T680','1XKWDB0X2NJ123456','ABC1234','87500','active','Primary haul truck']},trailer:{c:['name','asset_number','year','make','model','vin','license_plate','status','notes'],s:['Utility Trailer 1','TR-01','2021','Big Tex','14ET','5B4EP2321LN123456','XYZ789','active','']},equipment:{c:['name','asset_number','year','make','model','vin','engine_hours','status','notes'],s:['Forklift 1','EQ-01','2019','Toyota','8FGU25','60812','1250','active','']}};const x=d[type];dlCSV('fleetops_'+type+'_template.csv',x.c.join(',')+'\n'+x.s.join(','));}
 
+const fleetCols=[
+  {key:'name',label:'Name',visible:true},
+  {key:'asset_number',label:'Asset #',visible:true},
+  {key:'asset_type',label:'Type',visible:true},
+  {key:'year',label:'Year',visible:true},
+  {key:'make',label:'Make',visible:true},
+  {key:'model',label:'Model',visible:true},
+  {key:'license_plate',label:'Plate',visible:true},
+  {key:'vin',label:'VIN',visible:false},
+  {key:'odometer_miles',label:'Miles',visible:true},
+  {key:'engine_hours',label:'Hours',visible:true},
+  {key:'status',label:'Status',visible:true}
+];
+
 const NAV=[{id:'dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},{id:'workorders',label:'Work Orders',Icon:IWO,section:'Operations',badge:'wo'},{id:'servicelogs',label:'Service Logs',Icon:ILogs,section:'Operations'},{id:'fleet',label:'Fleet',Icon:IFleet,section:'Assets'},{id:'parts',label:'Parts Inventory',Icon:IParts,section:'Resources',badge:'parts'},{id:'technicians',label:'Technicians',Icon:ITech,section:'Resources'},
   {id:'intervals',label:'Service Intervals',Icon:IClock,section:'Resources'},
   {id:'scheduler',label:'Scheduler',Icon:IClock,section:'Operations'},
