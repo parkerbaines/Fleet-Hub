@@ -2152,7 +2152,7 @@ function Documents({setPage}){
     const s=(k,v)=>setF(x=>({...x,[k]:v}));
     const handleFile=(e,isSmog)=>{const file=e.target.files[0];if(!file)return;if(file.size>4*1024*1024){setErr('Max 4MB');return;}const r=new FileReader();r.onload=ev=>{if(isSmog){s('smog_file_data',ev.target.result);s('smog_file_name',file.name);}else{s('file_data',ev.target.result);s('file_name',file.name);}};r.readAsDataURL(file);};
     const save=async()=>{
-      if(!f.asset_id||!f.title){setErr('Asset and title required');return;}setSaving(true);
+      if(!f.asset_id){setErr('Asset required');return;}setSaving(true);
       let nextSmog=null;
       if(f.requires_smog&&f.smog_done_date){const d=new Date(f.smog_done_date+'T12:00:00');d.setFullYear(d.getFullYear()+(parseInt(f.smog_interval_years)||2));nextSmog=d.toISOString().slice(0,10);}
       const{error:e}=await sb.from('asset_documents').insert({asset_id:f.asset_id,doc_type:f.doc_type,title:f.doc_type,issue_date:f.issue_date||null,expiration_date:f.expiration_date||null,requires_smog:f.requires_smog,smog_done_date:f.smog_done_date||null,smog_interval_years:parseInt(f.smog_interval_years)||2,next_smog_date:nextSmog,notes:f.notes||null,reminder_days:f.reminder_days?parseInt(f.reminder_days):30,notify_email:f.notify_email||null,file_data:f.file_data||null,file_name:f.file_name||null,smog_file_data:f.smog_file_data||null,smog_file_name:f.smog_file_name||null,updated_at:new Date().toISOString()});
