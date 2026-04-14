@@ -449,7 +449,7 @@ function Dashboard({setPage}){
     h('div',{className:'grid2'},
       h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Open work orders'),h('button',{className:'card-link',onClick:()=>setPage('workorders')},'View all →')),
         wl?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):openWOs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'No open work orders'):
-        openWOs.slice(0,6).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},h('span',{className:'mono',style:{width:56,flexShrink:0}},wo.order_number),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title),h('div',{style:{fontSize:11,color:'#6b7a9f',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(wo.asset?.name||'No asset')+' · '+(wo.technician?.name||'Unassigned'))),h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority}),h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]})))
+        openWOs.slice(0,6).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},h('span',{className:'mono',style:{width:56,flexShrink:0}},wo.order_number),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title),h('div',{style:{fontSize:11,color:'#6b7a9f',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},((wo.asset?.asset_number?wo.asset.asset_number+' — ':'')+( wo.asset?.name||'No asset'))+' · '+(wo.technician?.name||'Unassigned'))),h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority}),h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]})))
       ),
       h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Fleet status'),h('button',{className:'card-link',onClick:()=>setPage('fleet')},'View all →')),
         al?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):(assets||[]).slice(0,8).map(a=>h('div',{key:a.id,className:'divide-row',onClick:()=>setPage('asset-'+a.id)},h('span',{className:'status-dot '+dotCls[a.status]}),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.asset_number)),h('span',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize',flexShrink:0}},a.status.replace('_',' '))))
@@ -482,7 +482,7 @@ function Dashboard({setPage}){
             return h('div',{key:a.id,className:'divide-row',style:{cursor:'pointer'},onClick:()=>setPage('intervals')},
               h('span',{style:{width:8,height:8,borderRadius:'50%',background:overdue?'#ef4444':mu!=null&&mu<=500?'#f59e0b':'#6b7a9f',flexShrink:0}}),
               h('div',{style:{flex:1,minWidth:0}},
-                h('div',{style:{fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.asset?.name+' — '+a.interval_type?.name),
+                h('div',{style:{fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(a.asset?.asset_number?a.asset.asset_number+' — ':'')+( a.asset?.name||'')+' — '+a.interval_type?.name),
                 h('div',{style:{fontSize:11,color:'#6b7a9f'}},mu!=null?(overdue?Math.abs(mu).toLocaleString()+' mi overdue':mu.toLocaleString()+' mi remaining'):'Due '+new Date(a.next_service_date+'T12:00:00').toLocaleDateString())
               ),
               h('span',{style:{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:10,background:overdue?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)',color:overdue?'#f87171':'#fbbf24'}},overdue?'OVERDUE':'Due Soon')
@@ -536,8 +536,8 @@ function SamsaraBtn({refetch}){
   );
 }
 
-function Fleet({setPage}){
-  const[typeF,setTypeF]=useState('');
+function Fleet({setPage,initialType}){
+  const[typeF,setTypeF]=useState(initialType||'');
   const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
   const{data:fleetSyncCfg}=useQuery(()=>sb.from('app_config').select('value').eq('key','samsara_last_sync').single());
   const fleetLastSync=fleetSyncCfg?.value;
@@ -597,7 +597,7 @@ function AssetDetail({id,setPage}){
   if(!a)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Asset not found.');
   const F=({label,value})=>h('div',{className:'detail-field'},h('label',null,label),h('p',null,value||'—'));
   return h('div',{className:'page'},
-    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},h('button',{className:'back-btn',onClick:()=>setPage('fleet')},h(IBack)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',gap:8,marginBottom:4}},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' ')),h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type)),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},a.name)),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New WO'),h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),h('button',{className:'btn btn-danger',onClick:del},h(ITrash)))),
+    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},h('button',{className:'back-btn',onClick:()=>setPage('fleet-back-'+(a.asset_type||''))},h(IBack)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',gap:8,marginBottom:4}},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' ')),h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type)),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},a.name)),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New WO'),h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),h('button',{className:'btn btn-danger',onClick:del},h(ITrash)))),
     h('div',{className:'card',style:{padding:20,marginBottom:16}},h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:16}},'Asset Details'),h('div',{className:'detail-grid'},h(F,{label:'Asset #',value:a.asset_number}),h(F,{label:'Year',value:a.year}),h(F,{label:'Make',value:a.make}),h(F,{label:'Model',value:a.model}),h(F,{label:'VIN',value:a.vin}),h(F,{label:'License Plate',value:a.license_plate}),a.asset_type!=='trailer'&&h(F,{label:'Odometer',value:a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':null}),a.asset_type==='equipment'&&h(F,{label:'Engine Hours',value:a.engine_hours?a.engine_hours+' hrs':null})),a.notes&&h('div',{style:{marginTop:16,paddingTop:16,borderTop:'0.5px solid #2a3048'}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('p',{style:{fontSize:13,color:'#e2e8f0'}},a.notes))),
     (wos||[]).length>0&&h('div',{className:'card',style:{marginBottom:16}},h('div',{className:'card-header'},h('span',{className:'card-title'},'Open Work Orders ('+(wos||[]).length+')')),wos.map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},h('span',{className:'mono'},wo.order_number),h('span',{style:{flex:1,fontSize:13,color:'#e2e8f0'}},wo.title),h('span',{className:'badge '+priorityCls[wo.priority]},wo.priority)))),
     h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Service History'),h('button',{className:'btn btn-ghost',style:{fontSize:11,padding:'4px 10px'},onClick:()=>setPage('servicelogs')},'Add Log')),!logs||logs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f',fontSize:13}},'No service records yet'):(logs||[]).map(log=>h('div',{key:log.id,style:{padding:'12px 16px',borderBottom:'0.5px solid #2a3048'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),h('div',{style:{fontSize:12,color:'#6b7a9f'}},fmtDate(log.serviced_at))),h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16}},log.technician?.name&&h('span',null,log.technician.name),log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),log.cost&&h('span',null,fmtCur(log.cost))))))
@@ -648,7 +648,7 @@ function WorkOrders({setPage}){
           filtered.map(wo=>h('tr',{key:wo.id,style:{cursor:'pointer'},onClick:()=>setPage('wo-'+wo.id)},
             h('td',null,h('span',{className:'mono'},wo.order_number)),
             h('td',null,h('span',{style:{maxWidth:200,display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title)),
-            h('td',{style:{color:'#94a3b8',fontSize:12}},wo.asset?.name||'—'),
+            h('td',{style:{color:'#94a3b8',fontSize:12}},(wo.asset?.asset_number?wo.asset.asset_number+' — ':'')+( wo.asset?.name||'—')),
             h('td',{style:{color:'#94a3b8',fontSize:12}},wo.technician?.name||'Unassigned'),
             h('td',null,h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority})),
             h('td',{onClick:e=>e.stopPropagation()},h('select',{className:'form-select',style:{width:130,fontSize:12,padding:'4px 8px'},value:wo.status,onChange:e=>chStatus(e,wo)},['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
@@ -660,7 +660,7 @@ function WorkOrders({setPage}){
       h('div',{className:'table-mobile'},loading?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):filtered.map(wo=>h('div',{key:wo.id,className:'divide-row',style:{flexDirection:'column',alignItems:'flex-start',gap:6},onClick:()=>setPage('wo-'+wo.id)},
         h('div',{style:{display:'flex',gap:8,alignItems:'center',width:'100%'}},h('span',{className:'mono'},wo.order_number),h('div',{style:{marginLeft:'auto',display:'flex',gap:4}},h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority}),h(PBadge,{cls:statusCls[wo.status],label:statusLabel[wo.status]}))),
         h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},wo.title),
-        h('div',{style:{fontSize:11,color:'#6b7a9f'}},(wo.asset?.name||'No asset')+' · '+(wo.technician?.name||'Unassigned'))
+        h('div',{style:{fontSize:11,color:'#6b7a9f'}},((wo.asset?.asset_number?wo.asset.asset_number+' — ':'')+( wo.asset?.name||'No asset'))+' · '+(wo.technician?.name||'Unassigned'))
       )))
     )
   );
@@ -900,7 +900,7 @@ function WOForm({id,setPage}){
         h('div',{className:'form-group'},h('label',{className:'form-label'},'Title / Job Description *'),h('input',{className:'form-input',placeholder:'e.g. 45k mile PM, brake job, oil change, pre-trip inspection...',value:f.title,onChange:e=>sf('title',e.target.value)})),
         h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
           h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type,onChange:e=>{sf('asset_type',e.target.value);sf('asset_id','');}},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-          h('div',null,h('label',{className:'form-label'},'Asset'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;sf('asset_id',aid);const a=assets?.find(x=>x.id===aid);if(a&&!isEdit&&a.odometer_miles)sf('mileage_in',String(a.odometer_miles));}},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
+          h('div',null,h('label',{className:'form-label'},'Asset'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;sf('asset_id',aid);const a=assets?.find(x=>x.id===aid);if(a&&!isEdit&&a.odometer_miles)sf('mileage_in',String(a.odometer_miles));}},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name)))),
           h('div',null,h('label',{className:'form-label'},'Assigned Technician'),h('select',{className:'form-select',value:f.technician_id,onChange:e=>sf('technician_id',e.target.value)},h('option',{value:''},'Unassigned'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))))
         ),
         selAsset&&h('div',{style:{background:'rgba(59,126,255,.07)',border:'0.5px solid rgba(59,126,255,.2)',borderRadius:10,padding:12,marginBottom:12,display:'flex',gap:20,flexWrap:'wrap',fontSize:12,color:'#e2e8f0'}},
@@ -915,7 +915,7 @@ function WOForm({id,setPage}){
           h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>sf('category',e.target.value)},h('option',{value:''},'Select...'),['preventive','repair','inspection','tire','oil change','brake job','electrical','hydraulics','bodywork','other'].map(c=>h('option',{key:c,value:c},c))))
         ),
         h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
-          h('div',null,h('label',{className:'form-label'},'Due Date'),h('input',{type:'date',className:'form-input',value:f.due_date,onChange:e=>sf('due_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Start Date/Time'),h('input',{type:'date',className:'form-input',value:f.start_date,onChange:e=>sf('start_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Need By Date/Time'),h('input',{type:'date',className:'form-input',value:f.need_by_date,onChange:e=>sf('need_by_date',e.target.value)})),
+          h('div',null,h('label',{className:'form-label'},'Due Date'),h('input',{type:'date',className:'form-input',value:f.due_date,onChange:e=>sf('due_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Start Date'),h('input',{type:'date',className:'form-input',value:f.start_date,onChange:e=>sf('start_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Finish Date'),h('input',{type:'date',className:'form-input',value:f.need_by_date,onChange:e=>sf('need_by_date',e.target.value)})),
           h('div',null,h('label',{className:'form-label'},'Est. Hours'),h('input',{type:'number',step:0.5,className:'form-input',placeholder:'0.0',value:f.estimated_hours,onChange:e=>sf('estimated_hours',e.target.value)})),
           h('div',null,h('label',{className:'form-label'},'Mileage In'),h('input',{type:'number',className:'form-input',placeholder:'Auto-filled from asset — override if needed',value:f.mileage_in,onChange:e=>sf('mileage_in',e.target.value)}))
         )
@@ -1346,7 +1346,7 @@ function ServiceLogs(){
       // Asset type then asset
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type,onChange:e=>{s('asset_type',e.target.value);s('asset_id','');}},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;s('asset_id',aid);const a=(assets||[]).find(x=>x.id===aid);if(a&&!f.odometer_miles&&a.odometer_miles)s('odometer_miles',String(a.odometer_miles));}},h('option',{value:''},'Select...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':'')))))
+        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;s('asset_id',aid);const a=(assets||[]).find(x=>x.id===aid);if(a&&!f.odometer_miles&&a.odometer_miles)s('odometer_miles',String(a.odometer_miles));}},h('option',{value:''},'Select...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name))))
       ),
       // Vendor
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
@@ -1453,7 +1453,7 @@ function ServiceLogs(){
           h('div',{style:{flex:1,minWidth:0}},
             h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}},
               h('span',{style:{fontSize:13,fontWeight:600}},log.service_type),
-              h('span',{style:{fontSize:12,color:'#3b7eff'}},log.asset?.name),
+              h('span',{style:{fontSize:12,color:'#3b7eff'}},(log.asset?.asset_number?log.asset.asset_number+' — ':'')+( log.asset?.name||'')),
               log.vendor_name&&h('span',{style:{fontSize:11,background:'rgba(107,122,159,.15)',color:'#94a3b8',padding:'1px 8px',borderRadius:10}},log.vendor_name)
             ),
             h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16,flexWrap:'wrap'}},
@@ -1480,7 +1480,7 @@ function ServiceLogs(){
         )
       ),
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 24px',marginBottom:14}},
-        [['Asset',detailLog.asset?.name+(detailLog.asset?.asset_number?' ('+detailLog.asset.asset_number+')':'')],['Vendor',detailLog.vendor_name||'—'],['Date',new Date(detailLog.serviced_at).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})],['Cost',detailLog.cost?'$'+parseFloat(detailLog.cost).toFixed(2):'—'],['Odometer',detailLog.odometer_miles?detailLog.odometer_miles.toLocaleString()+' mi':'—'],['Eng. Hours',detailLog.engine_hours?detailLog.engine_hours+' hrs':'—'],['Next Service Miles',detailLog.next_service_miles?detailLog.next_service_miles.toLocaleString()+' mi':'—'],['Next Service Date',detailLog.next_service_date?new Date(detailLog.next_service_date+'T12:00:00').toLocaleDateString():'—']].map(([k,v])=>
+        [['Asset',(detailLog.asset?.asset_number?detailLog.asset.asset_number+' — ':'')+( detailLog.asset?.name||'')],['Vendor',detailLog.vendor_name||'—'],['Date',new Date(detailLog.serviced_at).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})],['Cost',detailLog.cost?'$'+parseFloat(detailLog.cost).toFixed(2):'—'],['Odometer',detailLog.odometer_miles?detailLog.odometer_miles.toLocaleString()+' mi':'—'],['Eng. Hours',detailLog.engine_hours?detailLog.engine_hours+' hrs':'—'],['Next Service Miles',detailLog.next_service_miles?detailLog.next_service_miles.toLocaleString()+' mi':'—'],['Next Service Date',detailLog.next_service_date?new Date(detailLog.next_service_date+'T12:00:00').toLocaleDateString():'—']].map(([k,v])=>
           h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:2}},k),h('div',{style:{fontSize:13,fontWeight:500}},v||'—'))
         )
       ),
@@ -1623,7 +1623,7 @@ function ServiceIntervals({setPage}){
         (assigned||[]).length>0&&h('div',{style:{background:'#0f1117',borderRadius:8,overflow:'hidden',marginBottom:12}},
           (assigned||[]).map((a,i)=>h('div',{key:a.id,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderBottom:i<(assigned||[]).length-1?'.5px solid #2a3048':'none'}},
             h('div',{style:{flex:1,minWidth:0}},
-              h('div',{style:{fontSize:13,color:'#e2e8f0',fontWeight:500}},a.asset?.name+(a.asset?.asset_number?' ('+a.asset.asset_number+')':'')),
+              h('div',{style:{fontSize:13,color:'#e2e8f0',fontWeight:500}},(a.asset?.asset_number?a.asset.asset_number+' — ':'')+( a.asset?.name||'')),
               h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.asset?.asset_type+(a.asset?.odometer_miles?' · '+a.asset.odometer_miles.toLocaleString()+' mi current':'')+(a.last_service_miles?' · last svc: '+a.last_service_miles.toLocaleString()+' mi':''))
             ),
             h('div',{style:{textAlign:'right',fontSize:11,color:'#6b7a9f'}},
@@ -1641,7 +1641,7 @@ function ServiceIntervals({setPage}){
             (assets||[]).filter(a=>(!newAssetTypeF||a.asset_type===newAssetTypeF)&&!(assigned||[]).find(x=>x.asset_id===a.id)).map(a=>h('label',{key:a.id,style:{display:'flex',alignItems:'center',gap:8,padding:'5px 4px',cursor:'pointer'}},
               h('input',{type:'checkbox',checked:newSelectedIds.includes(a.id),onChange:()=>setNewSelectedIds(prev=>prev.includes(a.id)?prev.filter(x=>x!==a.id):[...prev,a.id]),style:{width:14,height:14,cursor:'pointer'}}),
               h('div',null,
-                h('div',{style:{fontSize:12,color:'#e2e8f0'}},a.name+(a.asset_number?' ('+a.asset_number+')':'')),
+                h('div',{style:{fontSize:12,color:'#e2e8f0'}},(a.asset_number?a.asset_number+' — ':'')+a.name),
                 h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type+(a.odometer_miles?' · '+a.odometer_miles.toLocaleString()+' mi':''))
               )
             ))
@@ -1726,7 +1726,7 @@ function ServiceIntervals({setPage}){
           filteredAssets.map(a=>h('label',{key:a.id,style:{display:'flex',alignItems:'center',gap:8,padding:'5px 8px',cursor:'pointer',borderRadius:4}},
             h('input',{type:'checkbox',checked:selectedIds.includes(a.id),onChange:()=>toggleAsset(a.id),style:{width:14,height:14,cursor:'pointer'}}),
             h('div',{style:{flex:1,minWidth:0}},
-              h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name+(a.asset_number?' ('+a.asset_number+')':'')),
+              h('div',{style:{fontSize:13,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(a.asset_number?a.asset_number+' — ':'')+a.name),
               h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type+(a.odometer_miles?' · '+a.odometer_miles.toLocaleString()+' mi':''))
             )
           ))
@@ -1866,7 +1866,7 @@ function ServiceIntervals({setPage}){
                 const cur=a.asset?.odometer_miles||0;
                 return h('tr',{key:a.id,style:{opacity:st.state==='snoozed'?.6:1}},
                   h('td',null,h('input',{type:'checkbox',checked:selected.has(a.id),onChange:()=>toggleSelect(a.id),style:{width:16,height:16,cursor:'pointer'}})),
-                  h('td',null,h('div',{style:{fontWeight:500,fontSize:13}},a.asset?.name||'—'),h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.asset?.asset_number||'')),
+                  h('td',null,h('div',{style:{fontWeight:500,fontSize:13}},(a.asset?.asset_number?a.asset.asset_number+' — ':'')+( a.asset?.name||'—')),h('div',{style:{fontSize:11,color:'#6b7a9f'}},a.asset?.asset_number||'')),
                   h('td',null,h('div',{style:{fontSize:13}},a.interval_type?.name||'—'),a.interval_type?.category&&h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},a.interval_type.category)),
                   h('td',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12}},cur?cur.toLocaleString()+' mi':'—'),
                   h('td',{style:{fontSize:12,color:'#6b7a9f'}},a.last_service_miles?a.last_service_miles.toLocaleString()+' mi'+(a.last_service_date?' · '+new Date(a.last_service_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):''):'—'),
@@ -2043,7 +2043,7 @@ function Scheduler({setPage}){
         h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>setSelectedWO(null)},'✕')
       ),
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 20px',marginBottom:12}},
-        [['Asset',selectedWO.asset?.name||'—'],['Technician',selectedWO.technician?.name||'Unassigned'],['Priority',selectedWO.priority],['Status',selectedWO.status],['Start',selectedWO.start_date||'—'],['Need By',selectedWO.need_by_date||'—']].map(([k,v])=>
+        [['Asset',(selectedWO.asset?.asset_number?selectedWO.asset.asset_number+' — ':'')+( selectedWO.asset?.name||'—')],['Technician',selectedWO.technician?.name||'Unassigned'],['Priority',selectedWO.priority],['Status',selectedWO.status],['Start',selectedWO.start_date||'—'],['Finish',selectedWO.need_by_date||'—']].map(([k,v])=>
           h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:1}},k),h('div',{style:{fontSize:13,fontWeight:500}},v))
         )
       ),
@@ -2167,7 +2167,7 @@ function Documents({setPage}){
       h('h3',null,'Add Document'),
       h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type_filter,onChange:e=>s('asset_type_filter',e.target.value)},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type_filter||a.asset_type===f.asset_type_filter).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
+        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type_filter||a.asset_type===f.asset_type_filter).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name)))),
         h('div',null,
           h('label',{className:'form-label'},'Document Type'),
           h('select',{className:'form-select',value:f.doc_type,onChange:e=>e.target.value==='__new__'?setShowNewType(true):s('doc_type',e.target.value)},
@@ -2225,12 +2225,12 @@ function Documents({setPage}){
     expiringSoon.length>0&&h('div',{className:'alert alert-warn',style:{marginBottom:10}},h(IAlert),expiringSoon.length+' expiring within 30 days'),
     h('div',{className:'filters'},
       h('select',{className:'form-select',style:{width:160},value:filterType,onChange:e=>setFilterType(e.target.value)},h('option',{value:''},'All Types'),['registration','smog','insurance','inspection','title','other'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1)))),
-      h('select',{className:'form-select',style:{width:200},value:filterAsset,onChange:e=>setFilterAsset(e.target.value)},h('option',{value:''},'All Assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))
+      h('select',{className:'form-select',style:{width:200},value:filterAsset,onChange:e=>setFilterAsset(e.target.value)},h('option',{value:''},'All Assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name)))
     ),
     h('div',{className:'card'},
       filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No documents yet.'):
       h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Asset','Type','Title','Expires','Status','Smog Due','Renewals','Actions'].map(c=>h('th',{key:c},c)))),
+        h('thead',null,h('tr',null,['Asset','Type','Expires','Status','Smog Due','Renewals','Actions'].map(c=>h('th',{key:c},c)))),
         h('tbody',null,filtered.map(d=>{
           const days=daysUntil(d.expiration_date);
           const col=urgColor(days);
@@ -2239,7 +2239,7 @@ function Documents({setPage}){
           return h('tr',{key:d.id,style:{cursor:'pointer',opacity:snoozed?.7:1},onClick:()=>setDetailDoc(d)},
             h('td',null,h('div',{style:{fontWeight:500}},d.asset?.name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},d.asset?.asset_number)),
             h('td',null,h('span',{style:{fontSize:11,padding:'2px 8px',borderRadius:10,background:'rgba(107,122,159,.15)',color:'#94a3b8',textTransform:'capitalize'}},d.doc_type)),
-            h('td',null,d.title,d.file_name&&h('span',{style:{fontSize:10,color:'#6b7a9f',marginLeft:6}},'📄')),
+            h('td',null,d.file_name&&h('span',{style:{fontSize:10,color:'#6b7a9f'}},'📄')),
             h('td',{style:{fontSize:12,color:'#6b7a9f'}},d.expiration_date?new Date(d.expiration_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
             h('td',null,snoozed?h('span',{style:{fontSize:11,color:'#94a3b8'}},'💤 Snoozed until '+new Date(d.snoozed_until+'T12:00:00').toLocaleDateString()):days!==null?h('span',{style:{fontSize:11,fontWeight:600,color:col}},urgLabel(days)):h('span',{style:{color:'#6b7a9f'}},'—')),
             h('td',null,d.requires_smog&&d.next_smog_date?h('span',{style:{fontSize:11,color:urgColor(smogDays)}},smogDays!==null&&smogDays<0?'OVERDUE':smogDays+'d'):d.requires_smog?h('span',{style:{color:'#fbbf24',fontSize:11}},'No date'):'—'),
@@ -2266,7 +2266,7 @@ function Documents({setPage}){
         )
       ),
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 20px',marginBottom:14}},
-        [['Asset',detailDoc.asset?.name+(detailDoc.asset?.asset_number?' ('+detailDoc.asset.asset_number+')':'')],['Type',detailDoc.doc_type],['Issue Date',detailDoc.issue_date?new Date(detailDoc.issue_date+'T12:00:00').toLocaleDateString():'—'],['Expires',detailDoc.expiration_date?new Date(detailDoc.expiration_date+'T12:00:00').toLocaleDateString():'—'],['Days Remaining',daysUntil(detailDoc.expiration_date)!==null?urgLabel(daysUntil(detailDoc.expiration_date)):'No expiry'],['Renewals',(detailDoc.renewal_count||0)+'']].map(([k,v])=>h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:1}},k),h('div',{style:{fontSize:13,fontWeight:500}},v||'—')))
+        [['Asset',(detailDoc.asset?.asset_number?detailDoc.asset.asset_number+' — ':'')+( detailDoc.asset?.name||'')],['Type',detailDoc.doc_type],['Issue Date',detailDoc.issue_date?new Date(detailDoc.issue_date+'T12:00:00').toLocaleDateString():'—'],['Expires',detailDoc.expiration_date?new Date(detailDoc.expiration_date+'T12:00:00').toLocaleDateString():'—'],['Days Remaining',daysUntil(detailDoc.expiration_date)!==null?urgLabel(daysUntil(detailDoc.expiration_date)):'No expiry'],['Renewals',(detailDoc.renewal_count||0)+'']].map(([k,v])=>h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:1}},k),h('div',{style:{fontSize:13,fontWeight:500}},v||'—')))
       ),
       isSnoozed(detailDoc)&&h('div',{style:{background:'rgba(107,122,159,.1)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:12}},h('span',{style:{color:'#94a3b8'}},'💤 Snoozed until '+new Date(detailDoc.snoozed_until+'T12:00:00').toLocaleDateString()+(detailDoc.snooze_reason?' — '+detailDoc.snooze_reason:''))),
       detailDoc.requires_smog&&h('div',{style:{background:'rgba(59,126,255,.07)',borderRadius:8,padding:10,marginBottom:12}},
@@ -2316,7 +2316,7 @@ function App(){
     if(page==='wo-new')return h(WOForm,{id:null,setPage});
     if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage});
     if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage});
-    if(page==='fleet')return h(Fleet,{setPage});
+    if(page==='fleet'||page.startsWith('fleet-back-'))return h(Fleet,{setPage,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):''});
     if(page==='asset-new')return h(AssetForm,{id:null,setPage});
     if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
     if(page.startsWith('asset-'))return h(AssetDetail,{id:page.replace('asset-',''),setPage});
