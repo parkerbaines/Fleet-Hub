@@ -471,27 +471,34 @@ function Dashboard({setPage}){
 function SamsaraBtn({refetch}){
   const[syncing,setSyncing]=useState(false);
   const[result,setResult]=useState(null);
-  const doSync=async()=>{
-    setSyncing(true);setResult(null);
+  const[diagMode,setDiagMode]=useState(false);
+  const doSync=async(diagnose)=>{
+    setSyncing(true);setResult(null);setDiagMode(!!diagnose);
     try{
-      const resp=await fetch('https://zmxynphetgelskqnadbg.supabase.co/functions/v1/samsara-sync',{method:'POST',headers:{'Content-Type':'application/json'}});
+      const url='https://zmxynphetgelskqnadbg.supabase.co/functions/v1/samsara-sync'+(diagnose?'?mode=diagnose':'');
+      const resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}});
       const data=await resp.json();
       setResult(data);
-      if(data.synced>0)refetch();
+      if(!diagnose&&data.synced>0)refetch();
     }catch(e){setResult({error:e.message});}
     setSyncing(false);
   };
   return h('div',{style:{position:'relative',display:'inline-block'}},
-    h('button',{className:'btn btn-ghost',style:{fontSize:12,gap:6,color:syncing?'#6b7a9f':'#60a5fa',borderColor:syncing?'#2a3048':'rgba(59,126,255,.4)'},onClick:doSync,disabled:syncing},
-      syncing?'⏳ Syncing...':'🛰 Samsara Sync'
+    h('div',{style:{display:'flex',gap:4}},
+      h('button',{className:'btn btn-ghost',style:{fontSize:12,gap:6,color:syncing?'#6b7a9f':'#60a5fa',borderColor:syncing?'#2a3048':'rgba(59,126,255,.4)'},onClick:()=>doSync(false),disabled:syncing},
+        syncing&&!diagMode?'⏳ Syncing...':'🛰 Samsara Sync'
+      ),
+      h('button',{className:'btn btn-ghost',style:{fontSize:11,color:'#6b7a9f'},onClick:()=>doSync(true),disabled:syncing},
+        syncing&&diagMode?'⏳':'🔍'
+      )
     ),
     result&&h('div',{style:{position:'absolute',top:'100%',right:0,marginTop:6,background:'#1e2333',border:'.5px solid #2a3048',borderRadius:10,padding:14,zIndex:50,minWidth:260,boxShadow:'0 8px 24px rgba(0,0,0,.4)'}},
       result.error
         ? h('div',{style:{color:'#f87171',fontSize:12}},'✗ '+result.error)
         : h('div',null,
-            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' of '+result.samsara_vehicles+' vehicles'),
+            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' of '+(result.samsara_with_vin||result.samsara_total||0)+' vehicles with VINs'),
             result.matched?.length>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Updated: '+(result.matched||[]).map(m=>m.asset+(m.odometer_miles?' — '+m.odometer_miles.toLocaleString()+' mi':'')+(m.matched_by?' ['+m.matched_by+']':'')).join(', ')),
-            result.unmatched?.length>0&&h('div',{style:{fontSize:11,color:'#fbbf24',marginBottom:4}},'No match in FleetOps: '+(result.unmatched||[]).join(', ')),
+            (result.skipped_count>0)&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},result.skipped_count+' skipped — no matching VIN in FleetOps'),
             result.errors?.length>0&&h('div',{style:{fontSize:11,color:'#f87171'}},result.errors.join(', ')),
             h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:6}},'Tip: VINs must match between Samsara and FleetOps for auto-matching.')
           ),
