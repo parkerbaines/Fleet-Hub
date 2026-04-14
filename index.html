@@ -608,56 +608,188 @@ function SamsaraBtn({refetch}){
   );
 }
 
+
 function Fleet({setPage,initialType}){
   const[typeF,setTypeF]=useState(initialType||'');
-  const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
+  const[sortF,setSortF]=useState('name');
+  const[statusF,setStatusF]=useState('');
+  const[search,setSearch]=useState('');
+  const[importM,setImportM]=useState(null);
+
+  const { visibleCols } = useColumns('fleet', fleetCols);
+
   const{data:fleetSyncCfg}=useQuery(()=>sb.from('app_config').select('value').eq('key','samsara_last_sync').single());
   const fleetLastSync=fleetSyncCfg?.value;
-  const{data:assets,loading,refetch}=useQuery(()=>{let q=sb.from('assets').select('*').order('asset_type').order('name');if(typeF)q=q.eq('asset_type',typeF);return q;},[typeF]);
-  const filtered=(assets||[]).filter(a=>{if(statusF&&a.status!==statusF)return false;if(search){const q=search.toLowerCase();return a.name?.toLowerCase().includes(q)||a.asset_number?.toLowerCase().includes(q)||a.vin?.toLowerCase().includes(q);}return true;});
-  const handleExport=()=>{const cols=[{k:'name',l:'name'},{k:'asset_number',l:'asset_number'},{k:'asset_type',l:'asset_type'},{k:'year',l:'year'},{k:'make',l:'make'},{k:'model',l:'model'},{k:'vin',l:'vin'},{k:'license_plate',l:'license_plate'},{k:'odometer_miles',l:'odometer_miles'},{k:'engine_hours',l:'engine_hours'},{k:'status',l:'status'},{k:'notes',l:'notes'}];dlCSV('fleetops_fleet_'+new Date().toISOString().slice(0,10)+'.csv',toCSV(filtered,cols));};
+
+  const{data:assets,loading,refetch}=useQuery(()=>{
+    let q=sb.from('assets').select('*');
+    if(typeF) q=q.eq('asset_type',typeF);
+    return q.order('asset_type').order('name');
+  },[typeF]);
+
+  const filtered=(assets||[])
+    .filter(a=>{
+      if(statusF && a.status!==statusF) return false;
+      if(search){
+        const q=search.toLowerCase();
+        return (a.name||'').toLowerCase().includes(q)
+          || (a.asset_number||'').toLowerCase().includes(q)
+          || (a.vin||'').toLowerCase().includes(q)
+          || (a.license_plate||'').toLowerCase().includes(q)
+          || (a.make||'').toLowerCase().includes(q)
+          || (a.model||'').toLowerCase().includes(q);
+      }
+      return true;
+    })
+    .sort((a,b)=>{
+      if(sortF==='year') return (b.year||0)-(a.year||0);
+      if(sortF==='status') return String(a.status||'').localeCompare(String(b.status||''));
+      if(sortF==='asset_number') return String(a.asset_number||'').localeCompare(String(b.asset_number||''), undefined, {numeric:true});
+      return String(a.name||'').localeCompare(String(b.name||''));
+    });
+
+  const handleExport=()=>{
+    const cols=[
+      {k:'name',l:'name'},
+      {k:'asset_number',l:'asset_number'},
+      {k:'asset_type',l:'asset_type'},
+      {k:'year',l:'year'},
+      {k:'make',l:'make'},
+      {k:'model',l:'model'},
+      {k:'vin',l:'vin'},
+      {k:'license_plate',l:'license_plate'},
+      {k:'odometer_miles',l:'odometer_miles'},
+      {k:'engine_hours',l:'engine_hours'},
+      {k:'status',l:'status'},
+      {k:'notes',l:'notes'}
+    ];
+    dlCSV('fleetops_fleet_'+new Date().toISOString().slice(0,10)+'.csv',toCSV(filtered,cols));
+  };
+
+  const typeCounts = {
+    vehicle: (assets||[]).filter(a=>a.asset_type==='vehicle').length,
+    trailer: (assets||[]).filter(a=>a.asset_type==='trailer').length,
+    equipment: (assets||[]).filter(a=>a.asset_type==='equipment').length
+  };
+
+  const statusOptions=[...new Set((assets||[]).map(a=>a.status).filter(Boolean))];
+
+  const renderCell = (a, key) => {
+    if(key==='name') return a.name || '—';
+    if(key==='asset_number') return a.asset_number || '—';
+    if(key==='asset_type') return a.asset_type ? a.asset_type.charAt(0).toUpperCase()+a.asset_type.slice(1) : '—';
+    if(key==='year') return a.year || '—';
+    if(key==='make') return a.make || '—';
+    if(key==='model') return a.model || '—';
+    if(key==='license_plate') return a.license_plate || '—';
+    if(key==='vin') return a.vin || '—';
+    if(key==='odometer_miles') return a.odometer_miles!=null && a.odometer_miles!=='' ? Number(a.odometer_miles).toLocaleString() : '—';
+    if(key==='engine_hours') return a.engine_hours!=null && a.engine_hours!=='' ? a.engine_hours : '—';
+    if(key==='status') return h(PBadge,{cls:assetStatusCls[a.status]||'b-retired',label:(a.status||'—').replace('_',' ')});
+    return a[key] ?? '—';
+  };
+
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
-      h('div',null,h('h2',null,'Fleet'),h('p',null,(assets||[]).filter(a=>a.asset_type==='vehicle').length+' vehicles · '+(assets||[]).filter(a=>a.asset_type==='trailer').length+' trailers · '+(assets||[]).filter(a=>a.asset_type==='equipment').length+' equipment')),
-      h('div',{className:'btn-row'},h(SamsaraBtn,{refetch}),null,
-        fleetLastSync&&h('span',{style:{fontSize:11,color:'#4ade80',padding:'4px 10px',borderRadius:20,background:'rgba(34,197,94,.1)',border:'0.5px solid rgba(34,197,94,.2)'}},'🛰 '+timeAgo(fleetLastSync)),h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),h('select',{className:'btn btn-ghost',style:{cursor:'pointer'},onChange:e=>{if(e.target.value)setImportM(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'⬆ Import CSV'),h('option',{value:'vehicle'},'Import Vehicles'),h('option',{value:'trailer'},'Import Trailers'),h('option',{value:'equipment'},'Import Equipment')),h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset'))
-    ),
-    h('div',{className:'tabs'},['','vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:'tab'+(typeF===t?' active':''),onClick:()=>setTypeF(t)},t?t.charAt(0).toUpperCase()+t.slice(1):'All'))),
-    h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search name, asset #, VIN...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},h('option',{value:''},'All statuses'),['active','in_shop','down','retired'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
-    h('div',{className:'filters',style:{marginBottom:8}},h('select',{className:'form-select',style:{width:160},value:sortF,onChange:e=>setSortF(e.target.value)},h('option',{value:'name'},'Sort: Name'),h('option',{value:'asset_number'},'Sort: Asset #'),h('option',{value:'year'},'Sort: Year'),h('option',{value:'status'},'Sort: Status'),h('option',{value:'odometer_miles'},'Sort: Mileage'))),
-    h('div',{className:'card'},
-      loading?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'Loading...'):
-      filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No assets found'):
-      h(Fragment,null,
-        h('div',{className:'table-wrap'},h('table',null,
-          h('thead',null,h('tr',null,fleetCols.map(c=>h('th',{key:c.key},c.label)))),
-          h('tbody',null,[...filtered].sort((a,b)=>{
-            if(sortF==='odometer_miles')return(b.odometer_miles||b.engine_hours||0)-(a.odometer_miles||a.engine_hours||0);
-            return String(a[sortF]||'').localeCompare(String(b[sortF]||''));
-          }).map(a=>{
-            const fleetCellMap={
-              name:h('td',{key:'name',style:{fontWeight:500}},a.name),
-              assetnum:h('td',{key:'assetnum'},h('span',{className:'mono'},a.asset_number||'—')),
-              type:h('td',{key:'type',style:{textTransform:'capitalize',color:'#6b7a9f',fontSize:12}},a.asset_type),
-              year:h('td',{key:'year',style:{color:'#94a3b8',fontSize:12}},a.year||'—'),
-              makemodel:h('td',{key:'makemodel',style:{color:'#94a3b8',fontSize:12}},[a.make,a.model].filter(Boolean).join(' ')||'—'),
-              odo:h('td',{key:'odo',style:{color:'#94a3b8',fontSize:12}},a.asset_type==='equipment'?(a.engine_hours?a.engine_hours+' hrs':'—'):(a.asset_type==='trailer'?'—':(a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':'—'))),
-              status:h('td',{key:'status'},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))),
-              actions:h('td',{key:'actions'},h('button',{className:'icon-btn',onClick:e=>{e.stopPropagation();setPage('asset-edit-'+a.id);}},h(IEdit))),
-            };
-            return h('tr',{key:a.id,style:{cursor:'pointer'},onClick:()=>setPage('asset-'+a.id)},fleetCols.map(c=>fleetCellMap[c.key]));
-          }))
-        )),
-        h('div',{className:'table-mobile'},filtered.map(a=>h('div',{key:a.id,className:'row',onClick:()=>setPage('asset-'+a.id)},
-          h('div',{style:{flex:1,minWidth:0}},
-            h('div',{style:{fontSize:13,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name),
-            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},(a.asset_number||'No ID')+' · '+a.asset_type+(a.year?' · '+a.year:''))
-          ),
-          h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))
-        )))
+      h('div',null,
+        h('h2',null,'Fleet'),
+        h('p',null, typeCounts.vehicle+' vehicles · '+typeCounts.trailer+' trailers · '+typeCounts.equipment+' equipment')
+      ),
+      h('div',{className:'btn-row'},
+        h(SamsaraBtn,{refetch}),
+        fleetLastSync&&h('span',{
+          style:{
+            fontSize:11,color:'#4ade80',padding:'4px 10px',borderRadius:20,
+            background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)'
+          }
+        },'🛰 '+timeAgo(fleetLastSync)),
+        h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),
+        h('select',{
+          className:'btn btn-ghost',
+          style:{cursor:'pointer'},
+          onChange:e=>{ if(e.target.value) setImportM(e.target.value); e.target.value=''; },
+          defaultValue:''
+        },
+          h('option',{value:'',disabled:true},'⬆ Import CSV'),
+          h('option',{value:'vehicle'},'Import Vehicles'),
+          h('option',{value:'trailer'},'Import Trailers'),
+          h('option',{value:'equipment'},'Import Equipment')
+        ),
+        h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset')
       )
     ),
-    importM&&h(ImportModal,{assetType:importM,onClose:()=>setImportM(null),onDone:refetch})
+
+    h('div',{className:'tabs'},
+      [
+        {id:'',label:'All'},
+        {id:'vehicle',label:'Vehicle'},
+        {id:'trailer',label:'Trailer'},
+        {id:'equipment',label:'Equipment'}
+      ].map(t=>h('button',{
+        key:t.id||'all',
+        className:'tab'+(typeF===t.id?' active':''),
+        onClick:()=>setTypeF(t.id)
+      },t.label))
+    ),
+
+    h('div',{className:'filters'},
+      h('div',{className:'search-wrap'},
+        h(ISearch),
+        h('input',{
+          className:'form-input search-input',
+          placeholder:'Search name, asset #, VIN...',
+          value:search,
+          onChange:e=>setSearch(e.target.value)
+        })
+      ),
+      h('select',{
+        className:'form-select',
+        style:{maxWidth:160},
+        value:statusF,
+        onChange:e=>setStatusF(e.target.value)
+      },
+        h('option',{value:''},'All statuses'),
+        statusOptions.map(s=>h('option',{key:s,value:s},s.replace('_',' ')))
+      ),
+      h('select',{
+        className:'form-select',
+        style:{maxWidth:160},
+        value:sortF,
+        onChange:e=>setSortF(e.target.value)
+      },
+        h('option',{value:'name'},'Sort: Name'),
+        h('option',{value:'asset_number'},'Sort: Asset #'),
+        h('option',{value:'year'},'Sort: Year'),
+        h('option',{value:'status'},'Sort: Status')
+      )
+    ),
+
+    h('div',{className:'card'},
+      h('div',{className:'table-wrap'},
+        h('table',null,
+          h('thead',null,
+            h('tr',null,
+              visibleCols.map(col=>h('th',{key:col.key},col.label))
+            )
+          ),
+          h('tbody',null,
+            loading
+              ? h('tr',null,h('td',{colSpan:visibleCols.length,style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'))
+              : filtered.length===0
+                ? h('tr',null,h('td',{colSpan:visibleCols.length,style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'No assets found'))
+                : filtered.map(a=>h('tr',{
+                    key:a.id,
+                    style:{cursor:'pointer'},
+                    onClick:()=>setPage('asset-'+a.id)
+                  },
+                    visibleCols.map(col=>h('td',{key:col.key},renderCell(a,col.key)))
+                  ))
+          )
+        )
+      )
+    ),
+
+    importM && h(ImportModal,{assetType:importM,onClose:()=>setImportM(null),onDone:refetch})
   );
 }
 
