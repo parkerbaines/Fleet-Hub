@@ -426,11 +426,16 @@ function Dashboard({setPage}){
     h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order'))),
     (()=>{
       const now3=new Date();
-      const exp=(expiringDocs||[]).filter(d=>{const days=Math.ceil((new Date(d.expiration_date+' 12:00:00')-now3)/86400000);return days<=30;});
+      const exp=(expiringDocs||[]).filter(d=>{
+        if(!d.expiration_date)return false;
+        const days=Math.ceil((new Date(d.expiration_date+'T12:00:00')-now3)/86400000);
+        const remDays=d.reminder_days||30;
+        return days<=remDays;
+      });
       if(!exp.length)return null;
-      const ov=exp.filter(d=>Math.ceil((new Date(d.expiration_date+' 12:00:00')-now3)/86400000)<0);
+      const ov=exp.filter(d=>Math.ceil((new Date(d.expiration_date+'T12:00:00')-now3)/86400000)<0);
       return h('div',{className:'alert '+(ov.length?'alert-danger':'alert-warn'),style:{marginBottom:10,cursor:'pointer'},onClick:()=>setPage('documents')},
-        h(IAlert),(ov.length?ov.length+' expired':'')+(ov.length&&exp.length-ov.length?', ':'')+(exp.length-ov.length?exp.length-ov.length+' expiring soon':'')+(ov.length+exp.length?' document'+(exp.length>1?'s':'')+': '+exp.slice(0,2).map(d=>d.asset?.name+' '+d.title).join(', '):''),
+        h(IAlert),(ov.length?ov.length+' expired':'')+(ov.length&&exp.length-ov.length?', ':'')+(exp.length-ov.length?exp.length-ov.length+' expiring soon':'')+(exp.length?' — '+exp.slice(0,2).map(d=>(d.asset?.name||'')+' '+d.doc_type).join(', ')+(exp.length>2?' +more':''):''),
         h('span',{style:{marginLeft:'auto',fontSize:11,color:'inherit'}},'View →')
       );
     })(),
@@ -910,7 +915,7 @@ function WOForm({id,setPage}){
           h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>sf('category',e.target.value)},h('option',{value:''},'Select...'),['preventive','repair','inspection','tire','oil change','brake job','electrical','hydraulics','bodywork','other'].map(c=>h('option',{key:c,value:c},c))))
         ),
         h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
-          h('div',null,h('label',{className:'form-label'},'Due Date'),h('input',{type:'date',className:'form-input',value:f.due_date,onChange:e=>sf('due_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Start Date/Time'),h('input',{type:'datetime-local',className:'form-input',value:f.start_date,onChange:e=>sf('start_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Need By Date/Time'),h('input',{type:'datetime-local',className:'form-input',value:f.need_by_date,onChange:e=>sf('need_by_date',e.target.value)})),
+          h('div',null,h('label',{className:'form-label'},'Due Date'),h('input',{type:'date',className:'form-input',value:f.due_date,onChange:e=>sf('due_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Start Date/Time'),h('input',{type:'date',className:'form-input',value:f.start_date,onChange:e=>sf('start_date',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Need By Date/Time'),h('input',{type:'date',className:'form-input',value:f.need_by_date,onChange:e=>sf('need_by_date',e.target.value)})),
           h('div',null,h('label',{className:'form-label'},'Est. Hours'),h('input',{type:'number',step:0.5,className:'form-input',placeholder:'0.0',value:f.estimated_hours,onChange:e=>sf('estimated_hours',e.target.value)})),
           h('div',null,h('label',{className:'form-label'},'Mileage In'),h('input',{type:'number',className:'form-input',placeholder:'Auto-filled from asset — override if needed',value:f.mileage_in,onChange:e=>sf('mileage_in',e.target.value)}))
         )
@@ -941,7 +946,7 @@ function WOForm({id,setPage}){
           h('div',{className:'form-grid form-grid-3',style:{marginBottom:10}},
             h('div',null,h('label',{className:'form-label'},'Technician'),h('select',{className:'form-select',value:tf.technician_id,onChange:e=>setTf(x=>({...x,technician_id:e.target.value}))},h('option',{value:''},'—'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name)))),
             h('div',null,h('label',{className:'form-label'},'Hours *'),h('input',{type:'number',step:0.25,min:0.25,className:'form-input',placeholder:'1.5',value:tf.hours,onChange:e=>setTf(x=>({...x,hours:e.target.value}))})),
-            h('div',null,h('label',{className:'form-label'},'Date'),h('input',{type:'datetime-local',className:'form-input',value:tf.logged_at,onChange:e=>setTf(x=>({...x,logged_at:e.target.value}))}))
+            h('div',null,h('label',{className:'form-label'},'Date'),h('input',{type:'date',className:'form-input',value:tf.logged_at,onChange:e=>setTf(x=>({...x,logged_at:e.target.value}))}))
           ),
           h('div',{style:{display:'flex',gap:8,alignItems:'flex-end'}},
             h('div',{style:{flex:1}},h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'What was done?',value:tf.notes,onChange:e=>setTf(x=>({...x,notes:e.target.value}))})),
@@ -1352,7 +1357,7 @@ function ServiceLogs(){
       ),
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Service Type *'),h('select',{className:'form-select',value:f.service_type,onChange:e=>s('service_type',e.target.value)},h('option',{value:''},'Select...'),['Oil change','PM service','Brake job','Tire rotation','Tire replacement','Inspection','Filter replacement','Fluid flush','Belt replacement','Electrical repair','Hydraulic repair','Bodywork','Other'].map(st=>h('option',{key:st,value:st},st)))),
-        h('div',null,h('label',{className:'form-label'},'Service Date'),h('input',{type:'datetime-local',className:'form-input',value:f.serviced_at,onChange:e=>s('serviced_at',e.target.value)}))
+        h('div',null,h('label',{className:'form-label'},'Service Date'),h('input',{type:'date',className:'form-input',value:f.serviced_at,onChange:e=>s('serviced_at',e.target.value)}))
       ),
       h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Odometer (mi)'),h('input',{type:'number',className:'form-input',value:f.odometer_miles,onChange:e=>s('odometer_miles',e.target.value)})),
@@ -1921,43 +1926,53 @@ function Scheduler({setPage}){
   const getWeekStart=(d)=>{const s=new Date(d);s.setDate(s.getDate()-s.getDay());return s;};
   const weekStart=getWeekStart(current);
 
-  const wosByDate={};
-  (wos||[]).forEach(wo=>{
-    if(!wo.start_date)return;
-    const key=wo.start_date;
-    if(!wosByDate[key])wosByDate[key]=[];
-    wosByDate[key].push(wo);
-    // Also add to need_by_date if different
-    if(wo.need_by_date&&wo.need_by_date!==wo.start_date){
-      if(!wosByDate[wo.need_by_date])wosByDate[wo.need_by_date]=[];
-      if(!wosByDate[wo.need_by_date].find(x=>x.id===wo.id))
-        wosByDate[wo.need_by_date].push({...wo,_isEnd:true});
-    }
-  });
+  // wosByDate not needed - using spanEvents/singleEvents instead
 
   const prioColor={urgent:'#f87171',high:'#fbbf24',normal:'#60a5fa',low:'#94a3b8'};
 
-  const DayCell=({date,mini})=>{
+  // Build span events: each WO that has start_date and spans multiple days
+  const spanEvents=(wos||[]).filter(wo=>wo.start_date&&wo.need_by_date&&wo.start_date!==wo.need_by_date);
+  const singleEvents=(wos||[]).filter(wo=>wo.start_date&&(!wo.need_by_date||wo.start_date===wo.need_by_date));
+
+  const isInSpan=(dateStr,wo)=>{
+    if(!wo.start_date||!wo.need_by_date)return false;
+    return dateStr>=wo.start_date&&dateStr<=wo.need_by_date;
+  };
+  const isSpanStart=(dateStr,wo)=>dateStr===wo.start_date;
+  const isSpanEnd=(dateStr,wo)=>dateStr===wo.need_by_date;
+
+  const DayCell=({date})=>{
     const key=date.toISOString().slice(0,10);
-    const dayWOs=wosByDate[key]||[];
     const isToday=key===new Date().toISOString().slice(0,10);
     const isCurrentMonth=date.getMonth()===month;
-    return h('div',{style:{
-      minHeight:mini?60:90,border:'.5px solid #2a3048',padding:4,
-      background:isToday?'rgba(59,126,255,.08)':'transparent',
-      opacity:view==='month'&&!isCurrentMonth?0.35:1,
-      verticalAlign:'top',position:'relative'
-    }},
-      h('div',{style:{fontSize:11,fontWeight:isToday?700:400,color:isToday?'#3b7eff':'#6b7a9f',marginBottom:3}},date.getDate()),
-      dayWOs.slice(0,mini?2:4).map(wo=>h('div',{
-        key:wo.id+(wo._isEnd?'-end':''),
-        onClick:()=>setSelectedWO(wo),
-        style:{fontSize:10,padding:'1px 5px',borderRadius:4,marginBottom:2,cursor:'pointer',
-          background:(wo._isEnd?'rgba(245,158,11,.15)':'rgba(59,126,255,.15)'),
-          color:(wo._isEnd?'#fbbf24':prioColor[wo.priority]||'#60a5fa'),
-          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}
-      },(wo._isEnd?'⬛ ':'▶ ')+(wo.order_number||'')+(wo.asset?.name?' · '+wo.asset.name:''))),
-      dayWOs.length>4&&h('div',{style:{fontSize:9,color:'#6b7a9f'}},'+'+( dayWOs.length-4)+' more')
+    // Single-day events on this date
+    const singles=singleEvents.filter(wo=>wo.start_date===key);
+    // Span events that include this date
+    const spans=spanEvents.filter(wo=>isInSpan(key,wo));
+    return h('div',{style:{minHeight:view==='week'?100:80,border:'.5px solid #2a3048',padding:'3px 2px',background:isToday?'rgba(59,126,255,.08)':'transparent',opacity:view==='month'&&!isCurrentMonth?0.35:1,verticalAlign:'top',overflow:'hidden'}},
+      h('div',{style:{fontSize:11,fontWeight:isToday?700:400,color:isToday?'#3b7eff':'#6b7a9f',marginBottom:2,paddingLeft:2}},date.getDate()),
+      // Render span events as continuous bars
+      spans.map(wo=>{
+        const isStart=isSpanStart(key,wo);
+        const isEnd=isSpanEnd(key,wo);
+        return h('div',{key:'span-'+wo.id,onClick:()=>setSelectedWO(wo),style:{
+          fontSize:10,padding:'2px 5px',marginBottom:2,cursor:'pointer',
+          background:'rgba(245,158,11,.25)',color:'#fbbf24',
+          borderRadius:isStart&&isEnd?4:isStart?'4px 0 0 4px':isEnd?'0 4px 4px 0':0,
+          marginLeft:isStart?0:-1,marginRight:isEnd?0:-1,
+          fontWeight:500,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',
+          borderLeft:isStart?'2px solid #f59e0b':'none',
+          borderRight:isEnd?'2px solid #f59e0b':'none',
+        }},isStart?(wo.order_number||'')+(wo.asset?.name?' · '+wo.asset.name:''):'');
+      }),
+      // Single-day events
+      singles.slice(0,3).map(wo=>h('div',{key:wo.id,onClick:()=>setSelectedWO(wo),style:{
+        fontSize:10,padding:'1px 5px',borderRadius:4,marginBottom:2,cursor:'pointer',
+        background:'rgba(59,126,255,.2)',color:prioColor[wo.priority]||'#60a5fa',
+        borderLeft:'2px solid '+(prioColor[wo.priority]||'#3b7eff'),
+        overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'
+      }},(wo.order_number||'')+(wo.asset?.name?' · '+wo.asset.name:''))),
+      (singles.length+spans.length>3)&&h('div',{style:{fontSize:9,color:'#6b7a9f',paddingLeft:2}},'+more')
     );
   };
 
@@ -2130,7 +2145,9 @@ function Documents({setPage}){
   };
 
   const DocModal=({onClose})=>{
-    const[f,setF]=useState({asset_id:'',asset_type_filter:'',doc_type:'registration',title:'',issue_date:'',expiration_date:'',requires_smog:false,smog_done_date:'',smog_interval_years:2,notes:'',file_name:'',file_data:'',smog_file_name:'',smog_file_data:''});
+    const[f,setF]=useState({asset_id:'',asset_type_filter:'',doc_type:'registration',issue_date:'',expiration_date:'',requires_smog:false,smog_done_date:'',smog_interval_years:2,notes:'',reminder_days:'30',notify_email:'',file_name:'',file_data:'',smog_file_name:'',smog_file_data:''});
+    const{data:docTypes}=useQuery(()=>sb.from('document_types').select('*').order('name'));
+    const[showNewType,setShowNewType]=useState(false);const[newTypeName,setNewTypeName]=useState('');
     const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
     const s=(k,v)=>setF(x=>({...x,[k]:v}));
     const handleFile=(e,isSmog)=>{const file=e.target.files[0];if(!file)return;if(file.size>4*1024*1024){setErr('Max 4MB');return;}const r=new FileReader();r.onload=ev=>{if(isSmog){s('smog_file_data',ev.target.result);s('smog_file_name',file.name);}else{s('file_data',ev.target.result);s('file_name',file.name);}};r.readAsDataURL(file);};
@@ -2138,17 +2155,32 @@ function Documents({setPage}){
       if(!f.asset_id||!f.title){setErr('Asset and title required');return;}setSaving(true);
       let nextSmog=null;
       if(f.requires_smog&&f.smog_done_date){const d=new Date(f.smog_done_date+'T12:00:00');d.setFullYear(d.getFullYear()+(parseInt(f.smog_interval_years)||2));nextSmog=d.toISOString().slice(0,10);}
-      const{error:e}=await sb.from('asset_documents').insert({asset_id:f.asset_id,doc_type:f.doc_type,title:f.title,issue_date:f.issue_date||null,expiration_date:f.expiration_date||null,requires_smog:f.requires_smog,smog_done_date:f.smog_done_date||null,smog_interval_years:parseInt(f.smog_interval_years)||2,next_smog_date:nextSmog,notes:f.notes||null,file_data:f.file_data||null,file_name:f.file_name||null,smog_file_data:f.smog_file_data||null,smog_file_name:f.smog_file_name||null,updated_at:new Date().toISOString()});
-      setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();
+      const{error:e}=await sb.from('asset_documents').insert({asset_id:f.asset_id,doc_type:f.doc_type,title:f.doc_type,issue_date:f.issue_date||null,expiration_date:f.expiration_date||null,requires_smog:f.requires_smog,smog_done_date:f.smog_done_date||null,smog_interval_years:parseInt(f.smog_interval_years)||2,next_smog_date:nextSmog,notes:f.notes||null,reminder_days:f.reminder_days?parseInt(f.reminder_days):30,notify_email:f.notify_email||null,file_data:f.file_data||null,file_name:f.file_name||null,smog_file_data:f.smog_file_data||null,smog_file_name:f.smog_file_name||null,updated_at:new Date().toISOString()});
+      setSaving(false);if(e){setErr(e.message);return;}
+      // Auto-create a smog document record if smog data entered
+      if(f.requires_smog&&f.smog_done_date){
+        await sb.from('asset_documents').insert({asset_id:f.asset_id,doc_type:'smog',title:'smog',issue_date:f.smog_done_date,expiration_date:nextSmog,requires_smog:false,smog_interval_years:parseInt(f.smog_interval_years)||2,notes:'Auto-created from registration',file_data:f.smog_file_data||null,file_name:f.smog_file_name||null,reminder_days:f.reminder_days?parseInt(f.reminder_days):30,notify_email:f.notify_email||null,updated_at:new Date().toISOString()});
+      }
+      onClose();refetch();
     };
     return h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
       h('h3',null,'Add Document'),
       h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type_filter,onChange:e=>s('asset_type_filter',e.target.value)},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
         h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type_filter||a.asset_type===f.asset_type_filter).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
-        h('div',null,h('label',{className:'form-label'},'Document Type'),h('select',{className:'form-select',value:f.doc_type,onChange:e=>s('doc_type',e.target.value)},['registration','smog','insurance','inspection','title','other'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1)))))
+        h('div',null,
+          h('label',{className:'form-label'},'Document Type'),
+          h('select',{className:'form-select',value:f.doc_type,onChange:e=>e.target.value==='__new__'?setShowNewType(true):s('doc_type',e.target.value)},
+            (docTypes||[]).map(t=>h('option',{key:t.id,value:t.name},t.name.charAt(0).toUpperCase()+t.name.slice(1))),
+            h('option',{value:'__new__'},'+ Add new type...')
+          ),
+          showNewType&&h('div',{style:{display:'flex',gap:6,marginTop:6}},
+            h('input',{className:'form-input',placeholder:'New type name',value:newTypeName,onChange:e=>setNewTypeName(e.target.value),style:{flex:1}}),
+            h('button',{className:'btn btn-p',style:{fontSize:12},onClick:async()=>{if(!newTypeName.trim())return;await sb.from('document_types').insert({name:newTypeName.trim().toLowerCase()});s('doc_type',newTypeName.trim().toLowerCase());setNewTypeName('');setShowNewType(false);}},'+')
+          )
+        )
       ),
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Title *'),h('input',{className:'form-input',placeholder:'e.g. CA Registration 2026',value:f.title,onChange:e=>s('title',e.target.value)})),
+
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Issue Date'),h('input',{type:'date',className:'form-input',value:f.issue_date,onChange:e=>s('issue_date',e.target.value)})),
         h('div',null,h('label',{className:'form-label'},'Expiration Date'),h('input',{type:'date',className:'form-input',value:f.expiration_date,onChange:e=>s('expiration_date',e.target.value)}))
@@ -2169,6 +2201,10 @@ function Documents({setPage}){
         )
       ),
       h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'Optional',value:f.notes,onChange:e=>s('notes',e.target.value)})),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Remind me X days before expiry'),h('select',{className:'form-select',value:f.reminder_days,onChange:e=>s('reminder_days',e.target.value)},['7','14','30','60','90'].map(d=>h('option',{key:d,value:d},d+' days')))),
+        h('div',null,h('label',{className:'form-label'},'Notify email'),h('input',{type:'email',className:'form-input',placeholder:'email@example.com',value:f.notify_email,onChange:e=>s('notify_email',e.target.value)}))
+      ),
       h('div',{className:'form-group'},
         h('label',{className:'form-label'},'Attach PDF or Image (max 4MB)'),
         f.file_name
