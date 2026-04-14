@@ -423,7 +423,7 @@ function Dashboard({setPage}){
   const down=(assets||[]).filter(a=>a.status==='down').length;const inShop=(assets||[]).filter(a=>a.status==='in_shop').length;
   const lowParts=(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point);const outOfStock=lowParts.filter(p=>p.track_inventory!==false&&p.quantity_on_hand===0);
   return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),h('div',{className:'btn-row'},h(WoColMgr),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')))),
+    h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')))),
     (()=>{
       const now3=new Date();
       const exp=(expiringDocs||[]).filter(d=>{
@@ -2424,7 +2424,9 @@ function App(){
     h('div',{className:'main'},h('div',{className:'mobile-bar'},h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),h('span',null,lbl)),render())
   );
 }
-ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+window.addEventListener('error',function(e){try{const r=document.getElementById('root'); if(r && !r.innerHTML){r.innerHTML='<div style="padding:24px;font-family:DM Sans,system-ui,sans-serif;color:#fca5a5;background:#0f1117;min-height:100vh"><h2 style="margin-bottom:10px;color:#fff">FleetOps failed to load</h2><div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);padding:12px 14px;border-radius:10px;max-width:900px;white-space:pre-wrap">'+String(e.message||e.error||'Unknown error')+'</div></div>';}}catch(_){}});
+const __rootEl=document.getElementById('root');
+if(__rootEl){ReactDOM.createRoot(__rootEl).render(h(App));}
 
 
 
