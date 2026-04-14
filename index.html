@@ -496,11 +496,11 @@ function SamsaraBtn({refetch}){
       result.error
         ? h('div',{style:{color:'#f87171',fontSize:12}},'✗ '+result.error)
         : h('div',null,
-            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' of '+(result.samsara_matchable||result.samsara_total||0)+' Samsara vehicles'),
+            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' — '+result.samsara_matched+' VINs matched of '+result.samsara_total+' in Samsara'),
             result.matched?.length>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Updated: '+(result.matched||[]).map(m=>m.asset+(m.odometer_miles?' — '+m.odometer_miles.toLocaleString()+' mi':'')+(m.matched_by?' ['+m.matched_by+']':'')).join(', ')),
-            (result.skipped_count>0)&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},result.skipped_count+' skipped'),
-            (result.skipped_sample?.length>0)&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},result.skipped_sample.join(' | ')),
-            result.fleetops_vins_loaded!=null&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},'FleetOps VINs loaded: '+result.fleetops_vins_loaded),
+            result.samsara_skipped>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},result.samsara_skipped+' Samsara vehicles skipped (VIN not in FleetOps)'),
+            result.skipped_sample?.length>0&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},result.skipped_sample.join(' | ')),
+            result.fleetops_vins&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},'FleetOps VINs: '+result.fleetops_vins),
             result.errors?.length>0&&h('div',{style:{fontSize:11,color:'#f87171'}},result.errors.join(', ')),
             h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:6}},'Tip: VINs must match between Samsara and FleetOps for auto-matching.')
           ),
