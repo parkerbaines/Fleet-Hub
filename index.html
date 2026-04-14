@@ -496,7 +496,7 @@ function SamsaraBtn({refetch}){
       result.error
         ? h('div',{style:{color:'#f87171',fontSize:12}},'✗ '+result.error)
         : h('div',null,
-            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' of '+(result.samsara_with_vin||result.samsara_total||0)+' vehicles with VINs'),
+            h('div',{style:{color:'#4ade80',fontSize:13,fontWeight:600,marginBottom:6}},'✓ Synced '+result.synced+' of '+(result.samsara_matchable||result.samsara_total||0)+' Samsara vehicles'),
             result.matched?.length>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Updated: '+(result.matched||[]).map(m=>m.asset+(m.odometer_miles?' — '+m.odometer_miles.toLocaleString()+' mi':'')+(m.matched_by?' ['+m.matched_by+']':'')).join(', ')),
             (result.skipped_count>0)&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},result.skipped_count+' skipped'),
             (result.skipped_sample?.length>0)&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},result.skipped_sample.join(' | ')),
