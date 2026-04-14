@@ -423,7 +423,7 @@ function Dashboard({setPage}){
   const down=(assets||[]).filter(a=>a.status==='down').length;const inShop=(assets||[]).filter(a=>a.status==='in_shop').length;
   const lowParts=(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point);const outOfStock=lowParts.filter(p=>p.track_inventory!==false&&p.quantity_on_hand===0);
   return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order'))),
+    h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),h('div',{className:'btn-row'},h(WoColMgr),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')))),
     (()=>{
       const now3=new Date();
       const exp=(expiringDocs||[]).filter(d=>{
@@ -495,6 +495,64 @@ function Dashboard({setPage}){
   );
 }
 
+function useColumns(tableKey, defaultCols) {
+  const storageKey = 'cols_' + tableKey;
+  const[cols, setCols] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Merge: add any new default cols that aren't saved
+        const savedKeys = new Set(parsed.map(c => c.key));
+        const newCols = defaultCols.filter(c => !savedKeys.has(c.key));
+        return [...parsed, ...newCols];
+      }
+    } catch(e) {}
+    return defaultCols;
+  });
+  const[showMgr, setShowMgr] = useState(false);
+
+  const save = (newCols) => {
+    setCols(newCols);
+    try { localStorage.setItem(storageKey, JSON.stringify(newCols)); } catch(e) {}
+  };
+  const toggleCol = (key) => save(cols.map(c => c.key === key ? {...c, visible: !c.visible} : c));
+  const moveCol = (key, dir) => {
+    const idx = cols.findIndex(c => c.key === key);
+    if (idx + dir < 0 || idx + dir >= cols.length) return;
+    const next = [...cols];
+    [next[idx], next[idx+dir]] = [next[idx+dir], next[idx]];
+    save(next);
+  };
+  const visibleCols = cols.filter(c => c.visible !== false);
+
+  const ColManager = () => h('div', {style:{position:'relative',display:'inline-block'}},
+    h('button', {
+      className: 'btn btn-ghost',
+      style: {fontSize:11, padding:'4px 10px'},
+      onClick: () => setShowMgr(x => !x)
+    }, '⊞ Columns'),
+    showMgr && h('div', {style:{
+      position:'absolute', top:'100%', right:0, marginTop:4,
+      background:'#1e2333', border:'.5px solid #2a3048', borderRadius:10,
+      padding:12, zIndex:200, minWidth:200, boxShadow:'0 8px 24px rgba(0,0,0,.4)'
+    }},
+      h('div', {style:{fontSize:11, color:'#6b7a9f', fontWeight:600, marginBottom:8, textTransform:'uppercase'}}, 'Show / Hide Columns'),
+      cols.map((c, i) => h('div', {key:c.key, style:{display:'flex', alignItems:'center', gap:8, padding:'4px 0'}},
+        h('input', {type:'checkbox', checked:c.visible!==false, onChange:()=>toggleCol(c.key), style:{width:14,height:14,cursor:'pointer'}}),
+        h('span', {style:{fontSize:13, flex:1, color:'#e2e8f0'}}, c.label),
+        h('div', {style:{display:'flex', gap:2}},
+          i > 0 && h('button', {style:{background:'none',border:'none',color:'#6b7a9f',cursor:'pointer',fontSize:12,padding:'0 3px'}, onClick:()=>moveCol(c.key,-1)}, '↑'),
+          i < cols.length-1 && h('button', {style:{background:'none',border:'none',color:'#6b7a9f',cursor:'pointer',fontSize:12,padding:'0 3px'}, onClick:()=>moveCol(c.key,1)}, '↓')
+        )
+      )),
+      h('button', {style:{marginTop:8,fontSize:11,color:'#6b7a9f',background:'none',border:'none',cursor:'pointer'}, onClick:()=>{save(defaultCols);setShowMgr(false);}}, 'Reset to default')
+    )
+  );
+
+  return { visibleCols, ColManager, showMgr, setShowMgr };
+}
+
 function SamsaraBtn({refetch}){
   const[syncing,setSyncing]=useState(false);
   const[result,setResult]=useState(null);
@@ -547,7 +605,7 @@ function Fleet({setPage,initialType}){
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Fleet'),h('p',null,(assets||[]).filter(a=>a.asset_type==='vehicle').length+' vehicles · '+(assets||[]).filter(a=>a.asset_type==='trailer').length+' trailers · '+(assets||[]).filter(a=>a.asset_type==='equipment').length+' equipment')),
-      h('div',{className:'btn-row'},h(SamsaraBtn,{refetch}),
+      h('div',{className:'btn-row'},h(SamsaraBtn,{refetch}),h(FleetColMgr),
         fleetLastSync&&h('span',{style:{fontSize:11,color:'#4ade80',padding:'4px 10px',borderRadius:20,background:'rgba(34,197,94,.1)',border:'0.5px solid rgba(34,197,94,.2)'}},'🛰 '+timeAgo(fleetLastSync)),h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),h('select',{className:'btn btn-ghost',style:{cursor:'pointer'},onChange:e=>{if(e.target.value)setImportM(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'⬆ Import CSV'),h('option',{value:'vehicle'},'Import Vehicles'),h('option',{value:'trailer'},'Import Trailers'),h('option',{value:'equipment'},'Import Equipment')),h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset'))
     ),
     h('div',{className:'tabs'},['','vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:'tab'+(typeF===t?' active':''),onClick:()=>setTypeF(t)},t?t.charAt(0).toUpperCase()+t.slice(1):'All'))),
@@ -558,22 +616,23 @@ function Fleet({setPage,initialType}){
       filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No assets found'):
       h(Fragment,null,
         h('div',{className:'table-wrap'},h('table',null,
-          h('thead',null,h('tr',null,
-            ['Name','Asset #','Type','Year','Make / Model','Odometer / Hrs','Status',''].map(c=>h('th',{key:c},c))
-          )),
+          h('thead',null,h('tr',null,fleetCols.map(c=>h('th',{key:c.key},c.label)))),
           h('tbody',null,[...filtered].sort((a,b)=>{
             if(sortF==='odometer_miles')return(b.odometer_miles||b.engine_hours||0)-(a.odometer_miles||a.engine_hours||0);
             return String(a[sortF]||'').localeCompare(String(b[sortF]||''));
-          }).map(a=>h('tr',{key:a.id,style:{cursor:'pointer'},onClick:()=>setPage('asset-'+a.id)},
-            h('td',{style:{fontWeight:500}},a.name),
-            h('td',null,h('span',{className:'mono'},a.asset_number||'—')),
-            h('td',{style:{textTransform:'capitalize',color:'#6b7a9f',fontSize:12}},a.asset_type),
-            h('td',{style:{color:'#94a3b8',fontSize:12}},a.year||'—'),
-            h('td',{style:{color:'#94a3b8',fontSize:12}},[a.make,a.model].filter(Boolean).join(' ')||'—'),
-            h('td',{style:{color:'#94a3b8',fontSize:12}},a.asset_type==='equipment'?(a.engine_hours?a.engine_hours+' hrs':'—'):(a.asset_type==='trailer'?'—':(a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':'—'))),
-            h('td',null,h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))),
-            h('td',null,h('button',{className:'icon-btn',onClick:e=>{e.stopPropagation();setPage('asset-edit-'+a.id);}},h(IEdit)))
-          )))
+          }).map(a=>{
+            const fleetCellMap={
+              name:h('td',{key:'name',style:{fontWeight:500}},a.name),
+              assetnum:h('td',{key:'assetnum'},h('span',{className:'mono'},a.asset_number||'—')),
+              type:h('td',{key:'type',style:{textTransform:'capitalize',color:'#6b7a9f',fontSize:12}},a.asset_type),
+              year:h('td',{key:'year',style:{color:'#94a3b8',fontSize:12}},a.year||'—'),
+              makemodel:h('td',{key:'makemodel',style:{color:'#94a3b8',fontSize:12}},[a.make,a.model].filter(Boolean).join(' ')||'—'),
+              odo:h('td',{key:'odo',style:{color:'#94a3b8',fontSize:12}},a.asset_type==='equipment'?(a.engine_hours?a.engine_hours+' hrs':'—'):(a.asset_type==='trailer'?'—':(a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':'—'))),
+              status:h('td',{key:'status'},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))),
+              actions:h('td',{key:'actions'},h('button',{className:'icon-btn',onClick:e=>{e.stopPropagation();setPage('asset-edit-'+a.id);}},h(IEdit))),
+            };
+            return h('tr',{key:a.id,style:{cursor:'pointer'},onClick:()=>setPage('asset-'+a.id)},fleetCols.map(c=>fleetCellMap[c.key]));
+          }))
         )),
         h('div',{className:'table-mobile'},filtered.map(a=>h('div',{key:a.id,className:'row',onClick:()=>setPage('asset-'+a.id)},
           h('div',{style:{flex:1,minWidth:0}},
@@ -630,6 +689,16 @@ function AssetForm({id,setPage}){
 function WorkOrders({setPage}){
   const[search,setSearch]=useState('');const[statusF,setStatusF]=useState('');const[priorityF,setPriorityF]=useState('');
   const[woTab,setWoTab]=useState('active');
+  const{visibleCols:woCols,ColManager:WoColMgr}=useColumns('workorders',[
+    {key:'order',label:'Order #',visible:true},
+    {key:'title',label:'Title',visible:true},
+    {key:'asset',label:'Asset',visible:true},
+    {key:'tech',label:'Technician',visible:true},
+    {key:'priority',label:'Priority',visible:true},
+    {key:'status',label:'Status',visible:true},
+    {key:'due',label:'Due Date',visible:true},
+    {key:'actions',label:'',visible:true},
+  ]);
   const{data:wos,loading,refetch}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('created_at',{ascending:false}));
   const allFiltered=(wos||[]).filter(wo=>{if(statusF&&wo.status!==statusF)return false;if(priorityF&&wo.priority!==priorityF)return false;if(search){const q=search.toLowerCase();return wo.title?.toLowerCase().includes(q)||wo.order_number?.toLowerCase().includes(q)||wo.asset?.name?.toLowerCase().includes(q)||wo.technician?.name?.toLowerCase().includes(q);}return true;});
 
@@ -643,7 +712,7 @@ function WorkOrders({setPage}){
     h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search work orders...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},h('option',{value:''},'All statuses'),['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' ')))),h('select',{className:'form-select',style:{width:140},value:priorityF,onChange:e=>setPriorityF(e.target.value)},h('option',{value:''},'All priorities'),['urgent','high','normal','low'].map(p=>h('option',{key:p,value:p},p)))),
     h('div',{className:'card'},
       h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Order #','Title','Asset','Technician','Priority','Status','Due',''].map(c=>h('th',{key:c},c)))),
+        h('thead',null,h('tr',null,woCols.map(c=>h('th',{key:c.key},c.label)))),
         h('tbody',null,loading?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):filtered.length===0?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'No work orders found')):
           filtered.map(wo=>h('tr',{key:wo.id,style:{cursor:'pointer'},onClick:()=>setPage('wo-'+wo.id)},
             h('td',null,h('span',{className:'mono'},wo.order_number)),
@@ -2064,6 +2133,15 @@ function Documents({setPage}){
   const[detailDoc,setDetailDoc]=useState(null);
   const[renewModal,setRenewModal]=useState(null);
   const[snoozeModal,setSnoozeModal]=useState(null);
+  const{visibleCols:docCols,ColManager:DocColMgr}=useColumns('documents',[
+    {key:'asset',label:'Asset',visible:true},
+    {key:'type',label:'Type',visible:true},
+    {key:'expires',label:'Expires',visible:true},
+    {key:'status',label:'Status',visible:true},
+    {key:'smog',label:'Smog Due',visible:true},
+    {key:'renewals',label:'Renewals',visible:true},
+    {key:'actions',label:'Actions',visible:true},
+  ]);
 
   const today=new Date();
   const daysUntil=(d)=>d?Math.ceil((new Date(d+'T12:00:00')-today)/86400000):null;
@@ -2219,7 +2297,10 @@ function Documents({setPage}){
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Documents'),h('p',null,filtered.length+' documents · '+expired.length+' expired · '+expiringSoon.length+' expiring soon')),
-      h('button',{className:'btn btn-p',onClick:()=>setShowModal(true)},h(IPlus),' Add Document')
+      h('div',{className:'btn-row'},
+        h(DocColMgr),
+        h('button',{className:'btn btn-p',onClick:()=>setShowModal(true)},h(IPlus),' Add Document')
+      )
     ),
     expired.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:10}},h(IAlert),expired.length+' expired: '+expired.slice(0,3).map(d=>d.asset?.name+' — '+d.title).join(', ')),
     expiringSoon.length>0&&h('div',{className:'alert alert-warn',style:{marginBottom:10}},h(IAlert),expiringSoon.length+' expiring within 30 days'),
@@ -2230,30 +2311,32 @@ function Documents({setPage}){
     h('div',{className:'card'},
       filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No documents yet.'):
       h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Asset','Type','Expires','Status','Smog Due','Renewals','Actions'].map(c=>h('th',{key:c},c)))),
+        h('thead',null,h('tr',null,docCols.map(c=>h('th',{key:c.key},c.label)))),
         h('tbody',null,filtered.map(d=>{
           const days=daysUntil(d.expiration_date);
           const col=urgColor(days);
           const snoozed=isSnoozed(d);
           const smogDays=d.next_smog_date?daysUntil(d.next_smog_date):null;
-          return h('tr',{key:d.id,style:{cursor:'pointer',opacity:snoozed?.7:1},onClick:()=>setDetailDoc(d)},
-            h('td',null,h('div',{style:{fontWeight:500}},d.asset?.name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},d.asset?.asset_number)),
-            h('td',null,h('span',{style:{fontSize:11,padding:'2px 8px',borderRadius:10,background:'rgba(107,122,159,.15)',color:'#94a3b8',textTransform:'capitalize'}},d.doc_type)),
-            h('td',null,d.file_name&&h('span',{style:{fontSize:10,color:'#6b7a9f'}},'📄')),
-            h('td',{style:{fontSize:12,color:'#6b7a9f'}},d.expiration_date?new Date(d.expiration_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
-            h('td',null,snoozed?h('span',{style:{fontSize:11,color:'#94a3b8'}},'💤 Snoozed until '+new Date(d.snoozed_until+'T12:00:00').toLocaleDateString()):days!==null?h('span',{style:{fontSize:11,fontWeight:600,color:col}},urgLabel(days)):h('span',{style:{color:'#6b7a9f'}},'—')),
-            h('td',null,d.requires_smog&&d.next_smog_date?h('span',{style:{fontSize:11,color:urgColor(smogDays)}},smogDays!==null&&smogDays<0?'OVERDUE':smogDays+'d'):d.requires_smog?h('span',{style:{color:'#fbbf24',fontSize:11}},'No date'):'—'),
-            h('td',{style:{fontSize:12,color:'#6b7a9f',textAlign:'center'}},d.renewal_count||0),
-            h('td',null,h('div',{style:{display:'flex',gap:4}},
+          const cellMap={
+            asset:h('td',{key:'asset'},h('div',{style:{fontWeight:500}},(d.asset?.asset_number?d.asset.asset_number+' — ':'')+( d.asset?.name||'')),h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},d.asset?.asset_type)),
+            type:h('td',{key:'type'},h('span',{style:{fontSize:11,padding:'2px 8px',borderRadius:10,background:'rgba(107,122,159,.15)',color:'#94a3b8',textTransform:'capitalize'}},d.doc_type)),
+            expires:h('td',{key:'expires',style:{fontSize:12,color:'#6b7a9f'}},d.expiration_date?new Date(d.expiration_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
+            status:h('td',{key:'status'},snoozed?h('span',{style:{fontSize:11,color:'#94a3b8'}},'💤 until '+new Date(d.snoozed_until+'T12:00:00').toLocaleDateString()):days!==null?h('span',{style:{fontSize:11,fontWeight:600,color:col}},urgLabel(days)):h('span',{style:{color:'#6b7a9f'}},'—')),
+            smog:h('td',{key:'smog'},d.requires_smog&&d.next_smog_date?h('span',{style:{fontSize:11,color:urgColor(smogDays)}},smogDays!==null&&smogDays<0?'OVERDUE':smogDays+'d'):d.requires_smog?h('span',{style:{color:'#fbbf24',fontSize:11}},'No date'):'—'),
+            renewals:h('td',{key:'renewals',style:{fontSize:12,color:'#6b7a9f',textAlign:'center'}},d.renewal_count||0),
+            actions:h('td',{key:'actions'},h('div',{style:{display:'flex',gap:4}},
               h('button',{style:{fontSize:11,padding:'3px 8px',borderRadius:6,background:'rgba(34,197,94,.12)',border:'.5px solid rgba(34,197,94,.3)',color:'#4ade80',cursor:'pointer',fontFamily:'inherit'},onClick:e=>{e.stopPropagation();setRenewModal(d);}},'↻ Renew'),
               h('button',{style:{fontSize:11,padding:'3px 8px',borderRadius:6,background:'rgba(107,122,159,.12)',border:'.5px solid #2a3048',color:'#94a3b8',cursor:'pointer',fontFamily:'inherit'},onClick:e=>{e.stopPropagation();setSnoozeModal(d);}},'💤'),
               h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:async e=>{e.stopPropagation();if(!confirm('Delete?'))return;await sb.from('asset_documents').delete().eq('id',d.id);refetch();}},h(ITrash))
-            ))
+            )),
+          };
+          return h('tr',{key:d.id,style:{cursor:'pointer',opacity:snoozed?.7:1},onClick:()=>setDetailDoc(d)},
+            docCols.map(c=>cellMap[c.key])
           );
         }))
       ))
     ),
-    showModal&&h(DocModal,{onClose:()=>setShowModal(false)}),
+        showModal&&h(DocModal,{onClose:()=>setShowModal(false)}),
     renewModal&&h(RenewModal,{doc:renewModal,onClose:()=>setRenewModal(null)}),
     snoozeModal&&h(SnoozeModal,{doc:snoozeModal,onClose:()=>setSnoozeModal(null)}),
     detailDoc&&h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
