@@ -436,9 +436,9 @@ function Dashboard({setPage}){
     })(),
     urgent>0&&h('div',{className:'alert alert-danger',style:{marginBottom:16}},h(IAlert),urgent+' urgent work order'+(urgent>1?'s':'')+' need attention',h('button',{className:'card-link',style:{marginLeft:'auto'},onClick:()=>setPage('workorders')},'View →')),
     h('div',{className:'metrics'},
-      h('div',{className:'metric'},h('div',{className:'metric-label'},'Total Assets'),h('div',{className:'metric-value'},al?'—':(assets||[]).length),h('div',{className:'metric-sub'},'Vehicles, trailers & equipment')),
+      h('div',{className:'metric clickable',onClick:()=>setPage('fleet')},h('div',{className:'metric-label'},'Total Assets'),h('div',{className:'metric-value'},al?'—':(assets||[]).length),h('div',{className:'metric-sub'},'Vehicles, trailers & equipment')),
       h('div',{className:'metric clickable',onClick:()=>setPage('workorders')},h('div',{className:'metric-label'},'Open Work Orders'),h('div',{className:'metric-value'},wl?'—':openWOs.length),h('div',{className:'metric-sub'+(urgent>0?' warn':'')},urgent>0?urgent+' urgent':'All normal priority')),
-      h('div',{className:'metric'},h('div',{className:'metric-label'},'Down / In Shop'),h('div',{className:'metric-value'},al?'—':down+inShop),h('div',{className:'metric-sub'+(down>0?' warn':'')},down+' down · '+inShop+' in shop')),
+      h('div',{className:'metric clickable',onClick:()=>setPage('fleet')},h('div',{className:'metric-label'},'Down / In Shop'),h('div',{className:'metric-value'},al?'—':down+inShop),h('div',{className:'metric-sub'+(down>0?' warn':'')},down+' down · '+inShop+' in shop')),
       h('div',{className:'metric clickable',onClick:()=>setPage('parts')},h('div',{className:'metric-label'},'Parts Low / Out'),h('div',{className:'metric-value'},lowParts.length),h('div',{className:'metric-sub'+(outOfStock.length>0?' danger':' warn')},outOfStock.length>0?outOfStock.length+' out of stock':lowParts.length+' below reorder'))
     ),
     h('div',{className:'grid2'},
@@ -2047,32 +2047,105 @@ function Documents({setPage}){
   const[filterType,setFilterType]=useState('');
   const[filterAsset,setFilterAsset]=useState('');
   const[detailDoc,setDetailDoc]=useState(null);
+  const[renewModal,setRenewModal]=useState(null);
+  const[snoozeModal,setSnoozeModal]=useState(null);
 
   const today=new Date();
-  const daysUntil=(d)=>d?Math.ceil((new Date(d+' 12:00:00')-today)/86400000):null;
-  const urgencyColor=(days)=>days===null?'#6b7a9f':days<0?'#f87171':days<=30?'#f87171':days<=90?'#fbbf24':'#4ade80';
-  const urgencyLabel=(days)=>days===null?'No expiry':days<0?Math.abs(days)+'d EXPIRED':days===0?'Expires today':days+'d remaining';
+  const daysUntil=(d)=>d?Math.ceil((new Date(d+'T12:00:00')-today)/86400000):null;
+  const urgColor=(days)=>days===null?'#6b7a9f':days<0?'#f87171':days<=30?'#f87171':days<=90?'#fbbf24':'#4ade80';
+  const urgLabel=(days)=>days===null?'No expiry':days<0?Math.abs(days)+'d EXPIRED':days===0?'Expires today':days+'d remaining';
+
+  const isSnoozed=(d)=>d.snoozed_until&&new Date(d.snoozed_until+'T12:00:00')>=today;
 
   const filtered=(docs||[]).filter(d=>(!filterType||d.doc_type===filterType)&&(!filterAsset||d.asset_id===filterAsset));
-  const expiringSoon=filtered.filter(d=>d.expiration_date&&daysUntil(d.expiration_date)<=30&&daysUntil(d.expiration_date)>=0);
-  const expired=filtered.filter(d=>d.expiration_date&&daysUntil(d.expiration_date)<0);
+  const expiringSoon=filtered.filter(d=>!isSnoozed(d)&&d.expiration_date&&daysUntil(d.expiration_date)<=30&&daysUntil(d.expiration_date)>=0);
+  const expired=filtered.filter(d=>!isSnoozed(d)&&d.expiration_date&&daysUntil(d.expiration_date)<0);
+
+  const RenewModal=({doc,onClose})=>{
+    const[newIssue,setNewIssue]=useState(new Date().toISOString().slice(0,10));
+    const[newExpiry,setNewExpiry]=useState('');
+    const[newSmogDate,setNewSmogDate]=useState('');
+    const[newFile,setNewFile]=useState({name:'',data:''});
+    const[newSmogFile,setNewSmogFile]=useState({name:'',data:''});
+    const[saving,setSaving]=useState(false);
+    const handleFile=(e,isSmog)=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{if(isSmog)setNewSmogFile({name:file.name,data:ev.target.result});else setNewFile({name:file.name,data:ev.target.result});};r.readAsDataURL(file);};
+    const save=async()=>{
+      setSaving(true);
+      let nextSmog=doc.next_smog_date;
+      if(doc.requires_smog&&newSmogDate){
+        const d=new Date(newSmogDate+'T12:00:00');d.setFullYear(d.getFullYear()+(parseInt(doc.smog_interval_years)||2));
+        nextSmog=d.toISOString().slice(0,10);
+      }
+      const update={issue_date:newIssue||doc.issue_date,expiration_date:newExpiry||doc.expiration_date,renewal_count:(doc.renewal_count||0)+1,snoozed_until:null,snooze_reason:null,updated_at:new Date().toISOString()};
+      if(newFile.data){update.file_data=newFile.data;update.file_name=newFile.name;}
+      if(doc.requires_smog&&newSmogDate){update.smog_done_date=newSmogDate;update.next_smog_date=nextSmog;}
+      if(newSmogFile.data){update.smog_file_data=newSmogFile.data;update.smog_file_name=newSmogFile.name;}
+      await sb.from('asset_documents').update(update).eq('id',doc.id);
+      setSaving(false);onClose();refetch();
+    };
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
+      h('h3',null,'Renew: '+doc.title),
+      h('p',{style:{fontSize:12,color:'#6b7a9f',marginBottom:14}},'Current expiry: '+(doc.expiration_date?new Date(doc.expiration_date+'T12:00:00').toLocaleDateString():'none')+' · Renewal #'+((doc.renewal_count||0)+1)),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'New Issue Date'),h('input',{type:'date',className:'form-input',value:newIssue,onChange:e=>setNewIssue(e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'New Expiration Date'),h('input',{type:'date',className:'form-input',value:newExpiry,onChange:e=>setNewExpiry(e.target.value)}))
+      ),
+      h('div',{className:'form-group'},
+        h('label',{className:'form-label'},'New Document (optional — attach updated '+(doc.doc_type||'document')+')'),
+        newFile.name
+          ?h('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'rgba(34,197,94,.07)',borderRadius:8}},h('span',{style:{fontSize:12,color:'#4ade80',flex:1}},newFile.name),h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:()=>setNewFile({name:'',data:''})},h(ITrash)))
+          :h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'#181c27',border:'.5px dashed #2a3048',borderRadius:8,cursor:'pointer'}},h('input',{type:'file',accept:'.pdf,image/*',style:{display:'none'},onChange:e=>handleFile(e,false)}),h('span',{style:{fontSize:12,color:'#6b7a9f'}},'📎 Attach new document'))
+      ),
+      doc.requires_smog&&h('div',{style:{background:'rgba(59,126,255,.07)',border:'.5px solid rgba(59,126,255,.2)',borderRadius:8,padding:12,marginBottom:12}},
+        h('div',{style:{fontSize:11,color:'#6b7a9f',fontWeight:600,marginBottom:8}},'Smog Renewal'),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'New Smog Date'),h('input',{type:'date',className:'form-input',value:newSmogDate,onChange:e=>setNewSmogDate(e.target.value)})),
+        h('div',{className:'form-group'},
+          h('label',{className:'form-label'},'Smog Certificate (optional)'),
+          newSmogFile.name
+            ?h('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'rgba(34,197,94,.07)',borderRadius:8}},h('span',{style:{fontSize:12,color:'#4ade80',flex:1}},newSmogFile.name),h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:()=>setNewSmogFile({name:'',data:''})},h(ITrash)))
+            :h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'#181c27',border:'.5px dashed #2a3048',borderRadius:8,cursor:'pointer'}},h('input',{type:'file',accept:'.pdf,image/*',style:{display:'none'},onChange:e=>handleFile(e,true)}),h('span',{style:{fontSize:12,color:'#6b7a9f'}},'📎 Attach smog certificate'))
+        )
+      ),
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-success',onClick:save,disabled:saving},saving?'Saving...':'✓ Renew Document'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+    ));
+  };
+
+  const SnoozeModal=({doc,onClose})=>{
+    const[days,setDays]=useState('30');
+    const[reason,setReason]=useState('');
+    const[saving,setSaving]=useState(false);
+    const save=async()=>{
+      setSaving(true);
+      const until=new Date();until.setDate(until.getDate()+parseInt(days||30));
+      await sb.from('asset_documents').update({snoozed_until:until.toISOString().slice(0,10),snooze_reason:reason||null,updated_at:new Date().toISOString()}).eq('id',doc.id);
+      setSaving(false);onClose();refetch();
+    };
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,'Snooze: '+doc.title),
+      h('p',{style:{fontSize:12,color:'#6b7a9f',marginBottom:14}},'Hide the expiry notification for a set number of days.'),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Snooze for'),h('select',{className:'form-select',value:days,onChange:e=>setDays(e.target.value)},['7','14','30','60','90'].map(d=>h('option',{key:d,value:d},d+' days')))),
+      h('div',{className:'form-group'},h('label',{className:'form-label'},'Reason (optional)'),h('input',{className:'form-input',placeholder:'e.g. Renewal in progress',value:reason,onChange:e=>setReason(e.target.value)})),
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Snooze'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))
+    ));
+  };
 
   const DocModal=({onClose})=>{
-    const[f,setF]=useState({asset_id:'',doc_type:'registration',title:'',issue_date:'',expiration_date:'',requires_smog:false,smog_done_date:'',smog_interval_years:2,notes:'',file_name:'',file_data:''});
+    const[f,setF]=useState({asset_id:'',asset_type_filter:'',doc_type:'registration',title:'',issue_date:'',expiration_date:'',requires_smog:false,smog_done_date:'',smog_interval_years:2,notes:'',file_name:'',file_data:'',smog_file_name:'',smog_file_data:''});
     const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
     const s=(k,v)=>setF(x=>({...x,[k]:v}));
-    const handleFile=e=>{const file=e.target.files[0];if(!file)return;if(file.size>4*1024*1024){setErr('Max 4MB');return;}const r=new FileReader();r.onload=ev=>{s('file_data',ev.target.result);s('file_name',file.name);};r.readAsDataURL(file);};
+    const handleFile=(e,isSmog)=>{const file=e.target.files[0];if(!file)return;if(file.size>4*1024*1024){setErr('Max 4MB');return;}const r=new FileReader();r.onload=ev=>{if(isSmog){s('smog_file_data',ev.target.result);s('smog_file_name',file.name);}else{s('file_data',ev.target.result);s('file_name',file.name);}};r.readAsDataURL(file);};
     const save=async()=>{
       if(!f.asset_id||!f.title){setErr('Asset and title required');return;}setSaving(true);
       let nextSmog=null;
-      if(f.requires_smog&&f.smog_done_date){const d=new Date(f.smog_done_date+' 12:00:00');d.setFullYear(d.getFullYear()+(parseInt(f.smog_interval_years)||2));nextSmog=d.toISOString().slice(0,10);}
-      const{error:e}=await sb.from('asset_documents').insert({...f,requires_smog:f.requires_smog,smog_interval_years:parseInt(f.smog_interval_years)||2,next_smog_date:nextSmog,file_data:f.file_data||null,file_name:f.file_name||null,updated_at:new Date().toISOString()});
+      if(f.requires_smog&&f.smog_done_date){const d=new Date(f.smog_done_date+'T12:00:00');d.setFullYear(d.getFullYear()+(parseInt(f.smog_interval_years)||2));nextSmog=d.toISOString().slice(0,10);}
+      const{error:e}=await sb.from('asset_documents').insert({asset_id:f.asset_id,doc_type:f.doc_type,title:f.title,issue_date:f.issue_date||null,expiration_date:f.expiration_date||null,requires_smog:f.requires_smog,smog_done_date:f.smog_done_date||null,smog_interval_years:parseInt(f.smog_interval_years)||2,next_smog_date:nextSmog,notes:f.notes||null,file_data:f.file_data||null,file_name:f.file_name||null,smog_file_data:f.smog_file_data||null,smog_file_name:f.smog_file_name||null,updated_at:new Date().toISOString()});
       setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();
     };
     return h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
       h('h3',null,'Add Document'),
-      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type_filter,onChange:e=>s('asset_type_filter',e.target.value)},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
+        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type_filter||a.asset_type===f.asset_type_filter).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
         h('div',null,h('label',{className:'form-label'},'Document Type'),h('select',{className:'form-select',value:f.doc_type,onChange:e=>s('doc_type',e.target.value)},['registration','smog','insurance','inspection','title','other'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1)))))
       ),
       h('div',{className:'form-group'},h('label',{className:'form-label'},'Title *'),h('input',{className:'form-input',placeholder:'e.g. CA Registration 2026',value:f.title,onChange:e=>s('title',e.target.value)})),
@@ -2081,13 +2154,18 @@ function Documents({setPage}){
         h('div',null,h('label',{className:'form-label'},'Expiration Date'),h('input',{type:'date',className:'form-input',value:f.expiration_date,onChange:e=>s('expiration_date',e.target.value)}))
       ),
       f.doc_type==='registration'&&h('div',{style:{background:'rgba(59,126,255,.07)',border:'.5px solid rgba(59,126,255,.2)',borderRadius:8,padding:12,marginBottom:12}},
-        h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
-          h('input',{type:'checkbox',id:'req_smog',checked:f.requires_smog,onChange:e=>s('requires_smog',e.target.checked),style:{width:16,height:16,cursor:'pointer'}}),
-          h('label',{htmlFor:'req_smog',style:{fontSize:13,cursor:'pointer'}},'This vehicle requires smog certification')
-        ),
-        f.requires_smog&&h('div',{className:'form-grid form-grid-2'},
-          h('div',null,h('label',{className:'form-label'},'Last Smog Date'),h('input',{type:'date',className:'form-input',value:f.smog_done_date,onChange:e=>s('smog_done_date',e.target.value)})),
-          h('div',null,h('label',{className:'form-label'},'Smog Every (years)'),h('select',{className:'form-select',value:f.smog_interval_years,onChange:e=>s('smog_interval_years',e.target.value)},h('option',{value:1},'1 year'),h('option',{value:2},'2 years'),h('option',{value:3},'3 years')))
+        h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},h('input',{type:'checkbox',id:'req_smog',checked:f.requires_smog,onChange:e=>s('requires_smog',e.target.checked),style:{width:16,height:16,cursor:'pointer'}}),h('label',{htmlFor:'req_smog',style:{fontSize:13,cursor:'pointer'}},'This vehicle requires smog certification')),
+        f.requires_smog&&h('div',null,
+          h('div',{className:'form-grid form-grid-2',style:{marginBottom:8}},
+            h('div',null,h('label',{className:'form-label'},'Last Smog Date'),h('input',{type:'date',className:'form-input',value:f.smog_done_date,onChange:e=>s('smog_done_date',e.target.value)})),
+            h('div',null,h('label',{className:'form-label'},'Smog Every (years)'),h('select',{className:'form-select',value:f.smog_interval_years,onChange:e=>s('smog_interval_years',e.target.value)},h('option',{value:1},'1 year'),h('option',{value:2},'2 years'),h('option',{value:3},'3 years')))
+          ),
+          h('div',null,
+            h('label',{className:'form-label'},'Smog Certificate (optional)'),
+            f.smog_file_name
+              ?h('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'rgba(34,197,94,.07)',borderRadius:8}},h('span',{style:{fontSize:12,color:'#4ade80',flex:1}},f.smog_file_name),h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:()=>{s('smog_file_data','');s('smog_file_name','');}},h(ITrash)))
+              :h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'#181c27',border:'.5px dashed #2a3048',borderRadius:8,cursor:'pointer'}},h('input',{type:'file',accept:'.pdf,image/*',style:{display:'none'},onChange:e=>handleFile(e,true)}),h('span',{style:{fontSize:12,color:'#6b7a9f'}},'📎 Attach smog certificate'))
+          )
         )
       ),
       h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'Optional',value:f.notes,onChange:e=>s('notes',e.target.value)})),
@@ -2095,7 +2173,7 @@ function Documents({setPage}){
         h('label',{className:'form-label'},'Attach PDF or Image (max 4MB)'),
         f.file_name
           ?h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'rgba(34,197,94,.07)',borderRadius:8,border:'.5px solid rgba(34,197,94,.2)'}},h('span',{style:{fontSize:13,color:'#4ade80',flex:1}},f.file_name),h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:()=>{s('file_data','');s('file_name','');}},h(ITrash)))
-          :h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'#181c27',border:'.5px dashed #2a3048',borderRadius:8,cursor:'pointer'}},h('input',{type:'file',accept:'.pdf,image/*',style:{display:'none'},onChange:handleFile}),h('span',{style:{fontSize:13,color:'#6b7a9f'}},'📎 Attach file'))
+          :h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'#181c27',border:'.5px dashed #2a3048',borderRadius:8,cursor:'pointer'}},h('input',{type:'file',accept:'.pdf,image/*',style:{display:'none'},onChange:e=>handleFile(e,false)}),h('span',{style:{fontSize:13,color:'#6b7a9f'}},'📎 Attach file'))
       ),
       err&&h('div',{className:'error-box'},err),
       h('div',{className:'btn-row'},h('button',{className:'btn btn-p',onClick:save,disabled:saving},saving?'Saving...':'Add Document'),h('button',{className:'btn btn-g',onClick:onClose},'Cancel'))
@@ -2107,348 +2185,73 @@ function Documents({setPage}){
       h('div',null,h('h2',null,'Documents'),h('p',null,filtered.length+' documents · '+expired.length+' expired · '+expiringSoon.length+' expiring soon')),
       h('button',{className:'btn btn-p',onClick:()=>setShowModal(true)},h(IPlus),' Add Document')
     ),
-    expired.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:10}},h(IAlert),expired.length+' document'+(expired.length>1?'s':'')+' expired: '+expired.slice(0,3).map(d=>d.asset?.name+' — '+d.title).join(', ')),
+    expired.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:10}},h(IAlert),expired.length+' expired: '+expired.slice(0,3).map(d=>d.asset?.name+' — '+d.title).join(', ')),
     expiringSoon.length>0&&h('div',{className:'alert alert-warn',style:{marginBottom:10}},h(IAlert),expiringSoon.length+' expiring within 30 days'),
     h('div',{className:'filters'},
       h('select',{className:'form-select',style:{width:160},value:filterType,onChange:e=>setFilterType(e.target.value)},h('option',{value:''},'All Types'),['registration','smog','insurance','inspection','title','other'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1)))),
       h('select',{className:'form-select',style:{width:200},value:filterAsset,onChange:e=>setFilterAsset(e.target.value)},h('option',{value:''},'All Assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))
     ),
     h('div',{className:'card'},
-      filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No documents yet — click Add Document to get started.'):
+      filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No documents yet.'):
       h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Asset','Type','Title','Issue Date','Expires','Days Left','Smog Due',''].map(c=>h('th',{key:c},c)))),
+        h('thead',null,h('tr',null,['Asset','Type','Title','Expires','Status','Smog Due','Renewals','Actions'].map(c=>h('th',{key:c},c)))),
         h('tbody',null,filtered.map(d=>{
           const days=daysUntil(d.expiration_date);
-          const col=urgencyColor(days);
+          const col=urgColor(days);
+          const snoozed=isSnoozed(d);
           const smogDays=d.next_smog_date?daysUntil(d.next_smog_date):null;
-          return h('tr',{key:d.id,style:{cursor:'pointer'},onClick:()=>setDetailDoc(d)},
+          return h('tr',{key:d.id,style:{cursor:'pointer',opacity:snoozed?.7:1},onClick:()=>setDetailDoc(d)},
             h('td',null,h('div',{style:{fontWeight:500}},d.asset?.name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},d.asset?.asset_number)),
             h('td',null,h('span',{style:{fontSize:11,padding:'2px 8px',borderRadius:10,background:'rgba(107,122,159,.15)',color:'#94a3b8',textTransform:'capitalize'}},d.doc_type)),
-            h('td',null,d.title),
-            h('td',{style:{fontSize:12,color:'#6b7a9f'}},d.issue_date?new Date(d.issue_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
+            h('td',null,d.title,d.file_name&&h('span',{style:{fontSize:10,color:'#6b7a9f',marginLeft:6}},'📄')),
             h('td',{style:{fontSize:12,color:'#6b7a9f'}},d.expiration_date?new Date(d.expiration_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
-            h('td',null,days!==null?h('span',{style:{fontSize:11,fontWeight:600,color:col}},urgencyLabel(days)):h('span',{style:{color:'#6b7a9f'}},'—')),
-            h('td',null,d.requires_smog&&d.next_smog_date?h('span',{style:{fontSize:11,color:urgencyColor(smogDays)}},smogDays!==null&&smogDays<0?'OVERDUE':smogDays+'d'):d.requires_smog?h('span',{style:{color:'#fbbf24',fontSize:11}},'No date set'):'—'),
-            h('td',null,h('button',{className:'btn-icon',onClick:async(e)=>{e.stopPropagation();if(!confirm('Delete this document?'))return;await sb.from('asset_documents').delete().eq('id',d.id);refetch();}},h(ITrash)))
+            h('td',null,snoozed?h('span',{style:{fontSize:11,color:'#94a3b8'}},'💤 Snoozed until '+new Date(d.snoozed_until+'T12:00:00').toLocaleDateString()):days!==null?h('span',{style:{fontSize:11,fontWeight:600,color:col}},urgLabel(days)):h('span',{style:{color:'#6b7a9f'}},'—')),
+            h('td',null,d.requires_smog&&d.next_smog_date?h('span',{style:{fontSize:11,color:urgColor(smogDays)}},smogDays!==null&&smogDays<0?'OVERDUE':smogDays+'d'):d.requires_smog?h('span',{style:{color:'#fbbf24',fontSize:11}},'No date'):'—'),
+            h('td',{style:{fontSize:12,color:'#6b7a9f',textAlign:'center'}},d.renewal_count||0),
+            h('td',null,h('div',{style:{display:'flex',gap:4}},
+              h('button',{style:{fontSize:11,padding:'3px 8px',borderRadius:6,background:'rgba(34,197,94,.12)',border:'.5px solid rgba(34,197,94,.3)',color:'#4ade80',cursor:'pointer',fontFamily:'inherit'},onClick:e=>{e.stopPropagation();setRenewModal(d);}},'↻ Renew'),
+              h('button',{style:{fontSize:11,padding:'3px 8px',borderRadius:6,background:'rgba(107,122,159,.12)',border:'.5px solid #2a3048',color:'#94a3b8',cursor:'pointer',fontFamily:'inherit'},onClick:e=>{e.stopPropagation();setSnoozeModal(d);}},'💤'),
+              h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:async e=>{e.stopPropagation();if(!confirm('Delete?'))return;await sb.from('asset_documents').delete().eq('id',d.id);refetch();}},h(ITrash))
+            ))
           );
         }))
       ))
     ),
     showModal&&h(DocModal,{onClose:()=>setShowModal(false)}),
+    renewModal&&h(RenewModal,{doc:renewModal,onClose:()=>setRenewModal(null)}),
+    snoozeModal&&h(SnoozeModal,{doc:snoozeModal,onClose:()=>setSnoozeModal(null)}),
     detailDoc&&h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
-        h('h3',{style:{marginBottom:0}},detailDoc.title),
+        h('h3',{style:{marginBottom:0}},detailDoc.title+(detailDoc.renewal_count?' ('+detailDoc.renewal_count+' renewals)':'')),
         h('div',{className:'btn-row'},
+          h('button',{className:'btn btn-success',style:{fontSize:12},onClick:()=>{setDetailDoc(null);setRenewModal(detailDoc);}},'↻ Renew'),
           h('button',{className:'btn btn-danger',style:{fontSize:12},onClick:async()=>{if(!confirm('Delete?'))return;await sb.from('asset_documents').delete().eq('id',detailDoc.id);setDetailDoc(null);refetch();}},h(ITrash),' Delete'),
           h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>setDetailDoc(null)},'Close')
         )
       ),
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 20px',marginBottom:14}},
-        [['Asset',detailDoc.asset?.name+(detailDoc.asset?.asset_number?' ('+detailDoc.asset.asset_number+')':'')],['Type',detailDoc.doc_type],['Issue Date',detailDoc.issue_date?new Date(detailDoc.issue_date+'T12:00:00').toLocaleDateString():'—'],['Expires',detailDoc.expiration_date?new Date(detailDoc.expiration_date+'T12:00:00').toLocaleDateString():'—'],['Days Remaining',daysUntil(detailDoc.expiration_date)!==null?urgencyLabel(daysUntil(detailDoc.expiration_date)):'No expiry'],['Requires Smog',detailDoc.requires_smog?'Yes':'No']].map(([k,v])=>h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:1}},k),h('div',{style:{fontSize:13,fontWeight:500}},v||'—')))
+        [['Asset',detailDoc.asset?.name+(detailDoc.asset?.asset_number?' ('+detailDoc.asset.asset_number+')':'')],['Type',detailDoc.doc_type],['Issue Date',detailDoc.issue_date?new Date(detailDoc.issue_date+'T12:00:00').toLocaleDateString():'—'],['Expires',detailDoc.expiration_date?new Date(detailDoc.expiration_date+'T12:00:00').toLocaleDateString():'—'],['Days Remaining',daysUntil(detailDoc.expiration_date)!==null?urgLabel(daysUntil(detailDoc.expiration_date)):'No expiry'],['Renewals',(detailDoc.renewal_count||0)+'']].map(([k,v])=>h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:1}},k),h('div',{style:{fontSize:13,fontWeight:500}},v||'—')))
       ),
+      isSnoozed(detailDoc)&&h('div',{style:{background:'rgba(107,122,159,.1)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:12}},h('span',{style:{color:'#94a3b8'}},'💤 Snoozed until '+new Date(detailDoc.snoozed_until+'T12:00:00').toLocaleDateString()+(detailDoc.snooze_reason?' — '+detailDoc.snooze_reason:''))),
       detailDoc.requires_smog&&h('div',{style:{background:'rgba(59,126,255,.07)',borderRadius:8,padding:10,marginBottom:12}},
-        h('div',{style:{fontSize:12,color:'#6b7a9f',marginBottom:4}},'Smog Information'),
-        h('div',{style:{display:'flex',gap:16}},
+        h('div',{style:{fontSize:12,color:'#6b7a9f',marginBottom:6,fontWeight:600}},'Smog Information'),
+        h('div',{style:{display:'flex',gap:16,flexWrap:'wrap'}},
           h('div',null,h('div',{style:{fontSize:11,color:'#6b7a9f'}},'Last Done'),h('div',{style:{fontSize:13}},detailDoc.smog_done_date?new Date(detailDoc.smog_done_date+'T12:00:00').toLocaleDateString():'—')),
-          h('div',null,h('div',{style:{fontSize:11,color:'#6b7a9f'}},'Next Due'),h('div',{style:{fontSize:13,color:urgencyColor(daysUntil(detailDoc.next_smog_date))}},detailDoc.next_smog_date?new Date(detailDoc.next_smog_date+'T12:00:00').toLocaleDateString()+' ('+urgencyLabel(daysUntil(detailDoc.next_smog_date))+')':'—')),
-          h('div',null,h('div',{style:{fontSize:11,color:'#6b7a9f'}},'Interval'),h('div',{style:{fontSize:13}},detailDoc.smog_interval_years+' year(s)'))
-        )
+          h('div',null,h('div',{style:{fontSize:11,color:'#6b7a9f'}},'Next Due'),h('div',{style:{fontSize:13,color:urgColor(daysUntil(detailDoc.next_smog_date))}},detailDoc.next_smog_date?new Date(detailDoc.next_smog_date+'T12:00:00').toLocaleDateString()+' ('+urgLabel(daysUntil(detailDoc.next_smog_date))+')':'—')),
+          h('div',null,h('div',{style:{fontSize:11,color:'#6b7a9f'}},'Every'),h('div',{style:{fontSize:13}},(detailDoc.smog_interval_years||2)+' yr(s)'))
+        ),
+        detailDoc.smog_file_name&&h('button',{style:{marginTop:8,fontSize:11,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:6,padding:'4px 12px',cursor:'pointer'},onClick:()=>{if(detailDoc.smog_file_data){const a=document.createElement('a');a.href=detailDoc.smog_file_data;a.download=detailDoc.smog_file_name;a.click();}}},'\uD83D\uDCC4 Download Smog Certificate: '+detailDoc.smog_file_name)
       ),
       detailDoc.notes&&h('div',{style:{marginBottom:12}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('div',{style:{fontSize:13,background:'#181c27',borderRadius:8,padding:10}},detailDoc.notes)),
       detailDoc.file_name&&h('div',null,
         detailDoc.file_data?.startsWith('data:application/pdf')
-          ?h('div',null,h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6}},'Document Preview'),h('iframe',{src:detailDoc.file_data,style:{width:'100%',height:480,borderRadius:8,border:'.5px solid #2a3048'}}))
+          ?h('div',null,h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6}},'Document'),h('iframe',{src:detailDoc.file_data,style:{width:'100%',height:460,borderRadius:8,border:'.5px solid #2a3048'}}))
           :detailDoc.file_data?.startsWith('data:image')
-          ?h('img',{src:detailDoc.file_data,style:{maxWidth:'100%',borderRadius:8}})
+          ?h('img',{src:detailDoc.file_data,style:{maxWidth:'100%',borderRadius:8,marginBottom:8}})
           :null,
-        h('button',{style:{marginTop:8,fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailDoc.file_data;a.download=detailDoc.file_name;a.click();}},'⬇ Download: '+detailDoc.file_name)
+        h('button',{style:{marginTop:6,fontSize:11,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:6,padding:'4px 12px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailDoc.file_data;a.download=detailDoc.file_name;a.click();}},'⬇ Download: '+detailDoc.file_name)
       )
     ))
-  );
-}
-
-function Scheduler({setPage}){
-  const[view,setView]=useState('month'); // month | week
-  const[today]=useState(new Date());
-  const[current,setCurrent]=useState(new Date());
-  const{data:wos}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number)').not('start_date','is',null).order('start_date'));
-
-  const monthStart=new Date(current.getFullYear(),current.getMonth(),1);
-  const monthEnd=new Date(current.getFullYear(),current.getMonth()+1,0);
-
-  const fmtMonth=d=>d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  const fmtWeek=d=>{const e=new Date(d);e.setDate(e.getDate()+6);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+e.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});};
-
-  const prevPeriod=()=>{const d=new Date(current);view==='month'?d.setMonth(d.getMonth()-1):d.setDate(d.getDate()-7);setCurrent(d);};
-  const nextPeriod=()=>{const d=new Date(current);view==='month'?d.setMonth(d.getMonth()+1):d.setDate(d.getDate()+7);setCurrent(d);};
-  const goToday=()=>setCurrent(new Date());
-
-  const priorityColor={urgent:'#f87171',high:'#fbbf24',normal:'#60a5fa',low:'#94a3b8'};
-  const statusColor={open:'#fbbf24',in_progress:'#60a5fa',on_hold:'#94a3b8',completed:'#4ade80',cancelled:'#f87171'};
-
-  const getEventsForDay=(date)=>{
-    const ds=date.toDateString();
-    return (wos||[]).filter(wo=>{
-      if(!wo.start_date)return false;
-      const s=new Date(wo.start_date);
-      const e=wo.need_by_date?new Date(wo.need_by_date):s;
-      return date>=new Date(s.toDateString())&&date<=new Date(e.toDateString());
-    });
-  };
-
-  const MonthView=()=>{
-    const days=[];
-    const firstDay=monthStart.getDay();
-    // Fill leading empty days
-    for(let i=0;i<firstDay;i++)days.push(null);
-    for(let d=1;d<=monthEnd.getDate();d++)days.push(new Date(current.getFullYear(),current.getMonth(),d));
-    const weeks=[];
-    for(let i=0;i<days.length;i+=7)weeks.push(days.slice(i,i+7));
-
-    return h('div',null,
-      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,marginBottom:0}},
-        ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>h('div',{key:d,style:{padding:'6px 0',textAlign:'center',fontSize:11,color:'#6b7a9f',fontWeight:600,borderBottom:'.5px solid #2a3048'}}  ,d))
-      ),
-      weeks.map((week,wi)=>h('div',{key:wi,style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,borderBottom:'.5px solid #2a3048'}},
-        (Array.from({length:7},((_,i)=>week[i]||null)).map((day,di)=>{
-          if(!day)return h('div',{key:di,style:{minHeight:100,background:'rgba(0,0,0,.1)',borderRight:'.5px solid #2a3048'}});
-          const isToday=day.toDateString()===today.toDateString();
-          const events=getEventsForDay(day);
-          return h('div',{key:di,style:{minHeight:100,padding:4,borderRight:'.5px solid #2a3048',background:isToday?'rgba(59,126,255,.07)':'transparent',verticalAlign:'top'}},
-            h('div',{style:{fontSize:12,fontWeight:isToday?700:400,color:isToday?'#3b7eff':'#94a3b8',marginBottom:3,width:22,height:22,borderRadius:'50%',background:isToday?'#3b7eff':'transparent',display:'flex',alignItems:'center',justifyContent:'center',color:isToday?'#fff':'#94a3b8'}},day.getDate()),
-            events.slice(0,3).map(wo=>h('div',{key:wo.id,onClick:()=>setPage('wo-'+wo.id),style:{fontSize:10,padding:'1px 5px',borderRadius:4,marginBottom:2,cursor:'pointer',background:priorityColor[wo.priority]+'22',borderLeft:'2px solid '+(priorityColor[wo.priority]||'#60a5fa'),color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},
-              wo.order_number+' '+wo.title
-            )),
-            events.length>3&&h('div',{style:{fontSize:9,color:'#6b7a9f',paddingLeft:4}},'+'+( events.length-3)+' more')
-          );
-        }))
-      ))
-    );
-  };
-
-  const WeekView=()=>{
-    const weekStart=new Date(current);
-    weekStart.setDate(weekStart.getDate()-weekStart.getDay());
-    const days=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(d.getDate()+i);return d;});
-    return h('div',{style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8}},
-      days.map(day=>{
-        const isToday=day.toDateString()===today.toDateString();
-        const events=getEventsForDay(day);
-        return h('div',{key:day.toDateString(),className:'card',style:{padding:10,minHeight:300,borderColor:isToday?'rgba(59,126,255,.5)':'#2a3048'}},
-          h('div',{style:{fontSize:12,fontWeight:600,color:isToday?'#3b7eff':'#e2e8f0',marginBottom:8}},
-            day.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})
-          ),
-          events.length===0?h('div',{style:{fontSize:11,color:'#6b7a9f'}},'No WOs'):
-          events.map(wo=>h('div',{key:wo.id,onClick:()=>setPage('wo-'+wo.id),style:{marginBottom:6,padding:'6px 8px',borderRadius:6,cursor:'pointer',background:'rgba(59,126,255,.1)',borderLeft:'3px solid '+(priorityColor[wo.priority]||'#60a5fa')}},
-            h('div',{style:{fontSize:11,fontWeight:600,color:'#e2e8f0',marginBottom:2}},wo.order_number),
-            h('div',{style:{fontSize:11,color:'#94a3b8',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title),
-            wo.asset&&h('div',{style:{fontSize:10,color:'#6b7a9f'}},wo.asset.name),
-            h('div',{style:{fontSize:10,marginTop:3}},h('span',{style:{padding:'1px 6px',borderRadius:8,background:(statusColor[wo.status]||'#94a3b8')+'22',color:statusColor[wo.status]||'#94a3b8'}},wo.status.replace('_',' '))),
-            wo.scheduled_hours&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},'⏱ '+wo.scheduled_hours+'h')
-          ))
-        );
-      })
-    );
-  };
-
-  const upcoming=(wos||[]).filter(wo=>{
-    if(!wo.start_date)return false;
-    const s=new Date(wo.start_date);
-    const now2=new Date();
-    return s>=now2||( wo.need_by_date&&new Date(wo.need_by_date)>=now2);
-  }).sort((a,b)=>new Date(a.start_date)-new Date(b.start_date)).slice(0,8);
-
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},
-      h('div',null,h('h2',null,'Scheduler'),h('p',null,'Work order calendar — '+(wos||[]).filter(w=>w.start_date).length+' scheduled')),
-      h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order')
-    ),
-    h('div',{className:'card',style:{marginBottom:16,padding:16}},
-      h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},
-        h('button',{className:'btn btn-ghost',onClick:prevPeriod},'‹'),
-        h('span',{style:{fontSize:15,fontWeight:600,minWidth:220,textAlign:'center'}},view==='month'?fmtMonth(current):fmtWeek(new Date(current).setDate(new Date(current).getDate()-new Date(current).getDay())&&current)),
-        h('button',{className:'btn btn-ghost',onClick:nextPeriod},'›'),
-        h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:goToday},'Today'),
-        h('div',{style:{marginLeft:'auto',display:'flex',gap:4}},
-          h('button',{className:'btn '+(view==='month'?'btn-primary':'btn-ghost'),onClick:()=>setView('month')},'Month'),
-          h('button',{className:'btn '+(view==='week'?'btn-primary':'btn-ghost'),onClick:()=>setView('week')},'Week')
-        )
-      )
-    ),
-    view==='month'
-      ? h('div',{className:'card',style:{overflow:'hidden'}},h(MonthView))
-      : h(WeekView),
-    upcoming.length>0&&h('div',{style:{marginTop:16}},
-      h('div',{className:'card'},
-        h('div',{className:'card-header'},h('span',{className:'card-title'},'Upcoming Work Orders')),
-        upcoming.map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},
-          h('div',{style:{flex:1,minWidth:0}},
-            h('div',{style:{fontSize:13,fontWeight:500}},wo.order_number+' — '+wo.title),
-            h('div',{style:{fontSize:11,color:'#6b7a9f'}},wo.asset?.name||'No asset')
-          ),
-          h('div',{style:{fontSize:12,color:'#6b7a9f',textAlign:'right'}},
-            h('div',null,wo.start_date?new Date(wo.start_date).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—'),
-            wo.need_by_date&&h('div',{style:{color:'#fbbf24'}},'Due: '+new Date(wo.need_by_date).toLocaleDateString('en-US',{month:'short',day:'numeric'}))
-          )
-        ))
-      )
-    )
-  );
-}
-
-function Documents({setPage}){
-  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type').order('name'));
-  const{data:regs,refetch:refetchRegs}=useQuery(()=>sb.from('asset_registrations').select('*,asset:assets(name,asset_number,asset_type)').order('expiration_date',{ascending:true}));
-  const[showModal,setShowModal]=useState(false);
-  const[editReg,setEditReg]=useState(null);
-  const[filterType,setFilterType]=useState('');
-  const[filterAsset,setFilterAsset]=useState('');
-
-  const today=new Date();
-
-  const daysUntil=d=>{
-    if(!d)return null;
-    return Math.ceil((new Date(d+' 00:00:00')-today)/86400000);
-  };
-
-  const statusBadge=(d)=>{
-    if(!d)return {label:'No Date',color:'#6b7a9f',bg:'rgba(107,122,159,.15)'};
-    const days=daysUntil(d);
-    if(days<0)return{label:'EXPIRED',color:'#f87171',bg:'rgba(239,68,68,.15)'};
-    if(days<=30)return{label:days+'d left',color:'#f87171',bg:'rgba(239,68,68,.15)'};
-    if(days<=90)return{label:days+'d left',color:'#fbbf24',bg:'rgba(245,158,11,.15)'};
-    return{label:days+'d left',color:'#4ade80',bg:'rgba(34,197,94,.15)'};
-  };
-
-  const filtered=(regs||[]).filter(r=>{
-    if(filterType&&r.registration_type!==filterType)return false;
-    if(filterAsset&&r.asset_id!==filterAsset)return false;
-    return true;
-  });
-
-  const expired=filtered.filter(r=>r.expiration_date&&daysUntil(r.expiration_date)<0);
-  const expiringSoon=filtered.filter(r=>r.expiration_date&&daysUntil(r.expiration_date)>=0&&daysUntil(r.expiration_date)<=30);
-
-  const RegModal=({reg,onClose})=>{
-    const isEdit=Boolean(reg?.id);
-    const[f,setF]=useState({
-      asset_id:reg?.asset_id||'',
-      registration_type:reg?.registration_type||'registration',
-      issue_date:reg?.issue_date||'',
-      expiration_date:reg?.expiration_date||'',
-      notes:reg?.notes||'',
-      requires_smog:reg?.requires_smog||false,
-      smog_completed_date:reg?.smog_completed_date||'',
-      document_name:reg?.document_name||'',
-      document_data:reg?.document_data||'',
-    });
-    const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
-    const s=(k,v)=>setF(x=>({...x,[k]:v}));
-
-    const handleDoc=e=>{
-      const file=e.target.files[0];if(!file)return;
-      if(file.size>4*1024*1024){setErr('Max 4MB');return;}
-      const r=new FileReader();
-      r.onload=ev=>{s('document_data',ev.target.result);s('document_name',file.name);};
-      r.readAsDataURL(file);
-    };
-
-    // Auto-calc smog expiration (2 years from completed)
-    const smogExp=f.smog_completed_date?new Date(new Date(f.smog_completed_date).getTime()+2*365.25*86400000).toISOString().slice(0,10):null;
-
-    const save=async()=>{
-      if(!f.asset_id){setErr('Asset required');return;}
-      setSaving(true);
-      const payload={...f,smog_expiration_date:smogExp,updated_at:new Date().toISOString()};
-      const{error:e}=isEdit?await sb.from('asset_registrations').update(payload).eq('id',reg.id):await sb.from('asset_registrations').insert(payload);
-      setSaving(false);if(e){setErr(e.message);return;}
-      onClose();refetchRegs();
-    };
-
-    const del=async()=>{
-      if(!confirm('Delete this record?'))return;
-      await sb.from('asset_registrations').delete().eq('id',reg.id);
-      onClose();refetchRegs();
-    };
-
-    return h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
-      h('h3',null,isEdit?'Edit Document':'Add Registration / Document'),
-      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select...'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))),
-        h('div',null,h('label',{className:'form-label'},'Type'),h('select',{className:'form-select',value:f.registration_type,onChange:e=>s('registration_type',e.target.value)},['registration','insurance','inspection','smog','title','other'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1)))))
-      ),
-      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
-        h('div',null,h('label',{className:'form-label'},'Issue Date'),h('input',{type:'date',className:'form-input',value:f.issue_date,onChange:e=>s('issue_date',e.target.value)})),
-        h('div',null,h('label',{className:'form-label'},'Expiration Date'),h('input',{type:'date',className:'form-input',value:f.expiration_date,onChange:e=>s('expiration_date',e.target.value)}))
-      ),
-      // Smog section
-      h('div',{style:{background:'rgba(59,126,255,.07)',border:'.5px solid rgba(59,126,255,.2)',borderRadius:8,padding:12,marginBottom:12}},
-        h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:f.requires_smog?10:0}},
-          h('input',{type:'checkbox',id:'req_smog',checked:f.requires_smog,onChange:e=>s('requires_smog',e.target.checked),style:{width:16,height:16,cursor:'pointer'}}),
-          h('label',{htmlFor:'req_smog',style:{fontSize:13,cursor:'pointer'}},'Requires Smog Check (every 2 years)')
-        ),
-        f.requires_smog&&h('div',{className:'form-grid form-grid-2'},
-          h('div',null,h('label',{className:'form-label'},'Last Smog Completed'),h('input',{type:'date',className:'form-input',value:f.smog_completed_date,onChange:e=>s('smog_completed_date',e.target.value)})),
-          h('div',null,h('label',{className:'form-label'},'Next Smog Due (auto)'),h('div',{style:{padding:'8px 12px',background:'#181c27',border:'.5px solid #2a3048',borderRadius:8,fontSize:13,color:smogExp?'#4ade80':'#6b7a9f'}},smogExp?new Date(smogExp+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'Set completion date'))
-        )
-      ),
-      h('div',{className:'form-group'},h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'Optional',value:f.notes,onChange:e=>s('notes',e.target.value)})),
-      h('div',{className:'form-group'},
-        h('label',{className:'form-label'},'Attach PDF / Document'),
-        f.document_name
-          ? h('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'rgba(34,197,94,.07)',border:'.5px solid rgba(34,197,94,.2)',borderRadius:8}},
-              h('span',{style:{fontSize:12,color:'#4ade80',flex:1}},f.document_name),
-              h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>{s('document_data','');s('document_name','');}},h(ITrash))
-            )
-          : h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'#181c27',border:'.5px dashed #2a3048',borderRadius:8,cursor:'pointer'}},
-              h('input',{type:'file',accept:'.pdf,image/*',style:{display:'none'},onChange:handleDoc}),
-              h('span',{style:{fontSize:13,color:'#6b7a9f'}},'📎 Attach document (PDF or image, max 4MB)')
-            )
-      ),
-      err&&h('div',{className:'error-box'},err),
-      h('div',{className:'btn-row'},
-        h('button',{className:'btn btn-p',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add Record'),
-        isEdit&&h('button',{className:'btn btn-d',onClick:del},'Delete'),
-        h('button',{className:'btn btn-g',onClick:onClose},'Cancel')
-      )
-    ));
-  };
-
-  return h('div',{className:'page'},
-    h('div',{className:'page-header'},
-      h('div',null,h('h2',null,'Documents & Registration'),h('p',null,(regs||[]).length+' records · '+expired.length+' expired · '+expiringSoon.length+' expiring soon')),
-      h('button',{className:'btn btn-p',onClick:()=>{setEditReg(null);setShowModal(true);}},h(IPlus),' Add Record')
-    ),
-    expired.length>0&&h('div',{className:'alert alert-d',style:{marginBottom:12}},h(IAlert),expired.length+' expired: '+expired.map(r=>r.asset?.name+' — '+r.registration_type).join(', ')),
-    expiringSoon.length>0&&h('div',{className:'alert alert-w',style:{marginBottom:12}},h(IAlert),expiringSoon.length+' expiring within 30 days'),
-    h('div',{className:'filters'},
-      h('select',{className:'form-select',style:{width:160},value:filterType,onChange:e=>setFilterType(e.target.value)},h('option',{value:''},'All Types'),['registration','insurance','inspection','smog','title','other'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1)))),
-      h('select',{className:'form-select',style:{width:200},value:filterAsset,onChange:e=>setFilterAsset(e.target.value)},h('option',{value:''},'All Assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name+(a.asset_number?' ('+a.asset_number+')':''))))
-    ),
-    h('div',{className:'card'},
-      filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No records yet. Click "Add Record" to track registrations, insurance, and more.'):
-      h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Asset','Type','Issued','Expires','Days Left','Smog','Status','Doc',''].map(c=>h('th',{key:c},c)))),
-        h('tbody',null,filtered.map(r=>{
-          const st=statusBadge(r.expiration_date);
-          const smogSt=r.requires_smog?statusBadge(r.smog_expiration_date):null;
-          return h('tr',{key:r.id},
-            h('td',null,h('div',{style:{fontWeight:500,fontSize:13}},r.asset?.name||'—'),h('div',{style:{fontSize:11,color:'#6b7a9f'}},r.asset?.asset_number||'')),
-            h('td',{style:{textTransform:'capitalize',fontSize:12}},r.registration_type),
-            h('td',{style:{fontSize:12,color:'#6b7a9f'}},r.issue_date?new Date(r.issue_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
-            h('td',{style:{fontSize:12}},r.expiration_date?new Date(r.expiration_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
-            h('td',null,h('span',{style:{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:10,background:st.bg,color:st.color}},st.label)),
-            h('td',null,r.requires_smog
-              ? smogSt?h('span',{style:{fontSize:10,padding:'2px 6px',borderRadius:8,background:smogSt.bg,color:smogSt.color}},smogSt.label):h('span',{style:{color:'#6b7a9f',fontSize:11}},'Set date')
-              : h('span',{style:{color:'#6b7a9f',fontSize:11}},'N/A')),
-            h('td',null,r.notes?h('span',{style:{fontSize:11,color:'#6b7a9f'}},r.notes.slice(0,30)+(r.notes.length>30?'...':'')):'—'),
-            h('td',null,r.document_name?h('button',{style:{fontSize:11,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:6,padding:'2px 8px',cursor:'pointer'},onClick:()=>{if(r.document_data){const a=document.createElement('a');a.href=r.document_data;a.download=r.document_name;a.click();}}},r.document_name.slice(0,20)):h('span',{style:{color:'#6b7a9f',fontSize:11}},'—')),
-            h('td',null,h('button',{className:'btn-icon',onClick:()=>{setEditReg(r);setShowModal(true);}},h(IEdit)))
-          );
-        }))
-      ))
-    ),
-    showModal&&h(RegModal,{reg:editReg,onClose:()=>{setShowModal(false);setEditReg(null);}})
   );
 }
 
