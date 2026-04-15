@@ -1528,6 +1528,7 @@ function ServiceIntervals({setPage}){
   const[showAssignModal,setShowAssignModal]=useState(false);
   const[editType,setEditType]=useState(null);
   const[filterCat,setFilterCat]=useState('');
+  const[sortDir,setSortDir]=useState('asc');
   const[selected,setSelected]=useState(new Set());
   const[snoozeModal,setSnoozeModal]=useState(null); // {id, name}
   const[resolveModal,setResolveModal]=useState(null); // assignment
