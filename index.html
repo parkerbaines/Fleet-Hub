@@ -514,8 +514,8 @@ function SamsaraBtn({refetch}){
   );
 }
 
-function Fleet({setPage}){
-  const[typeF,setTypeF]=useState('');
+function Fleet({setPage,initialType}){
+  const[typeF,setTypeF]=useState(initialType||'');
   const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
   const{data:fleetSyncCfg}=useQuery(()=>sb.from('app_config').select('value').eq('key','samsara_last_sync').single());
   const fleetLastSync=fleetSyncCfg?.value;
@@ -575,7 +575,7 @@ function AssetDetail({id,setPage}){
   if(!a)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Asset not found.');
   const F=({label,value})=>h('div',{className:'detail-field'},h('label',null,label),h('p',null,value||'—'));
   return h('div',{className:'page'},
-    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},h('button',{className:'back-btn',onClick:()=>setPage('fleet')},h(IBack)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',gap:8,marginBottom:4}},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' ')),h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type)),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},a.name)),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New WO'),h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),h('button',{className:'btn btn-danger',onClick:del},h(ITrash)))),
+    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},h('button',{className:'back-btn',onClick:()=>setPage('fleet-back-'+(a.asset_type||''))},h(IBack)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',gap:8,marginBottom:4}},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' ')),h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type)),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},a.name)),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New WO'),h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),h('button',{className:'btn btn-danger',onClick:del},h(ITrash)))),
     h('div',{className:'card',style:{padding:20,marginBottom:16}},h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:16}},'Asset Details'),h('div',{className:'detail-grid'},h(F,{label:'Asset #',value:a.asset_number}),h(F,{label:'Year',value:a.year}),h(F,{label:'Make',value:a.make}),h(F,{label:'Model',value:a.model}),h(F,{label:'VIN',value:a.vin}),h(F,{label:'License Plate',value:a.license_plate}),h(F,{label:'License Plate',value:a.license_plate}),a.asset_type!=='trailer'&&h(F,{label:'Odometer',value:a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':null}),a.asset_type==='equipment'&&h(F,{label:'Engine Hours',value:a.engine_hours?a.engine_hours+' hrs':null})),a.notes&&h('div',{style:{marginTop:16,paddingTop:16,borderTop:'0.5px solid #2a3048'}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('p',{style:{fontSize:13,color:'#e2e8f0'}},a.notes))),
     (wos||[]).length>0&&h('div',{className:'card',style:{marginBottom:16}},h('div',{className:'card-header'},h('span',{className:'card-title'},'Open Work Orders ('+(wos||[]).length+')')),wos.map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},h('span',{className:'mono'},wo.order_number),h('span',{style:{flex:1,fontSize:13,color:'#e2e8f0'}},wo.title),h('span',{className:'badge '+priorityCls[wo.priority]},wo.priority)))),
     h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Service History'),h('button',{className:'btn btn-ghost',style:{fontSize:11,padding:'4px 10px'},onClick:()=>setPage('servicelogs')},'Add Log')),!logs||logs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f',fontSize:13}},'No service records yet'):(logs||[]).map(log=>h('div',{key:log.id,style:{padding:'12px 16px',borderBottom:'0.5px solid #2a3048'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),h('div',{style:{fontSize:12,color:'#6b7a9f'}},fmtDate(log.serviced_at))),h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16}},log.technician?.name&&h('span',null,log.technician.name),log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),log.cost&&h('span',null,fmtCur(log.cost))))))
@@ -658,7 +658,7 @@ function WOForm({id,setPage}){
   const[saving,setSaving]=useState(false);const[error,setError]=useState(null);
 
   // Main form fields
-  const[f,setF]=useState({title:'',asset_type:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
+  const[f,setF]=useState({title:'',asset_type:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
   const sf=(k,v)=>setF(x=>({...x,[k]:v}));
   const autoSaveTimer=useRef(null);
   const autoSave=async(newInsp)=>{
@@ -712,7 +712,7 @@ function WOForm({id,setPage}){
 
   useEffect(()=>{
     if(wo&&isEdit){
-      setF({title:wo.title||'',asset_type:wo.asset_type||wo.asset?.asset_type||'',asset_id:wo.asset_id||'',technician_id:wo.technician_id||'',priority:wo.priority||'normal',status:wo.status||'open',category:wo.category||'',due_date:wo.due_date||'',estimated_hours:wo.estimated_hours||'',mileage_in:wo.mileage_in||'',mileage_out:wo.mileage_out||'',labor_cost:wo.labor_cost||'',complaint:wo.complaint||'',findings:wo.findings||'',work_performed:wo.work_performed||'',recommendations:wo.recommendations||''});
+      setF({title:wo.title||'',asset_type:wo.asset_type||wo.asset?.asset_type||'',asset_id:wo.asset_id||'',technician_id:wo.technician_id||'',priority:wo.priority||'normal',status:wo.status||'open',category:wo.category||'',start_date:wo.start_date||'',need_by_date:wo.need_by_date||'',due_date:wo.due_date||'',estimated_hours:wo.estimated_hours||'',mileage_in:wo.mileage_in||'',mileage_out:wo.mileage_out||'',labor_cost:wo.labor_cost||'',complaint:wo.complaint||'',findings:wo.findings||'',work_performed:wo.work_performed||'',recommendations:wo.recommendations||''});
       if(wo.inspection_data&&Object.keys(wo.inspection_data).length>0)setInsp(p=>({...p,...wo.inspection_data}));
     }
   },[wo,isEdit]);
@@ -893,7 +893,9 @@ function WOForm({id,setPage}){
           h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>sf('category',e.target.value)},h('option',{value:''},'Select...'),['preventive','repair','inspection','tire','oil change','brake job','electrical','hydraulics','bodywork','other'].map(c=>h('option',{key:c,value:c},c))))
         ),
         h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
-          h('div',null,h('label',{className:'form-label'},'Due Date'),h('input',{type:'date',className:'form-input',value:f.due_date,onChange:e=>sf('due_date',e.target.value)})),
+          h('div',null,h('label',{className:'form-label'},'Start Date'),h('input',{type:'date',className:'form-input',value:f.start_date,onChange:e=>sf('start_date',e.target.value)})),
+      h('div',null,h('label',{className:'form-label'},'Finish Date'),h('input',{type:'date',className:'form-input',value:f.need_by_date,onChange:e=>sf('need_by_date',e.target.value)})),
+      h('div',null,h('label',{className:'form-label'},'Due Date'),h('input',{type:'date',className:'form-input',value:f.due_date,onChange:e=>sf('due_date',e.target.value)})),
           h('div',null,h('label',{className:'form-label'},'Est. Hours'),h('input',{type:'number',step:0.5,className:'form-input',placeholder:'0.0',value:f.estimated_hours,onChange:e=>sf('estimated_hours',e.target.value)})),
           h('div',null,h('label',{className:'form-label'},'Mileage In'),h('input',{type:'number',className:'form-input',placeholder:'Auto-filled from asset — override if needed',value:f.mileage_in,onChange:e=>sf('mileage_in',e.target.value)}))
         )
@@ -1422,7 +1424,13 @@ function ServiceIntervals({setPage}){
   };
 
   const cats=[...new Set((types||[]).map(t=>t.category).filter(Boolean))].sort();
-  const filtered=(assignments||[]).filter(a=>!filterCat||a.interval_type?.category===filterCat);
+  const filtered=[...(assignments||[]).filter(a=>!filterCat||a.interval_type?.category===filterCat)].sort((a,b)=>{
+    const cA=a.asset?.odometer_miles||0,cB=b.asset?.odometer_miles||0;
+    const mA=a.next_service_miles!=null?a.next_service_miles-cA:null;
+    const mB=b.next_service_miles!=null?b.next_service_miles-cB:null;
+    if(mA===null&&mB===null)return 0;if(mA===null)return 1;if(mB===null)return -1;
+    return sortDir==='asc'?mA-mB:mB-mA;
+  });
   const overdue=filtered.filter(a=>getStatus(a).state==='overdue');
   const dueSoon=filtered.filter(a=>getStatus(a).state==='due_soon');
 
@@ -1708,6 +1716,10 @@ function ServiceIntervals({setPage}){
     ),
 
     tab==='overview'&&h('div',null,
+      h('div',{style:{display:'flex',gap:4,marginBottom:8}},
+        h('button',{className:'btn '+(sortDir==='asc'?'btn-primary':'btn-ghost'),style:{fontSize:12},onClick:()=>setSortDir('asc')},'↑ Due Soonest'),
+        h('button',{className:'btn '+(sortDir==='desc'?'btn-primary':'btn-ghost'),style:{fontSize:12},onClick:()=>setSortDir('desc')},'↓ Farthest Out')
+      ),
       h('div',{className:'filters'},
         h('select',{className:'form-select',style:{width:180},value:filterCat,onChange:e=>setFilterCat(e.target.value)},h('option',{value:''},'All Categories'),cats.map(c=>h('option',{key:c,value:c},c.charAt(0).toUpperCase()+c.slice(1)))),
         selected.size>0&&h('button',{className:'btn btn-danger',onClick:bulkDelete},'🗑 Remove '+selected.size+' Selected')
@@ -1846,6 +1858,7 @@ function Documents({setPage}){
   const[showModal,setShowModal]=useState(false);
   const[filterType,setFilterType]=useState('');
   const[filterAsset,setFilterAsset]=useState('');
+  const[sortDir,setSortDir]=useState('asc');
   const[detailDoc,setDetailDoc]=useState(null);
   const[renewModal,setRenewModal]=useState(null);
   const[snoozeModal,setSnoozeModal]=useState(null);
@@ -1854,7 +1867,11 @@ function Documents({setPage}){
   const urgColor=(days)=>days===null?'#6b7a9f':days<0?'#f87171':days<=30?'#f87171':days<=90?'#fbbf24':'#4ade80';
   const urgLabel=(days)=>days===null?'No expiry':days<0?Math.abs(days)+'d EXPIRED':days===0?'Expires today':days+'d remaining';
   const isSnoozed=(d)=>d.snoozed_until&&new Date(d.snoozed_until+'T12:00:00')>=today;
-  const filtered=(docs||[]).filter(d=>(!filterType||d.doc_type===filterType)&&(!filterAsset||d.asset_id===filterAsset));
+  const filtered=[...(docs||[]).filter(d=>(!filterType||d.doc_type===filterType)&&(!filterAsset||d.asset_id===filterAsset))].sort((a,b)=>{
+    const dA=daysUntil(a.expiration_date),dB=daysUntil(b.expiration_date);
+    if(dA===null&&dB===null)return 0;if(dA===null)return 1;if(dB===null)return -1;
+    return sortDir==='asc'?dA-dB:dB-dA;
+  });
   const expiringSoon=filtered.filter(d=>!isSnoozed(d)&&d.expiration_date&&daysUntil(d.expiration_date)<=30&&daysUntil(d.expiration_date)>=0);
   const expired=filtered.filter(d=>!isSnoozed(d)&&d.expiration_date&&daysUntil(d.expiration_date)<0);
 
@@ -1931,6 +1948,10 @@ function Documents({setPage}){
     h('div',{className:'page-header'},h('div',null,h('h2',null,'Documents'),h('p',null,filtered.length+' documents · '+expired.length+' expired · '+expiringSoon.length+' expiring soon')),h('button',{className:'btn btn-p',onClick:()=>setShowModal(true)},h(IPlus),' Add Document')),
     expired.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:10}},h(IAlert),expired.length+' expired: '+expired.slice(0,3).map(d=>(d.asset?.name||'')+' — '+d.doc_type).join(', ')),
     expiringSoon.length>0&&h('div',{className:'alert alert-warn',style:{marginBottom:10}},h(IAlert),expiringSoon.length+' expiring within 30 days'),
+    h('div',{style:{display:'flex',gap:4,marginBottom:8}},
+      h('button',{className:'btn '+(sortDir==='asc'?'btn-primary':'btn-ghost'),style:{fontSize:12},onClick:()=>setSortDir('asc')},'↑ Expiring Soonest'),
+      h('button',{className:'btn '+(sortDir==='desc'?'btn-primary':'btn-ghost'),style:{fontSize:12},onClick:()=>setSortDir('desc')},'↓ Farthest Out')
+    ),
     h('div',{className:'filters'},
       h('select',{className:'form-select',style:{width:160},value:filterType,onChange:e=>setFilterType(e.target.value)},h('option',{value:''},'All Types'),(docTypes||[]).map(t=>h('option',{key:t.id||t.name,value:t.name},t.name.charAt(0).toUpperCase()+t.name.slice(1)))),
       h('select',{className:'form-select',style:{width:200},value:filterAsset,onChange:e=>setFilterAsset(e.target.value)},h('option',{value:''},'All Assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name)))
@@ -1998,7 +2019,7 @@ function App(){
     if(page==='wo-new')return h(WOForm,{id:null,setPage});
     if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage});
     if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage});
-    if(page==='fleet')return h(Fleet,{setPage});
+    if(page==='fleet'||page.startsWith('fleet-back-'))return h(Fleet,{setPage,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):''});
     if(page==='asset-new')return h(AssetForm,{id:null,setPage});
     if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
     if(page.startsWith('asset-'))return h(AssetDetail,{id:page.replace('asset-',''),setPage});
