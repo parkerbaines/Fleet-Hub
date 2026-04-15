@@ -1176,29 +1176,161 @@ function Parts(){
   );
 }
 
-function Technicians(){
+function Technicians({setPage}){
   const{data:techs,loading,refetch}=useQuery(()=>sb.from('technicians').select('*').order('name'));
-  const{data:wos}=useQuery(()=>sb.from('work_orders').select('technician_id,status').in('status',['open','in_progress']));
-  const[modal,setModal]=useState(null);
-  const obt=id=>(wos||[]).filter(w=>w.technician_id===id).length;
-  const del=async id=>{if(!confirm('Remove?'))return;await sb.from('technicians').delete().eq('id',id);refetch();};
-  const TM=({tech,onClose})=>{
+  const[modal,setModal]=useState(null); // null | {} | tech obj (for edit)
+  const[detail,setDetail]=useState(null); // tech obj for detail view
+
+  const del=async(id)=>{if(!confirm('Delete technician?'))return;await sb.from('technicians').delete().eq('id',id);refetch();};
+
+  const TechModal=({tech,onClose})=>{
     const isEdit=Boolean(tech?.id);
     const[f,setF]=useState({name:tech?.name||'',email:tech?.email||'',phone:tech?.phone||'',specialty:tech?.specialty||'',status:tech?.status||'active',hourly_rate:tech?.hourly_rate||'',start_date:tech?.start_date||''});
-    const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);
+    const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
     const s=(k,v)=>setF(x=>({...x,[k]:v}));
-    const save=async()=>{if(!f.name.trim()){setErr('Name required');return;}setSaving(true);const payload={...f,email:f.email||null,phone:f.phone||null,hourly_rate:f.hourly_rate?parseFloat(f.hourly_rate):null,start_date:f.start_date||null};const{error:e}=isEdit?await sb.from('technicians').update(payload).eq('id',tech.id):await sb.from('technicians').insert(payload);setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();};
-    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},h('h3',null,isEdit?'Edit Technician':'Add Technician'),h('div',{className:'form-group'},h('label',{className:'form-label'},'Full name *'),h('input',{className:'form-input',placeholder:'Juan Martinez',value:f.name,onChange:e=>s('name',e.target.value)})),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Email'),h('input',{type:'email',className:'form-input',value:f.email,onChange:e=>s('email',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Phone'),h('input',{type:'tel',className:'form-input',value:f.phone,onChange:e=>s('phone',e.target.value)}))),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Specialty'),h('select',{className:'form-select',value:f.specialty,onChange:e=>s('specialty',e.target.value)},h('option',{value:''},'General'),['diesel','hydraulics','electrical','tires','bodywork','hvac','welding'].map(c=>h('option',{key:c,value:c},c)))),h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:f.status,onChange:e=>s('status',e.target.value)},h('option',{value:'active'},'Active'),h('option',{value:'inactive'},'Inactive')))),h('div',{className:'form-grid form-grid-2',style:{marginTop:12,marginBottom:0}},h('div',null,h('label',{className:'form-label'},'Hourly Rate ($/hr)'),h('input',{type:'number',step:'0.01',className:'form-input',placeholder:'42.00',value:f.hourly_rate,onChange:e=>s('hourly_rate',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Start Date'),h('input',{type:'date',className:'form-input',value:f.start_date,onChange:e=>s('start_date',e.target.value)}))),err&&h('div',{className:'error-box'},err),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))));
+    const save=async()=>{
+      if(!f.name.trim()){setErr('Name required');return;}setSaving(true);
+      const payload={...f,email:f.email||null,phone:f.phone||null,hourly_rate:f.hourly_rate?parseFloat(f.hourly_rate):null,start_date:f.start_date||null,updated_at:new Date().toISOString()};
+      const{error:e}=isEdit?await sb.from('technicians').update(payload).eq('id',tech.id):await sb.from('technicians').insert(payload);
+      setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();
+    };
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,isEdit?'Edit Technician':'Add Technician'),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',value:f.name,onChange:e=>s('name',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Specialty'),h('input',{className:'form-input',placeholder:'e.g. Diesel, Electrical',value:f.specialty,onChange:e=>s('specialty',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Phone'),h('input',{className:'form-input',placeholder:'Optional',value:f.phone,onChange:e=>s('phone',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Email'),h('input',{type:'email',className:'form-input',placeholder:'Optional',value:f.email,onChange:e=>s('email',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Status'),h('select',{className:'form-select',value:f.status,onChange:e=>s('status',e.target.value)},['active','inactive'].map(v=>h('option',{key:v,value:v},v.charAt(0).toUpperCase()+v.slice(1))))),
+        h('div',null,h('label',{className:'form-label'},'Hourly Rate ($/hr)'),h('input',{type:'number',step:'0.01',className:'form-input',placeholder:'42.00',value:f.hourly_rate,onChange:e=>s('hourly_rate',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Start Date'),h('input',{type:'date',className:'form-input',value:f.start_date,onChange:e=>s('start_date',e.target.value)}))
+      ),
+      err&&h('div',{className:'error-box'},err),
+      h('div',{className:'btn-row'},h('button',{className:'btn btn-p',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save Changes':'Add Technician'),h('button',{className:'btn btn-g',onClick:onClose},'Cancel'))
+    ));
   };
-  const active=(techs||[]).filter(t=>t.status==='active');const inactive=(techs||[]).filter(t=>t.status==='inactive');const mx=Math.max(1,...active.map(t=>obt(t.id)));
+
+  const TechDetail=({tech,onClose})=>{
+    const{data:docs,refetch:refetchDocs}=useQuery(()=>sb.from('technician_documents').select('*').eq('technician_id',tech.id).order('expiration_date',{ascending:true,nullsFirst:false}));
+    const{data:docTypes}=useQuery(()=>sb.from('document_types').select('*').order('name'));
+    const[showDocModal,setShowDocModal]=useState(false);
+    const[editTech,setEditTech]=useState(false);
+    const today=new Date();
+    const daysUntil=(d)=>d?Math.ceil((new Date(d+'T12:00:00')-today)/86400000):null;
+    const urgColor=(days)=>days===null?'#6b7a9f':days<0?'#f87171':days<=30?'#f87171':days<=90?'#fbbf24':'#4ade80';
+    const urgLabel=(days)=>days===null?'—':days<0?Math.abs(days)+'d EXPIRED':days===0?'Expires today':days+'d remaining';
+
+    const DocModal=({onClose:dcClose})=>{
+      const[f,setF]=useState({doc_type:'certification',issue_date:'',expiration_date:'',notes:'',file_name:'',file_data:''});
+      const[saving,setSaving]=useState(false);const[err,setErr]=useState('');const[showNewType,setShowNewType]=useState(false);const[newTypeName,setNewTypeName]=useState('');
+      const s=(k,v)=>setF(x=>({...x,[k]:v}));
+      const handleFile=e=>{const file=e.target.files[0];if(!file)return;if(file.size>4*1024*1024){setErr('Max 4MB');return;}const r=new FileReader();r.onload=ev=>{s('file_data',ev.target.result);s('file_name',file.name);};r.readAsDataURL(file);};
+      const save=async()=>{
+        setSaving(true);
+        const{error:e}=await sb.from('technician_documents').insert({technician_id:tech.id,doc_type:f.doc_type,title:f.doc_type,issue_date:f.issue_date||null,expiration_date:f.expiration_date||null,notes:f.notes||null,file_data:f.file_data||null,file_name:f.file_name||null,updated_at:new Date().toISOString()});
+        setSaving(false);if(e){setErr(e.message);return;}dcClose();refetchDocs();
+      };
+      const allTypes=(docTypes||[]).length>0?docTypes:[{name:'certification'},{name:'license'},{name:'inspection'},{name:'training'},{name:'other'}];
+      return h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
+        h('h3',null,'Add Document — '+tech.name),
+        h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+          h('div',null,
+            h('label',{className:'form-label'},'Document Type'),
+            h('select',{className:'form-select',value:f.doc_type,onChange:e=>e.target.value==='__new__'?setShowNewType(true):s('doc_type',e.target.value)},
+              allTypes.map(t=>h('option',{key:t.id||t.name,value:t.name},t.name.charAt(0).toUpperCase()+t.name.slice(1))),
+              h('option',{value:'__new__'},'+ Add new type...')
+            ),
+            showNewType&&h('div',{style:{display:'flex',gap:6,marginTop:6}},
+              h('input',{className:'form-input',placeholder:'New type name',value:newTypeName,onChange:e=>setNewTypeName(e.target.value),style:{flex:1}}),
+              h('button',{className:'btn btn-p',style:{fontSize:12},onClick:async()=>{if(!newTypeName.trim())return;await sb.from('document_types').insert({name:newTypeName.trim().toLowerCase()});s('doc_type',newTypeName.trim().toLowerCase());setNewTypeName('');setShowNewType(false);}},'+')
+            )
+          ),
+          h('div',null,h('label',{className:'form-label'},'Notes'),h('input',{className:'form-input',placeholder:'Optional',value:f.notes,onChange:e=>s('notes',e.target.value)}))
+        ),
+        h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+          h('div',null,h('label',{className:'form-label'},'Issue Date'),h('input',{type:'date',className:'form-input',value:f.issue_date,onChange:e=>s('issue_date',e.target.value)})),
+          h('div',null,h('label',{className:'form-label'},'Expiration Date'),h('input',{type:'date',className:'form-input',value:f.expiration_date,onChange:e=>s('expiration_date',e.target.value)}))
+        ),
+        h('div',{className:'form-group'},
+          h('label',{className:'form-label'},'Attach File (max 4MB)'),
+          f.file_name
+            ?h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'rgba(34,197,94,.07)',borderRadius:8}},h('span',{style:{fontSize:13,color:'#4ade80',flex:1}},f.file_name),h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:()=>{s('file_data','');s('file_name','');}},h(ITrash)))
+            :h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'#181c27',border:'.5px dashed #2a3048',borderRadius:8,cursor:'pointer'}},h('input',{type:'file',accept:'.pdf,image/*',style:{display:'none'},onChange:handleFile}),h('span',{style:{fontSize:13,color:'#6b7a9f'}},'📎 Attach file'))
+        ),
+        err&&h('div',{className:'error-box'},err),
+        h('div',{className:'btn-row'},h('button',{className:'btn btn-p',onClick:save,disabled:saving},saving?'Saving...':'Add Document'),h('button',{className:'btn btn-g',onClick:dcClose},'Cancel'))
+      ));
+    };
+
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal mw',style:{maxHeight:'90vh',overflowY:'auto'}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}},
+        h('div',null,
+          h('h3',{style:{marginBottom:4}},tech.name),
+          tech.specialty&&h('div',{style:{fontSize:13,color:'#6b7a9f'}},tech.specialty),
+          h('span',{className:'badge '+(tech.status==='active'?'b-active':'b-retired'),style:{marginTop:6}},tech.status||'active')
+        ),
+        h('div',{className:'btn-row'},
+          h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>setEditTech(true)},h(IEdit),' Edit'),
+          h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:onClose},'Close')
+        )
+      ),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px 16px',marginBottom:16,padding:'12px',background:'#181c27',borderRadius:8}},
+        [['Phone',tech.phone||'—'],['Email',tech.email||'—'],['Rate',tech.hourly_rate?'$'+parseFloat(tech.hourly_rate).toFixed(2)+'/hr':'—'],['Since',tech.start_date?new Date(tech.start_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—']].map(([k,v])=>h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:2}},k),h('div',{style:{fontSize:13,fontWeight:500}},v)))
+      ),
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}},
+        h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0'}},'Documents & Certifications'),
+        h('button',{className:'btn btn-p',style:{fontSize:12},onClick:()=>setShowDocModal(true)},h(IPlus),' Add Document')
+      ),
+      (docs||[]).length===0?h('div',{style:{padding:'20px',textAlign:'center',color:'#6b7a9f',fontSize:13,background:'#181c27',borderRadius:8}},'No documents yet'):
+      h('div',{className:'table-wrap'},h('table',null,
+        h('thead',null,h('tr',null,['Type','Issue Date','Expires','Status',''].map(c=>h('th',{key:c},c)))),
+        h('tbody',null,(docs||[]).map(d=>{
+          const days=daysUntil(d.expiration_date);
+          return h('tr',{key:d.id},
+            h('td',null,h('div',{style:{fontWeight:500,textTransform:'capitalize'}},d.doc_type),d.file_name&&h('div',{style:{fontSize:11,color:'#6b7a9f'}},d.file_name)),
+            h('td',{style:{fontSize:12,color:'#6b7a9f'}},d.issue_date?new Date(d.issue_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
+            h('td',{style:{fontSize:12,color:'#6b7a9f'}},d.expiration_date?new Date(d.expiration_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
+            h('td',null,days!==null?h('span',{style:{fontSize:11,fontWeight:600,color:urgColor(days)}},urgLabel(days)):h('span',{style:{color:'#6b7a9f'}},'—')),
+            h('td',null,h('div',{style:{display:'flex',gap:4}},
+              d.file_data&&h('button',{style:{fontSize:11,padding:'3px 8px',borderRadius:6,background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',color:'#60a5fa',cursor:'pointer',fontFamily:'inherit'},onClick:()=>{const a=document.createElement('a');a.href=d.file_data;a.download=d.file_name;a.click();}},'⬇'),
+              h('button',{className:'icon-btn',style:{color:'#f87171'},onClick:async()=>{if(!confirm('Delete?'))return;await sb.from('technician_documents').delete().eq('id',d.id);refetchDocs();}},h(ITrash))
+            ))
+          );
+        }))
+      )),
+      showDocModal&&h(DocModal,{onClose:()=>setShowDocModal(false)}),
+      editTech&&h(TechModal,{tech,onClose:()=>{setEditTech(false);refetch();}})
+    ));
+  };
+
   return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Technicians'),h('p',null,active.length+' active')),h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add')),
-    loading?h('div',{style:{textAlign:'center',color:'#6b7a9f',padding:40}},'Loading...'):
-    h(Fragment,null,
-      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}},active.map(t=>{const cnt=obt(t.id);return h('div',{key:t.id,className:'card',style:{padding:16,display:'flex',gap:12,alignItems:'flex-start'}},h('div',{className:'avatar'},initials(t.name)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},h('div',{style:{fontSize:14,fontWeight:500,color:'#e2e8f0'}},t.name),t.specialty&&h('span',{className:'badge b-normal',style:{textTransform:'capitalize'}},t.specialty)),t.email&&h('div',{style:{fontSize:12,color:'#6b7a9f'}},t.email),t.phone&&h('div',{style:{fontSize:12,color:'#6b7a9f'}},t.phone),h('div',{style:{display:'flex',gap:12,flexWrap:'wrap'}},t.hourly_rate&&h('div',{style:{fontSize:12,color:'#4ade80',fontWeight:500}},'$'+parseFloat(t.hourly_rate).toFixed(2)+'/hr'),t.start_date&&h('div',{style:{fontSize:12,color:'#6b7a9f'}},'Since '+new Date(t.start_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}))),h('div',{style:{marginTop:8}},h('div',{className:'workload-info'},h('span',{style:{fontSize:12,color:cnt>0?'#60a5fa':'#6b7a9f'}},cnt+' open order'+(cnt!==1?'s':''))),h('div',{className:'workload-bar-bg'},h('div',{className:'workload-bar',style:{width:(cnt/mx)*100+'%'}})))),h('div',{className:'btn-row'},h('button',{className:'btn-icon',onClick:()=>setModal(t)},h(IEdit)),h('button',{className:'btn-icon',onClick:()=>del(t.id)},h(ITrash))));})),
-      inactive.length>0&&h('div',{style:{marginTop:20}},h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.08em',fontWeight:600,marginBottom:8}},'Inactive'),h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:8}},inactive.map(t=>h('div',{key:t.id,className:'card',style:{padding:14,display:'flex',gap:10,alignItems:'center',opacity:.5}},h('div',{className:'avatar'},initials(t.name)),h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0'}},t.name),t.specialty&&h('div',{style:{fontSize:11,color:'#6b7a9f',textTransform:'capitalize'}},t.specialty)),h('button',{className:'btn-icon',onClick:()=>setModal(t)},h(IEdit))))))
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'Technicians'),h('p',null,(techs||[]).length+' technicians')),
+      h('button',{className:'btn btn-p',onClick:()=>setModal({})},h(IPlus),' Add Technician')
     ),
-    modal!==null&&h(TM,{tech:modal.id?modal:null,onClose:()=>setModal(null)})
+    h('div',{className:'card'},
+      loading?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'Loading...'):
+      (techs||[]).length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No technicians yet.'):
+      h('div',{className:'table-wrap'},h('table',null,
+        h('thead',null,h('tr',null,['Name','Specialty','Status','Phone','Email','Rate','Since',''].map(c=>h('th',{key:c},c)))),
+        h('tbody',null,(techs||[]).map(t=>h('tr',{key:t.id,style:{cursor:'pointer'},onClick:()=>setDetail(t)},
+          h('td',{style:{fontWeight:500}},t.name),
+          h('td',{style:{fontSize:12,color:'#6b7a9f'}},t.specialty||'—'),
+          h('td',null,h('span',{className:'badge '+(t.status==='active'?'b-active':'b-retired')},t.status||'active')),
+          h('td',{style:{fontSize:12,color:'#6b7a9f'}},t.phone||'—'),
+          h('td',{style:{fontSize:12,color:'#6b7a9f'}},t.email||'—'),
+          h('td',{style:{fontSize:12,color:'#4ade80'}},t.hourly_rate?'$'+parseFloat(t.hourly_rate).toFixed(2)+'/hr':'—'),
+          h('td',{style:{fontSize:12,color:'#6b7a9f'}},t.start_date?new Date(t.start_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—'),
+          h('td',null,h('button',{className:'icon-btn',onClick:e=>{e.stopPropagation();del(t.id);}},h(ITrash)))
+        )))
+      ))
+    ),
+    modal!==null&&h(TechModal,{tech:modal.id?modal:null,onClose:()=>setModal(null)}),
+    detail&&h(TechDetail,{tech:detail,onClose:()=>{setDetail(null);refetch();}})
   );
 }
 
