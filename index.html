@@ -649,7 +649,7 @@ function ImportModal({assetType,onClose,onDone}){
   ));
 }
 
-function Dashboard({setPage}){
+function Dashboard({setPage,isTech=false}){
   const{data:assets,loading:al}=useQuery(()=>sb.from('assets').select('*').neq('status','retired'));
   const{data:syncConfig}=useQuery(()=>sb.from('app_config').select('value').eq('key','samsara_last_sync').single());
   const{data:dueIntervals}=useQuery(()=>sb.from('asset_intervals').select('*,asset:assets(name,odometer_miles),interval_type:interval_types(name,reminder_miles,reminder_days)').not('next_service_miles','is',null));
@@ -2477,8 +2477,12 @@ function TechDashboard({setPage}){
 
 function App(){
   const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech}=useAuth();
-  const[page,setPage_]=useState(()=>isTech?'tech-dashboard':'dashboard');
-  const setPage=(p)=>setPage_(p);const[drawerOpen,setDrawerOpen]=useState(false);
+  const[page,setPage_]=useState('dashboard');
+  const setPage=(p)=>setPage_(p);
+  // Redirect tech to their dashboard once auth resolves
+  useEffect(()=>{
+    if(!authLoading&&isTech&&page==='dashboard')setPage_('tech-dashboard');
+  },[authLoading,isTech]);const[drawerOpen,setDrawerOpen]=useState(false);
   const[isDark,setIsDark]=useState(true);
   const toggleTheme=()=>{
     const next=!isDark;
@@ -2512,7 +2516,7 @@ function App(){
 
   const render=()=>{
     if(page==='tech-dashboard')return h(TechDashboard,{setPage});
-    if(page==='dashboard')return h(Dashboard,{setPage});
+    if(page==='dashboard')return h(Dashboard,{setPage,isTech});
     if(page==='workorders')return h(WorkOrders,{setPage,isTech});
     if(page==='wo-new')return h(WOForm,{id:null,setPage,isAdmin,isTech});
     if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage,isAdmin,isTech});
