@@ -661,7 +661,7 @@ function Dashboard({setPage}){
   const down=(assets||[]).filter(a=>a.status==='down').length;const inShop=(assets||[]).filter(a=>a.status==='in_shop').length;
   const lowParts=(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point);const outOfStock=lowParts.filter(p=>p.track_inventory!==false&&p.quantity_on_hand===0);
   return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order'))),
+    h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),!isTech&&h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order'))),
     urgent>0&&h('div',{className:'alert alert-danger',style:{marginBottom:16}},h(IAlert),urgent+' urgent work order'+(urgent>1?'s':'')+' need attention',h('button',{className:'card-link',style:{marginLeft:'auto'},onClick:()=>setPage('workorders')},'View →')),
     h('div',{className:'metrics'},
       h('div',{className:'metric clickable',onClick:()=>setPage('fleet')},h('div',{className:'metric-label'},'Total Assets'),h('div',{className:'metric-value'},al?'—':(assets||[]).length),h('div',{className:'metric-sub'},'Vehicles, trailers & equipment')),
@@ -759,7 +759,7 @@ function SamsaraBtn({refetch}){
   );
 }
 
-function Fleet({setPage,initialType,initialStatus}){
+function Fleet({setPage,isTech=false,initialType,initialStatus}){
   const[typeF,setTypeF]=useState(initialType||'');
   const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState(initialStatus||'');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
   const{data:fleetSyncCfg}=useQuery(()=>sb.from('app_config').select('value').eq('key','samsara_last_sync').single());
@@ -771,7 +771,7 @@ function Fleet({setPage,initialType,initialStatus}){
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Fleet'),h('p',null,(assets||[]).filter(a=>a.asset_type==='vehicle').length+' vehicles · '+(assets||[]).filter(a=>a.asset_type==='trailer').length+' trailers · '+(assets||[]).filter(a=>a.asset_type==='equipment').length+' equipment')),
       h('div',{className:'btn-row'},h(SamsaraBtn,{refetch}),
-        fleetLastSync&&h('span',{style:{fontSize:11,color:'#4ade80',padding:'4px 10px',borderRadius:20,background:'rgba(34,197,94,.1)',border:'0.5px solid rgba(34,197,94,.2)'}},'🛰 '+timeAgo(fleetLastSync)),h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),h('select',{className:'btn btn-ghost',style:{cursor:'pointer'},onChange:e=>{if(e.target.value)setImportM(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'⬆ Import CSV'),h('option',{value:'vehicle'},'Import Vehicles'),h('option',{value:'trailer'},'Import Trailers'),h('option',{value:'equipment'},'Import Equipment')),h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset'))
+        fleetLastSync&&h('span',{style:{fontSize:11,color:'#4ade80',padding:'4px 10px',borderRadius:20,background:'rgba(34,197,94,.1)',border:'0.5px solid rgba(34,197,94,.2)'}},'🛰 '+timeAgo(fleetLastSync)),h('button',{className:'btn btn-ghost',onClick:handleExport},h(IDownload),' Export CSV'),h('select',{className:'btn btn-ghost',style:{cursor:'pointer'},onChange:e=>{if(e.target.value)setImportM(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'⬆ Import CSV'),h('option',{value:'vehicle'},'Import Vehicles'),h('option',{value:'trailer'},'Import Trailers'),h('option',{value:'equipment'},'Import Equipment')),!isTech&&h('button',{className:'btn btn-primary',onClick:()=>setPage('asset-new')},h(IPlus),' Add Asset'))
     ),
     h('div',{className:'tabs'},['','vehicle','trailer','equipment'].map(t=>h('button',{key:t,className:'tab'+(typeF===t?' active':''),onClick:()=>setTypeF(t)},t?t.charAt(0).toUpperCase()+t.slice(1):'All'))),
     h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search name, asset #, VIN...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:150},value:statusF,onChange:e=>setStatusF(e.target.value)},h('option',{value:''},'All statuses'),['active','in_shop','down','retired'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
@@ -795,7 +795,7 @@ function Fleet({setPage,initialType,initialStatus}){
             h('td',{style:{color:'#94a3b8',fontSize:12}},[a.make,a.model].filter(Boolean).join(' ')||'—'),
             h('td',{style:{color:'#94a3b8',fontSize:12}},a.asset_type==='equipment'?(a.engine_hours?a.engine_hours+' hrs':'—'):(a.asset_type==='trailer'?'—':(a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':'—'))),
             h('td',null,h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))),
-            h('td',null,h('button',{className:'icon-btn',onClick:e=>{e.stopPropagation();setPage('asset-edit-'+a.id);}},h(IEdit)))
+            h('td',null,!isTech&&h('button',{className:'icon-btn',onClick:e=>{e.stopPropagation();setPage('asset-edit-'+a.id);}},h(IEdit)))
           )))
         )),
         h('div',{className:'table-mobile'},filtered.map(a=>h('div',{key:a.id,className:'row',onClick:()=>setPage('asset-'+a.id)},
@@ -850,7 +850,7 @@ function AssetForm({id,setPage}){
   );
 }
 
-function WorkOrders({setPage}){
+function WorkOrders({setPage,isTech=false}){
   const[search,setSearch]=useState('');const[statusF,setStatusF]=useState('');const[priorityF,setPriorityF]=useState('');
   const[woTab,setWoTab]=useState('active');
   const{data:wos,loading,refetch}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('created_at',{ascending:false}));
@@ -1392,7 +1392,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false}){
   );// end WOForm return
 }// end WOForm
 
-function Parts(){
+function Parts({isTech=false}){
   const{data:parts,loading,refetch}=useQuery(()=>sb.from('parts').select('*').order('name'));
   const[search,setSearch]=useState('');const[catF,setCatF]=useState('');const[modal,setModal]=useState(null);
   const cats=[...new Set((parts||[]).map(p=>p.category).filter(Boolean))].sort();
@@ -1409,13 +1409,13 @@ function Parts(){
     return h('div',{className:'modal-overlay'},h('div',{className:'modal'},h('h3',null,isEdit?'Edit Part':'Add Part'),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:f.part_number,onChange:e=>s('part_number',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>s('category',e.target.value)},h('option',{value:''},'Select...'),['filters','brakes','fluids','electrical','belts','tires','accessories','other'].map(c=>h('option',{key:c,value:c},c))))),h('div',{className:'form-group'},h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',value:f.name,onChange:e=>s('name',e.target.value)})),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Alt Name'),h('input',{className:'form-input',placeholder:'Alternate name',value:f.alt_name,onChange:e=>s('alt_name',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Alt Part #'),h('input',{className:'form-input',placeholder:'Alternate part #',value:f.alt_part_number,onChange:e=>s('alt_part_number',e.target.value)}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,padding:'8px 12px',background:'rgba(59,126,255,.07)',borderRadius:8}},h('input',{type:'checkbox',id:'track_inv',checked:f.track_inventory,onChange:e=>s('track_inventory',e.target.checked),style:{width:16,height:16,cursor:'pointer'}}),h('label',{htmlFor:'track_inv',style:{fontSize:13,cursor:'pointer',userSelect:'none'}},'Track inventory & reorder alerts')),h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Qty on hand'),h('input',{type:'number',className:'form-input',value:f.quantity_on_hand,onChange:e=>s('quantity_on_hand',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Reorder at'),h('input',{type:'number',className:'form-input',value:f.reorder_point,onChange:e=>s('reorder_point',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Unit cost'),h('input',{type:'number',step:.01,className:'form-input',placeholder:'0.00',value:f.unit_cost,onChange:e=>s('unit_cost',e.target.value)}))),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Supplier'),h('input',{className:'form-input',value:f.supplier,onChange:e=>s('supplier',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Bin/Shelf'),h('input',{className:'form-input',placeholder:'A-12',value:f.location,onChange:e=>s('location',e.target.value)}))),err&&h('div',{className:'error-box'},err),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add part'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))));
   };
   return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Parts Inventory'),h('p',null,(parts||[]).length+' parts total')),h('div',{className:'btn-row'},h('button',{className:'btn btn-ghost',onClick:()=>dlCSV('maintainly_parts.csv',toCSV(parts||[],expCols))},h(IDownload),' Export'),h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add Part'))),
+    h('div',{className:'page-header'},h('div',null,h('h2',null,'Parts Inventory'),h('p',null,(parts||[]).length+' parts total')),h('div',{className:'btn-row'},h('button',{className:'btn btn-ghost',onClick:()=>dlCSV('maintainly_parts.csv',toCSV(parts||[],expCols))},h(IDownload),' Export'),!isTech&&h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add Part'))),
     outParts.length>0&&h('div',{className:'alert alert-danger'},h(IAlert),outParts.length+' out of stock: '+outParts.map(p=>p.name).join(', ')),
     lowParts.length>outParts.length&&h('div',{className:'alert alert-warn'},h(IAlert),(lowParts.length-outParts.length)+' below reorder point'),
     h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search parts...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:160},value:catF,onChange:e=>setCatF(e.target.value)},h('option',{value:''},'All categories'),cats.map(c=>h('option',{key:c,value:c},c)))),
     h('div',{className:'card'},
-      h('div',{className:'table-wrap'},h('table',null,h('thead',null,h('tr',null,['Part #','Name','Cat','On Hand','Reorder','Cost','Supplier','Bin',''].map(c=>h('th',{key:c},c)))),h('tbody',null,loading?h('tr',null,h('td',{colSpan:9,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;return h('tr',{key:p.id},h('td',null,h('span',{className:'mono'},p.part_number||'—')),h('td',{style:{fontWeight:500}},p.name),h('td',{style:{color:'#6b7a9f',fontSize:12,textTransform:'capitalize'}},p.category||'—'),h('td',null,h('span',{style:{fontWeight:600,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80'}},p.quantity_on_hand)),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.reorder_point),h('td',null,fmtCur(p.unit_cost)),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.supplier||'—'),h('td',{style:{color:'#6b7a9f',fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},p.location||'—'),h('td',null,h('div',{className:'btn-row'},h('button',{title:p.track_inventory===false?'Click to track inventory':'Click to stop tracking',onClick:async(e)=>{e.stopPropagation();await sb.from('parts').update({track_inventory:p.track_inventory===false,updated_at:new Date().toISOString()}).eq('id',p.id);refetch();},style:{fontSize:10,padding:'2px 8px',borderRadius:12,border:'.5px solid '+(p.track_inventory===false?'#2a3048':'rgba(34,197,94,.4)'),background:p.track_inventory===false?'transparent':'rgba(34,197,94,.1)',color:p.track_inventory===false?'#6b7a9f':'#4ade80',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}},p.track_inventory===false?'Untracked':'Tracked'),h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit)),h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>del(p.id)},h(ITrash)))));})))),
-      h('div',{className:'table-mobile'},loading?h('div',{style:{padding:24,color:'#6b7a9f',textAlign:'center'}},'Loading...'):filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;return h('div',{key:p.id,className:'divide-row'},h('div',{style:{flex:1}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},p.name),h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},p.part_number,' · ',p.category)),h('div',{style:{fontSize:18,fontWeight:700,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80',marginRight:8}},p.quantity_on_hand),h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit)));}))
+      h('div',{className:'table-wrap'},h('table',null,h('thead',null,h('tr',null,['Part #','Name','Cat','On Hand','Reorder','Cost','Supplier','Bin',''].map(c=>h('th',{key:c},c)))),h('tbody',null,loading?h('tr',null,h('td',{colSpan:9,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;return h('tr',{key:p.id},h('td',null,h('span',{className:'mono'},p.part_number||'—')),h('td',{style:{fontWeight:500}},p.name),h('td',{style:{color:'#6b7a9f',fontSize:12,textTransform:'capitalize'}},p.category||'—'),h('td',null,h('span',{style:{fontWeight:600,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80'}},p.quantity_on_hand)),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.reorder_point),h('td',null,fmtCur(p.unit_cost)),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.supplier||'—'),h('td',{style:{color:'#6b7a9f',fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},p.location||'—'),h('td',null,h('div',{className:'btn-row'},h('button',{title:p.track_inventory===false?'Click to track inventory':'Click to stop tracking',onClick:async(e)=>{e.stopPropagation();await sb.from('parts').update({track_inventory:p.track_inventory===false,updated_at:new Date().toISOString()}).eq('id',p.id);refetch();},style:{fontSize:10,padding:'2px 8px',borderRadius:12,border:'.5px solid '+(p.track_inventory===false?'#2a3048':'rgba(34,197,94,.4)'),background:p.track_inventory===false?'transparent':'rgba(34,197,94,.1)',color:p.track_inventory===false?'#6b7a9f':'#4ade80',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}},p.track_inventory===false?'Untracked':'Tracked'),(!isTech&&h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit))),h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>del(p.id)},h(ITrash)))));})))),
+      h('div',{className:'table-mobile'},loading?h('div',{style:{padding:24,color:'#6b7a9f',textAlign:'center'}},'Loading...'):filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;return h('div',{key:p.id,className:'divide-row'},h('div',{style:{flex:1}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},p.name),h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},p.part_number,' · ',p.category)),h('div',{style:{fontSize:18,fontWeight:700,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80',marginRight:8}},p.quantity_on_hand),(!isTech&&h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit))));}))
     ),
     modal!==null&&h(PM,{part:modal.id?modal:null,onClose:()=>setModal(null)})
   );
@@ -1764,7 +1764,7 @@ function ServiceLogs(){
   );
 }
 
-function ServiceIntervals({setPage}){
+function ServiceIntervals({setPage,isTech=false}){
   const{data:types,loading:tLoad,refetch:refetchTypes}=useQuery(()=>sb.from('interval_types').select('*').order('name'));
   const{data:assignments,refetch:refetchAssign}=useQuery(()=>sb.from('asset_intervals').select('*,asset:assets(id,name,asset_number,asset_type,odometer_miles),interval_type:interval_types(name,interval_miles,interval_days,category)').order('next_service_miles',{ascending:true,nullsFirst:false}));
   const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type,odometer_miles').neq('status','retired').order('name'));
@@ -2081,8 +2081,8 @@ function ServiceIntervals({setPage}){
           const d=await r.json();
           alert(d.error?'Error: '+d.error:'Notifications sent! '+d.notified?.length+' sent, '+d.skipped?.length+' skipped.\n\nSent:\n'+(d.notified?.join('\n')||'none')+'\n\nNote: Email requires Resend API key configuration. Check Supabase edge function logs for details.');
         }},'📧 Send Reminders'),
-        h('button',{className:'btn btn-ghost',onClick:()=>{setEditType(null);setShowTypeModal(true);}},h(IPlus),' New Interval Type'),
-        h('button',{className:'btn btn-primary',onClick:()=>setShowAssignModal(true)},h(IPlus),' Assign to Assets')
+        !isTech&&h('button',{className:'btn btn-ghost',onClick:()=>{setEditType(null);setShowTypeModal(true);}},h(IPlus),' New Interval Type'),
+        !isTech&&h('button',{className:'btn btn-primary',onClick:()=>setShowAssignModal(true)},h(IPlus),' Assign to Assets')
       )
     ),
 
@@ -2229,7 +2229,7 @@ function Scheduler({setPage}){
   );
 }
 
-function Documents({setPage}){
+function Documents({setPage,isTech=false}){
   const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type').order('asset_number'));
   const{data:docTypes}=useQuery(()=>sb.from('document_types').select('*').order('name'));
   const{data:docs,refetch}=useQuery(()=>sb.from('asset_documents').select('*,asset:assets(name,asset_number,asset_type)').order('expiration_date',{ascending:true,nullsFirst:false}));
@@ -2323,7 +2323,7 @@ function Documents({setPage}){
   };
 
   return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Documents'),h('p',null,filtered.length+' documents · '+expired.length+' expired · '+expiringSoon.length+' expiring soon')),h('button',{className:'btn btn-p',onClick:()=>setShowModal(true)},h(IPlus),' Add Document')),
+    h('div',{className:'page-header'},h('div',null,h('h2',null,'Documents'),h('p',null,filtered.length+' documents · '+expired.length+' expired · '+expiringSoon.length+' expiring soon')),!isTech&&h('button',{className:'btn btn-p',onClick:()=>setShowModal(true)},h(IPlus),' Add Document')),
     expired.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:10}},h(IAlert),expired.length+' expired: '+expired.slice(0,3).map(d=>(d.asset?.name||'')+' — '+d.doc_type).join(', ')),
     expiringSoon.length>0&&h('div',{className:'alert alert-warn',style:{marginBottom:10}},h(IAlert),expiringSoon.length+' expiring within 30 days'),
     h('div',{style:{display:'flex',gap:4,marginBottom:8}},
@@ -2372,9 +2372,113 @@ function Documents({setPage}){
   );
 }
 
+function TechDashboard({setPage}){
+  const{data:wos,loading:wl}=useQuery(()=>sb.from('work_orders')
+    .select('*,asset:assets(name,asset_number),technician:technicians(name)')
+    .in('status',['open','in_progress','on_hold'])
+    .order('created_at',{ascending:false}));
+  const{data:intervals}=useQuery(()=>sb.from('asset_intervals')
+    .select('*,asset:assets(name,asset_number,odometer_miles),interval_type:interval_types(name,category)')
+    .order('next_service_date',{ascending:true,nullsFirst:false}));
+
+  const now=new Date();
+  const urgentWOs=(wos||[]).filter(wo=>wo.priority==='urgent');
+  const dueIntervals=(intervals||[]).filter(a=>{
+    const cur=a.asset?.odometer_miles||0;
+    const milesUntil=a.next_service_miles!=null?a.next_service_miles-cur:null;
+    const daysUntil=a.next_service_date?Math.ceil((new Date(a.next_service_date)-now)/86400000):null;
+    return(milesUntil!=null&&milesUntil<=500)||(daysUntil!=null&&daysUntil<=14);
+  });
+
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'My Dashboard'),h('p',null,"Today's work overview"))
+    ),
+
+    // Alert banners
+    urgentWOs.length>0&&h('div',{className:'alert alert-danger',style:{marginBottom:10}},
+      h(IAlert),' ',urgentWOs.length+' urgent work order'+(urgentWOs.length>1?'s':'')+' — '+urgentWOs.map(w=>w.order_number).join(', ')
+    ),
+    dueIntervals.length>0&&h('div',{className:'alert alert-warn',style:{marginBottom:10}},
+      h(IAlert),' ',dueIntervals.length+' service interval'+(dueIntervals.length>1?'s':'')+' due soon'
+    ),
+
+    // Open Work Orders
+    h('div',{className:'card',style:{marginBottom:16}},
+      h('div',{className:'card-header'},
+        h('span',{className:'card-title'},'Open Work Orders'),
+        h('button',{className:'card-link',onClick:()=>setPage('workorders')},'View all →')
+      ),
+      wl?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):
+      (wos||[]).length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'No open work orders 🎉'):
+      (wos||[]).slice(0,8).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id),style:{cursor:'pointer'}},
+        h('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},
+          h('span',{className:'mono',style:{fontSize:12,flexShrink:0}},wo.order_number),
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{style:{fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title),
+            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},(wo.asset?.asset_number?wo.asset.asset_number+' — ':'')+( wo.asset?.name||'No asset'))
+          )
+        ),
+        h('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
+          h('span',{className:'badge b-'+wo.priority},wo.priority),
+          h('span',{className:'badge b-'+wo.status},(wo.status||'').replace('_',' '))
+        )
+      ))
+    ),
+
+    // Two column: service intervals + quick links
+    h('div',{className:'grid2'},
+
+      // Due Soon Intervals
+      h('div',{className:'card'},
+        h('div',{className:'card-header'},
+          h('span',{className:'card-title'},'Service Intervals Due Soon'),
+          h('button',{className:'card-link',onClick:()=>setPage('intervals')},'View all →')
+        ),
+        dueIntervals.length===0
+          ?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'All intervals on schedule ✓')
+          :dueIntervals.slice(0,6).map(a=>{
+              const cur=a.asset?.odometer_miles||0;
+              const milesUntil=a.next_service_miles!=null?a.next_service_miles-cur:null;
+              const daysUntil=a.next_service_date?Math.ceil((new Date(a.next_service_date)-now)/86400000):null;
+              const overdue=(milesUntil!=null&&milesUntil<=0)||(daysUntil!=null&&daysUntil<=0);
+              return h('div',{key:a.id,className:'divide-row'},
+                h('div',{style:{flex:1,minWidth:0}},
+                  h('div',{style:{fontWeight:500,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.interval_type?.name),
+                  h('div',{style:{fontSize:11,color:'#6b7a9f'}},(a.asset?.asset_number?a.asset.asset_number+' — ':'')+( a.asset?.name||''))
+                ),
+                h('span',{style:{fontSize:11,fontWeight:600,color:overdue?'#f87171':'#fbbf24',flexShrink:0}},
+                  overdue?'OVERDUE':milesUntil!=null?milesUntil.toLocaleString()+' mi':daysUntil+'d'
+                )
+              );
+            })
+      ),
+
+      // Quick nav links
+      h('div',{className:'card'},
+        h('div',{className:'card-header'},h('span',{className:'card-title'},'Quick Access')),
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'4px 0'}},
+          [
+            {page:'fleet',label:'Fleet',sub:'View all assets',icon:'🚛'},
+            {page:'parts',label:'Parts',sub:'Inventory reference',icon:'🔧'},
+            {page:'scheduler',label:'Scheduler',sub:'Work order calendar',icon:'📅'},
+            {page:'documents',label:'Documents',sub:'Asset documents',icon:'📄'},
+          ].map(({page:p,label,sub,icon})=>h('button',{key:p,className:'quick-btn',onClick:()=>setPage(p),style:{textAlign:'left',cursor:'pointer'}},
+            h('div',{style:{fontSize:20,marginBottom:4}},icon),
+            h('div',{className:'q-title'},label),
+            h('div',{className:'q-sub'},sub)
+          ))
+        )
+      )
+    )
+  );
+}
+
+
 function App(){
   const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech}=useAuth();
-  const[page,setPage]=useState('dashboard');const[drawerOpen,setDrawerOpen]=useState(false);
+  const[page,setPage_]=useState(()=>isTech?'tech-dashboard':'dashboard');
+  const setPage=(p)=>setPage_(p);const[drawerOpen,setDrawerOpen]=useState(false);
   const[isDark,setIsDark]=useState(true);
   const toggleTheme=()=>{
     const next=!isDark;
@@ -2391,7 +2495,8 @@ function App(){
   const{data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
   const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point,track_inventory'));
   const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point).length};
-  const visibleNav=isTech?NAV.filter(n=>n.id==='workorders'):isAdmin?NAV:NAV.filter(n=>n.id!=='users');
+  const TECH_PAGES=['tech-dashboard','workorders','fleet','parts','intervals','scheduler','documents'];
+  const visibleNav=isTech?[{id:'tech-dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},...NAV.filter(n=>TECH_PAGES.includes(n.id)&&n.id!=='tech-dashboard')]:isAdmin?NAV:NAV.filter(n=>n.id!=='users');
   const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'Maintainly';
   // Auth gate — show login if no session
   if(authLoading)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},h('div',{style:{color:'#6b7a9f',fontSize:14}},'Loading…'));
@@ -2406,21 +2511,22 @@ function App(){
   if(appUser.active===false)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:18,color:'#f87171',marginBottom:8}},'Account Disabled'),h('div',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Contact your administrator.'),h('button',{className:'btn btn-ghost',onClick:signOut},'Sign Out')));
 
   const render=()=>{
+    if(page==='tech-dashboard')return h(TechDashboard,{setPage});
     if(page==='dashboard')return h(Dashboard,{setPage});
-    if(page==='workorders')return h(WorkOrders,{setPage});
+    if(page==='workorders')return h(WorkOrders,{setPage,isTech});
     if(page==='wo-new')return h(WOForm,{id:null,setPage,isAdmin,isTech});
     if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage,isAdmin,isTech});
     if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage,isAdmin,isTech});
-    if(page==='fleet'||page.startsWith('fleet-back-')||page.startsWith('fleet-status-'))return h(Fleet,{setPage,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):'',initialStatus:page.startsWith('fleet-status-')?page.replace('fleet-status-',''):''});
+    if(page==='fleet'||page.startsWith('fleet-back-')||page.startsWith('fleet-status-'))return h(Fleet,{setPage,isTech,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):'',initialStatus:page.startsWith('fleet-status-')?page.replace('fleet-status-',''):''});
     if(page==='asset-new')return h(AssetForm,{id:null,setPage});
     if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
     if(page.startsWith('asset-'))return h(AssetDetail,{id:page.replace('asset-',''),setPage});
-    if(page==='parts')return h(Parts,null);
+    if(page==='parts')return h(Parts,{setPage,isTech});
     if(page==='technicians')return h(Technicians,null);
     if(page==='servicelogs')return h(ServiceLogs,null);
-    if(page==='intervals')return h(ServiceIntervals,{setPage});
+    if(page==='intervals')return h(ServiceIntervals,{setPage,isTech});
     if(page==='scheduler')return h(Scheduler,{setPage});
-    if(page==='documents')return h(Documents,{setPage});
+    if(page==='documents')return h(Documents,{setPage,isTech});
     if(page==='users'&&isAdmin)return h(UsersPage,{setPage});
     return h(Dashboard,{setPage});
   };
