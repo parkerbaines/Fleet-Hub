@@ -442,9 +442,9 @@ function Dashboard({setPage}){
     h('div',{className:'page-header'},h('div',null,h('h2',null,'Dashboard'),h('p',null,new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},lastSync&&h('span',{style:{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',color:'#4ade80'}},'🛰 '+lastSyncStr),h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New Work Order'))),
     urgent>0&&h('div',{className:'alert alert-danger',style:{marginBottom:16}},h(IAlert),urgent+' urgent work order'+(urgent>1?'s':'')+' need attention',h('button',{className:'card-link',style:{marginLeft:'auto'},onClick:()=>setPage('workorders')},'View →')),
     h('div',{className:'metrics'},
-      h('div',{className:'metric'},h('div',{className:'metric-label'},'Total Assets'),h('div',{className:'metric-value'},al?'—':(assets||[]).length),h('div',{className:'metric-sub'},'Vehicles, trailers & equipment')),
+      h('div',{className:'metric clickable',onClick:()=>setPage('fleet')},h('div',{className:'metric-label'},'Total Assets'),h('div',{className:'metric-value'},al?'—':(assets||[]).length),h('div',{className:'metric-sub'},'Vehicles, trailers & equipment')),
       h('div',{className:'metric clickable',onClick:()=>setPage('workorders')},h('div',{className:'metric-label'},'Open Work Orders'),h('div',{className:'metric-value'},wl?'—':openWOs.length),h('div',{className:'metric-sub'+(urgent>0?' warn':'')},urgent>0?urgent+' urgent':'All normal priority')),
-      h('div',{className:'metric'},h('div',{className:'metric-label'},'Down / In Shop'),h('div',{className:'metric-value'},al?'—':down+inShop),h('div',{className:'metric-sub'+(down>0?' warn':'')},down+' down · '+inShop+' in shop')),
+      h('div',{className:'metric clickable',onClick:()=>setPage('fleet-status-down')},h('div',{className:'metric-label'},'Down / In Shop'),h('div',{className:'metric-value'},al?'—':down+inShop),h('div',{className:'metric-sub'+(down>0?' warn':'')},down+' down · '+inShop+' in shop')),
       h('div',{className:'metric clickable',onClick:()=>setPage('parts')},h('div',{className:'metric-label'},'Parts Low / Out'),h('div',{className:'metric-value'},lowParts.length),h('div',{className:'metric-sub'+(outOfStock.length>0?' danger':' warn')},outOfStock.length>0?outOfStock.length+' out of stock':lowParts.length+' below reorder'))
     ),
     h('div',{className:'grid2'},
@@ -537,9 +537,9 @@ function SamsaraBtn({refetch}){
   );
 }
 
-function Fleet({setPage,initialType}){
+function Fleet({setPage,initialType,initialStatus}){
   const[typeF,setTypeF]=useState(initialType||'');
-  const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState('');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
+  const[sortF,setSortF]=useState('name');const[statusF,setStatusF]=useState(initialStatus||'');const[search,setSearch]=useState('');const[importM,setImportM]=useState(null);
   const{data:fleetSyncCfg}=useQuery(()=>sb.from('app_config').select('value').eq('key','samsara_last_sync').single());
   const fleetLastSync=fleetSyncCfg?.value;
   const{data:assets,loading,refetch}=useQuery(()=>{let q=sb.from('assets').select('*').order('asset_type').order('name');if(typeF)q=q.eq('asset_type',typeF);return q;},[typeF]);
@@ -2175,7 +2175,7 @@ function App(){
     if(page==='wo-new')return h(WOForm,{id:null,setPage});
     if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage});
     if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage});
-    if(page==='fleet'||page.startsWith('fleet-back-'))return h(Fleet,{setPage,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):''});
+    if(page==='fleet'||page.startsWith('fleet-back-')||page.startsWith('fleet-status-'))return h(Fleet,{setPage,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):'',initialStatus:page.startsWith('fleet-status-')?page.replace('fleet-status-',''):''});
     if(page==='asset-new')return h(AssetForm,{id:null,setPage});
     if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
     if(page.startsWith('asset-'))return h(AssetDetail,{id:page.replace('asset-',''),setPage});
