@@ -23,28 +23,28 @@
 /* ── Base reset ─────────────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0f1117;color:#e2e8f0}
-#root{height:100%;min-height:100dvh;padding-top:env(safe-area-inset-top);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left)}
+#root{height:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a3048;border-radius:2px}
 /* ── Layout ─────────────────────────────────────────────────────── */
-.shell{display:flex;height:100dvh;min-height:100dvh;overflow:hidden}
+.shell{display:flex;height:100vh;overflow:hidden}
 .sidebar{width:220px;flex-shrink:0;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column}
 .sidebar-logo{padding:14px 12px;border-bottom:1px solid #1f2937}
 .sidebar-logo h1{font-size:15px;font-weight:600;color:#e2e8f0;letter-spacing:-0.02em}
 .sidebar-logo p{font-size:11px;color:#6b7a9f;margin-top:2px}
-.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10px;-webkit-overflow-scrolling:touch}
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10pxflex:1;overflow-y:auto;}
 .nav-section{font-size:10px;color:#6b7a9f;text-transform:uppercase;letter-spacing:.08em;padding:10px 10px 4px;font-weight:600}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:13px;color:#6b7a9f;cursor:pointer;margin-bottom:1px;transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
 .nav-item:hover{color:#e2e8f0;background:#1e2333}
 .nav-item.active{background:rgba(59,126,255,.15);color:#3b7eff;font-weight:500}
 .nav-badge{margin-left:auto;background:rgba(239,68,68,.2);color:#f87171;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
-.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .mobile-bar{display:none;align-items:center;gap:12px;padding:12px 16px;border-bottom:0.5px solid #2a3048;background:#181c27}
 .mobile-bar span{font-size:14px;font-weight:500}
 .menu-btn{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex;flex-shrink:0}
-.page{flex:1;overflow-y:auto;padding:20px 24px calc(20px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+.page{flex:1;overflow-y:auto;padding:20px 24px}
 .overlay{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6)}
 .overlay.open{display:flex}
-.drawer{width:260px;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column;position:relative;z-index:1;max-width:88vw}
+.drawer{width:260px;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column;position:relative;z-index:1}
 /* ── Cards ─────────────────────────────────────────────────────── */
 .card{background:#1e2333;border:0.5px solid #2a3048;border-radius:12px}
 .card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:0.5px solid #2a3048;flex-wrap:wrap;gap:8px}
@@ -314,32 +314,7 @@ body.light [style*="rgba(245,158,11,.1)"],body.light [style*="rgba(245,158,11, .
 body.light [style*="rgba(245,158,11,.15)"],body.light [style*="rgba(245,158,11, .15)"]{background:rgba(146,64,14,.1)!important}
 body.light [style*="rgba(59,126,255,.1)"],body.light [style*="rgba(59,126,255, .1)"]{background:rgba(29,78,216,.08)!important}
 body.light [style*="rgba(59,126,255,.2)"],body.light [style*="rgba(59,126,255, .2)"]{background:rgba(29,78,216,.1)!important}
-body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}
-.table-wrap,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-@media (max-width:900px){
-  .shell{height:100%;min-height:100dvh}
-  .sidebar{display:none}
-  .mobile-bar{display:flex;position:sticky;top:0;z-index:20;padding:12px 14px}
-  .main{width:100%}
-  .page{padding:16px 14px calc(16px + env(safe-area-inset-bottom))}
-  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .metric{padding:12px 14px}
-  .metric-value{font-size:22px}
-  .grid2{grid-template-columns:1fr;gap:12px}
-  .quick-grid,.qgrid{grid-template-columns:1fr}
-  .drawer{width:min(88vw,320px);max-width:320px}
-  .card-header{padding:12px 14px 10px}
-  .divide-row,.row{padding:10px 14px}
-  .wo-section,.wo-sec{padding:16px}
-  .tabs{margin-bottom:12px}
-  .detail-grid,.dgrid{grid-template-columns:1fr 1fr;gap:12px}
-  .form-grid,.fgrid,.form-grid-2,.form-grid-3,.form-grid-4{grid-template-columns:1fr !important}
-}
-@media (max-width:640px){
-  .detail-grid,.dgrid{grid-template-columns:1fr}
-}
-
-</style>
+body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}</style>
 
 
 </head>
@@ -1087,6 +1062,14 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const grandTotal=parseFloat((laborCost+partsTotal).toFixed(2));
 
   // Inspection helpers
+  const iClass=(v)=>{
+    if(!v)return '';
+    const s=String(v).toLowerCase();
+    if(['good','full','pass','works','functional','clean','no leak','none','12.6v+ good'].includes(s)) return ' ok';
+    if(['fair','moderate','wear indicators','12.4v fair','minor','normal'].includes(s)) return ' warn';
+    if(['bad','low','fail','does not work','replace','dirty','very dirty','metal particles','needs flush','contaminated','corrosion','leaking','seeping','fault code','active','pending','history','severe','weak'].includes(s)) return ' bad';
+    return '';
+  };
   const IS=({field,label,opts})=>h('div',{className:'insp-item'},h('label',null,label),h('select',{className:'isel '+iClass(insp[field]),value:insp[field],onChange:e=>si(field,e.target.value)},h('option',{value:''},'—'),opts.map(o=>h('option',{key:o,value:o},o))));
   const IN=({field,label,placeholder})=>{const inRef=useRef(null);useEffect(()=>{if(inRef.current&&document.activeElement!==inRef.current)inRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'insp-item insp-full'},h('label',null,label),h('input',{ref:inRef,defaultValue:insp[field]||'',placeholder:placeholder||'Notes...',onBlur:e=>si(field,e.target.value),onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}));};
   // Color scale for brake pad depth (mm): >=6 green, 3-5 yellow, <=2 red
@@ -1122,32 +1105,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     .tr td{font-weight:700;background:#f8f8f8}
     .costs{max-width:260px;margin:0 0 12px}
     .sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px;padding-top:12px;border-top:1px solid #ccc}
-    .sl{border-bottom:1px solid #999;height:32px;margin-bottom:3px}.slb{font-size:9px;color:#666;text-transform:uppercase}
-.table-wrap,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-@media (max-width:900px){
-  .shell{height:100%;min-height:100dvh}
-  .sidebar{display:none}
-  .mobile-bar{display:flex;position:sticky;top:0;z-index:20;padding:12px 14px}
-  .main{width:100%}
-  .page{padding:16px 14px calc(16px + env(safe-area-inset-bottom))}
-  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .metric{padding:12px 14px}
-  .metric-value{font-size:22px}
-  .grid2{grid-template-columns:1fr;gap:12px}
-  .quick-grid,.qgrid{grid-template-columns:1fr}
-  .drawer{width:min(88vw,320px);max-width:320px}
-  .card-header{padding:12px 14px 10px}
-  .divide-row,.row{padding:10px 14px}
-  .wo-section,.wo-sec{padding:16px}
-  .tabs{margin-bottom:12px}
-  .detail-grid,.dgrid{grid-template-columns:1fr 1fr;gap:12px}
-  .form-grid,.fgrid,.form-grid-2,.form-grid-3,.form-grid-4{grid-template-columns:1fr !important}
-}
-@media (max-width:640px){
-  .detail-grid,.dgrid{grid-template-columns:1fr}
-}
-
-</style>
+    .sl{border-bottom:1px solid #999;height:32px;margin-bottom:3px}.slb{font-size:9px;color:#666;text-transform:uppercase}</style>
     <div class="hdr"><div><h1>Work Order ${wo?.order_number||''}</h1><div class="sub">${f.title||'—'}</div></div><div class="meta">Status: <b>${statusLabel[f.status]||f.status}</b><br>Priority: <b>${f.priority}</b><br>Date: ${new Date().toLocaleDateString()}<br>Due: ${f.due_date?new Date(f.due_date).toLocaleDateString():'—'}</div></div>
     <div class="sec">Vehicle</div><div class="g3"><div><span class="fl">Asset</span><div class="fv">${asset.name||'—'}</div></div><div><span class="fl">Asset #</span><div class="fv">${asset.asset_number||'—'}</div></div><div><span class="fl">Year Make Model</span><div class="fv">${[asset.year,asset.make,asset.model].filter(Boolean).join(' ')||'—'}</div></div><div><span class="fl">VIN</span><div class="fv">${asset.vin||'—'}</div></div><div><span class="fl">License</span><div class="fv">${asset.license_plate||'—'}</div></div><div><span class="fl">Mileage In</span><div class="fv">${f.mileage_in||'—'}</div></div></div>
     <div class="sec">Work Order</div><div class="g3"><div><span class="fl">Technician</span><div class="fv">${tech.name||'Unassigned'}</div></div><div><span class="fl">Category</span><div class="fv">${f.category||'—'}</div></div><div><span class="fl">Est Hours</span><div class="fv">${f.estimated_hours||'—'}</div></div></div>
