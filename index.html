@@ -259,6 +259,13 @@ body.light .workload-bar-bg{background:#d0d6e8}
 body.light .nav-badge{background:rgba(153,27,27,.15);color:#991b1b}
 body.light .search-wrap svg,body.light .sw svg{color:#94a3b8}
 body.light .table-wrap{background:#f5f6fa}
+/* ── Responsive table / card switching ─────────────────────────── */
+.table-mobile{display:block}
+.table-wrap table{display:none}
+@media(min-width:768px){
+  .table-mobile{display:none}
+  .table-wrap table{display:table}
+}
 body.light .filters{background:#e9ecf5}
 /* Badge colors — all status/priority badges in light mode */
 body.light .b-urgent{background:rgba(153,27,27,.12);color:#991b1b}
@@ -787,7 +794,7 @@ function WOForm({id,setPage}){
         name:pf.part_name.trim(),alt_name:pf.alt_name||null,
         part_number:pf.part_number||null,alt_part_number:pf.alt_part_number||null,
         unit_cost:pf.unit_cost?parseFloat(pf.unit_cost):null,
-        quantity_on_hand:0,reorder_point:pf.reorder_point?parseInt(pf.reorder_point):5,
+        quantity_on_hand:pf.qty?parseInt(pf.qty):0,reorder_point:pf.reorder_point?parseInt(pf.reorder_point):5,
         category:pf.category||null,supplier:pf.supplier||null,location:pf.location||null,
         track_inventory:pf.track_inventory!==false,
         updated_at:new Date().toISOString(),
@@ -1176,7 +1183,7 @@ function Parts(){
     const[f,setF]=useState({part_number:part?.part_number||'',alt_part_number:part?.alt_part_number||'',name:part?.name||'',alt_name:part?.alt_name||'',category:part?.category||'',quantity_on_hand:part?.quantity_on_hand??0,reorder_point:part?.reorder_point??5,unit_cost:part?.unit_cost||'',supplier:part?.supplier||'',location:part?.location||'',track_inventory:part?.track_inventory!==false});
     const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);
     const s=(k,v)=>setF(x=>({...x,[k]:v}));
-    const save=async()=>{if(!f.name.trim()){setErr('Name required');return;}setSaving(true);const payload={...f,quantity_on_hand:f.track_inventory?parseInt(f.quantity_on_hand)||0:0,reorder_point:f.track_inventory?parseInt(f.reorder_point)||5:0,unit_cost:f.unit_cost?parseFloat(f.unit_cost):null,alt_name:f.alt_name||null,alt_part_number:f.alt_part_number||null,track_inventory:f.track_inventory!==false,updated_at:new Date().toISOString()};const{error:e}=isEdit?await sb.from('parts').update(payload).eq('id',part.id):await sb.from('parts').insert(payload);setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();};
+    const save=async()=>{if(!f.name.trim()){setErr('Name required');return;}setSaving(true);const payload={...f,quantity_on_hand:parseInt(f.quantity_on_hand)||0,reorder_point:parseInt(f.reorder_point)||0,unit_cost:f.unit_cost?parseFloat(f.unit_cost):null,alt_name:f.alt_name||null,alt_part_number:f.alt_part_number||null,track_inventory:f.track_inventory!==false,updated_at:new Date().toISOString()};const{error:e}=isEdit?await sb.from('parts').update(payload).eq('id',part.id):await sb.from('parts').insert(payload);setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();};
     return h('div',{className:'modal-overlay'},h('div',{className:'modal'},h('h3',null,isEdit?'Edit Part':'Add Part'),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:f.part_number,onChange:e=>s('part_number',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>s('category',e.target.value)},h('option',{value:''},'Select...'),['filters','brakes','fluids','electrical','belts','tires','accessories','other'].map(c=>h('option',{key:c,value:c},c))))),h('div',{className:'form-group'},h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',value:f.name,onChange:e=>s('name',e.target.value)})),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Alt Name'),h('input',{className:'form-input',placeholder:'Alternate name',value:f.alt_name,onChange:e=>s('alt_name',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Alt Part #'),h('input',{className:'form-input',placeholder:'Alternate part #',value:f.alt_part_number,onChange:e=>s('alt_part_number',e.target.value)}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,padding:'8px 12px',background:'rgba(59,126,255,.07)',borderRadius:8}},h('input',{type:'checkbox',id:'track_inv',checked:f.track_inventory,onChange:e=>s('track_inventory',e.target.checked),style:{width:16,height:16,cursor:'pointer'}}),h('label',{htmlFor:'track_inv',style:{fontSize:13,cursor:'pointer',userSelect:'none'}},'Track inventory & reorder alerts')),h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Qty on hand'),h('input',{type:'number',className:'form-input',value:f.quantity_on_hand,onChange:e=>s('quantity_on_hand',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Reorder at'),h('input',{type:'number',className:'form-input',value:f.reorder_point,onChange:e=>s('reorder_point',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Unit cost'),h('input',{type:'number',step:.01,className:'form-input',placeholder:'0.00',value:f.unit_cost,onChange:e=>s('unit_cost',e.target.value)}))),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Supplier'),h('input',{className:'form-input',value:f.supplier,onChange:e=>s('supplier',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Bin/Shelf'),h('input',{className:'form-input',placeholder:'A-12',value:f.location,onChange:e=>s('location',e.target.value)}))),err&&h('div',{className:'error-box'},err),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add part'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))));
   };
   return h('div',{className:'page'},
