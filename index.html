@@ -326,6 +326,176 @@ const SUPA_URL='https://zmxynphetgelskqnadbg.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpteHlucGhldGdlbHNrcW5hZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Mzg5ODgsImV4cCI6MjA5MDIxNDk4OH0.BDHe4XsGCvHY0sIxN5ncIV7-EYEj4lq-nuxFfvySZgU';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
+// ── Auth ────────────────────────────────────────────────────────────────────
+function useAuth(){
+  const[session,setSession]=useState(null);
+  const[appUser,setAppUser]=useState(null);
+  const[authLoading,setAuthLoading]=useState(true);
+
+  const loadAppUser=async(uid)=>{
+    const{data}=await sb.from('app_users').select('*').eq('id',uid).single();
+    setAppUser(data||null);
+  };
+
+  useEffect(()=>{
+    sb.auth.getSession().then(({data:{session:s}})=>{
+      setSession(s);
+      if(s?.user)loadAppUser(s.user.id);
+      else setAuthLoading(false);
+    });
+    const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{
+      setSession(s);
+      if(s?.user)loadAppUser(s.user.id).then(()=>setAuthLoading(false));
+      else{setAppUser(null);setAuthLoading(false);}
+    });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  useEffect(()=>{if(session&&appUser)setAuthLoading(false);},[session,appUser]);
+
+  const signIn=async(email,password)=>{
+    const{error}=await sb.auth.signInWithPassword({email,password});
+    return error;
+  };
+  const signOut=async()=>{await sb.auth.signOut();setSession(null);setAppUser(null);};
+  const isAdmin=appUser?.role==='admin';
+  const isTech=appUser?.role==='tech';
+  return{session,appUser,authLoading,signIn,signOut,isAdmin,isTech};
+}
+
+// ── Login Screen ─────────────────────────────────────────────────────────────
+function LoginScreen({signIn}){
+  const[email,setEmail]=useState('');
+  const[password,setPassword]=useState('');
+  const[loading,setLoading]=useState(false);
+  const[err,setErr]=useState('');
+
+  const submit=async()=>{
+    if(!email||!password){setErr('Email and password required');return;}
+    setLoading(true);setErr('');
+    const error=await signIn(email,password);
+    setLoading(false);
+    if(error)setErr(error.message==='Invalid login credentials'?'Incorrect email or password':error.message);
+  };
+
+  return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},
+    h('div',{style:{width:'100%',maxWidth:380,padding:'0 16px'}},
+      h('div',{style:{textAlign:'center',marginBottom:32}},
+        h('div',{style:{fontSize:28,fontWeight:600,color:'#e2e8f0',letterSpacing:'-.5px',marginBottom:4}},'Maintainly'),
+        h('div',{style:{fontSize:13,color:'#6b7a9f'}},'Fleet Maintenance Management')
+      ),
+      h('div',{style:{background:'#1e2333',border:'.5px solid #2a3048',borderRadius:16,padding:28}},
+        h('div',{style:{marginBottom:16}},
+          h('label',{style:{display:'block',fontSize:12,color:'#6b7a9f',marginBottom:6,fontWeight:500}},'Email'),
+          h('input',{type:'email',className:'form-input',placeholder:'you@company.com',value:email,onChange:e=>setEmail(e.target.value),onKeyDown:e=>e.key==='Enter'&&submit(),style:{width:'100%',boxSizing:'border-box'}})
+        ),
+        h('div',{style:{marginBottom:20}},
+          h('label',{style:{display:'block',fontSize:12,color:'#6b7a9f',marginBottom:6,fontWeight:500}},'Password'),
+          h('input',{type:'password',className:'form-input',placeholder:'••••••••',value:password,onChange:e=>setPassword(e.target.value),onKeyDown:e=>e.key==='Enter'&&submit(),style:{width:'100%',boxSizing:'border-box'}})
+        ),
+        err&&h('div',{style:{fontSize:12,color:'#f87171',marginBottom:12,padding:'8px 12px',background:'rgba(239,68,68,.1)',borderRadius:8}},err),
+        h('button',{className:'btn btn-primary',onClick:submit,disabled:loading,style:{width:'100%',justifyContent:'center',padding:'11px',fontSize:14}},loading?'Signing in…':'Sign In')
+      ),
+      h('div',{style:{textAlign:'center',marginTop:16,fontSize:12,color:'#6b7a9f'}},'Contact your administrator to reset your password')
+    )
+  );
+}
+
+// ── Users & Permissions Page (admin only) ────────────────────────────────────
+function UsersPage({setPage}){
+  const{data:users,refetch}=useQuery(()=>sb.from('app_users').select('*').order('full_name'));
+  const[modal,setModal]=useState(null); // null | 'new' | user obj
+  const[err,setErr]=useState('');
+
+  const UserModal=({user,onClose})=>{
+    const isEdit=Boolean(user?.id);
+    const[f,setF]=useState({email:user?.email||'',full_name:user?.full_name||'',role:user?.role||'tech',active:user?.active!==false,password:'',confirm_password:''});
+    const[saving,setSaving]=useState(false);const[merr,setMerr]=useState('');
+    const s=(k,v)=>setF(x=>({...x,[k]:v}));
+
+    const save=async()=>{
+      if(!f.email.trim()||!f.full_name.trim()){setMerr('Email and name required');return;}
+      if(!isEdit&&!f.password){setMerr('Password required for new users');return;}
+      if(f.password&&f.password!==f.confirm_password){setMerr('Passwords do not match');return;}
+      if(f.password&&f.password.length<8){setMerr('Password must be at least 8 characters');return;}
+      setSaving(true);setMerr('');
+      try{
+        if(isEdit){
+          // Update role/name/active
+          const{error:e}=await sb.from('app_users').update({full_name:f.full_name.trim(),role:f.role,active:f.active,updated_at:new Date().toISOString()}).eq('id',user.id);
+          if(e)throw e;
+          // Update password if provided via admin API (needs service role — use edge fn)
+          if(f.password){
+            const{error:pe}=await sb.functions.invoke('admin-update-user',{body:{userId:user.id,password:f.password}});
+            if(pe)throw pe;
+          }
+        }else{
+          // Create new user via edge function (needs service role key to create auth user)
+          const{error:e}=await sb.functions.invoke('admin-create-user',{body:{email:f.email.trim(),password:f.password,full_name:f.full_name.trim(),role:f.role}});
+          if(e)throw new Error(e.message||'Failed to create user');
+        }
+        onClose();refetch();
+      }catch(e){setMerr(e.message||'Error saving user');}
+      setSaving(false);
+    };
+
+    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('h3',null,isEdit?'Edit User':'New User'),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Full Name *'),h('input',{className:'form-input',placeholder:'Jane Smith',value:f.full_name,onChange:e=>s('full_name',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Email *'),h('input',{type:'email',className:'form-input',placeholder:'jane@company.com',value:f.email,disabled:isEdit,onChange:e=>s('email',e.target.value)}))
+      ),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},'Role'),
+          h('select',{className:'form-select',value:f.role,onChange:e=>s('role',e.target.value)},
+            h('option',{value:'admin'},'Admin / Manager'),
+            h('option',{value:'tech'},'Technician')
+          )
+        ),
+        h('div',null,h('label',{className:'form-label'},'Status'),
+          h('select',{className:'form-select',value:f.active?'active':'inactive',onChange:e=>s('active',e.target.value==='active')},
+            h('option',{value:'active'},'Active'),
+            h('option',{value:'inactive'},'Inactive')
+          )
+        )
+      ),
+      h('div',{style:{fontSize:12,color:'#6b7a9f',marginBottom:8,fontWeight:500}},isEdit?'Change Password (leave blank to keep current)':'Password'),
+      h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
+        h('div',null,h('label',{className:'form-label'},isEdit?'New Password':'Password *'),h('input',{type:'password',className:'form-input',placeholder:'Min 8 characters',value:f.password,onChange:e=>s('password',e.target.value)})),
+        h('div',null,h('label',{className:'form-label'},'Confirm Password'),h('input',{type:'password',className:'form-input',placeholder:'Repeat password',value:f.confirm_password,onChange:e=>s('confirm_password',e.target.value)}))
+      ),
+      merr&&h('div',{className:'error-box'},merr),
+      h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-p',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save Changes':'Create User'),
+        h('button',{className:'btn btn-g',onClick:onClose},'Cancel')
+      )
+    ));
+  };
+
+  return h('div',{className:'page'},
+    h('div',{className:'page-header'},
+      h('div',null,h('h2',null,'Users & Permissions'),h('p',null,(users||[]).length+' users')),
+      h('button',{className:'btn btn-p',onClick:()=>setModal('new')},h(IPlus),' New User')
+    ),
+    err&&h('div',{className:'alert alert-danger'},err),
+    h('div',{className:'card'},
+      h('div',{className:'table-wrap'},h('table',null,
+        h('thead',null,h('tr',null,['Name','Email','Role','Status','Created',''].map(c=>h('th',{key:c},c)))),
+        h('tbody',null,(users||[]).map(u=>h('tr',{key:u.id},
+          h('td',{style:{fontWeight:500}},u.full_name||'—'),
+          h('td',{style:{fontSize:12,color:'#6b7a9f'}},u.email),
+          h('td',null,h('span',{className:'badge '+(u.role==='admin'?'b-normal':'b-low')},u.role==='admin'?'Admin / Manager':'Technician')),
+          h('td',null,h('span',{className:'badge '+(u.active?'b-active':'b-retired')},u.active?'Active':'Inactive')),
+          h('td',{style:{fontSize:12,color:'#6b7a9f'}},u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
+          h('td',null,h('button',{className:'icon-btn',onClick:()=>setModal(u)},h(IEdit)))
+        )))
+      ))
+    ),
+    (modal==='new'||modal?.id)&&h(UserModal,{user:modal==='new'?null:modal,onClose:()=>setModal(null)})
+  );
+}
+
+
 function useQuery(fn,deps=[]){
   const[data,setData]=useState(null);const[loading,setLoading]=useState(true);const[error,setError]=useState(null);
   const refetch=useCallback(async()=>{setLoading(true);setError(null);try{const r=await fn();if(r.error)throw r.error;setData(r.data);}catch(e){setError(e.message);}finally{setLoading(false);}},deps);
@@ -390,16 +560,27 @@ function dlTmpl(type){const d={vehicle:{c:['name','asset_number','year','make','
 const NAV=[{id:'dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},{id:'workorders',label:'Work Orders',Icon:IWO,section:'Operations',badge:'wo'},{id:'servicelogs',label:'Service Logs',Icon:ILogs,section:'Operations'},{id:'fleet',label:'Fleet',Icon:IFleet,section:'Assets'},{id:'parts',label:'Parts Inventory',Icon:IParts,section:'Resources',badge:'parts'},{id:'technicians',label:'Technicians',Icon:ITech,section:'Resources'},
   {id:'intervals',label:'Service Intervals',Icon:IClock,section:'Resources'},
   {id:'scheduler',label:'Scheduler',Icon:IClock,section:'Operations'},
-  {id:'documents',label:'Documents',Icon:IParts,section:'Resources'}];
+  {id:'documents',label:'Documents',Icon:IParts,section:'Resources'},
+  {id:'users',label:'Users & Permissions',Icon:IEdit,section:'Admin'}];
 
-function SidebarNav({page,setPage,badges,onClose}){
-  const secs=[...new Set(NAV.map(n=>n.section))];
+function SidebarNav({page,setPage,badges,appUser,signOut,onClose}){
+  const secs=[...new Set(visibleNav.map(n=>n.section))];
   return h(Fragment,null,
     h('div',{className:'sidebar-logo'},
-      h('h1',null,'Maintainly'),
-      h('p',null,'Maintenance Platform')
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}},
+        h('div',null,
+          h('h1',null,'Maintainly'),
+          h('p',null,'Maintenance Platform')
+        ),
+        signOut&&h('button',{onClick:signOut,title:'Sign out',style:{background:'none',border:'none',cursor:'pointer',color:'#6b7a9f',padding:'4px',borderRadius:6,lineHeight:1,fontSize:16}},
+          h('svg',{xmlns:'http://www.w3.org/2000/svg',width:16,height:16,fill:'none',viewBox:'0 0 24 24',stroke:'currentColor',strokeWidth:2},
+            h('path',{strokeLinecap:'round',strokeLinejoin:'round',d:'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'})
+          )
+        )
+      ),
+      appUser&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},appUser.full_name||(appUser.email||'').split('@')[0])
     ),
-    h('nav',{className:'sidebar-nav'},secs.map(sec=>h('div',{key:sec},h('div',{className:'nav-section'},sec),NAV.filter(n=>n.section===sec).map(({id,label,Icon,badge})=>h('button',{key:id,className:'nav-item'+(page===id?' active':''),onClick:()=>{setPage(id);onClose&&onClose();}},h(Icon),label,badge&&badges[badge]>0&&h('span',{className:'nav-badge'},badges[badge]))))))
+    h('nav',{className:'sidebar-nav'},secs.map(sec=>h('div',{key:sec},h('div',{className:'nav-section'},sec),visibleNav.filter(n=>n.section===sec).map(({id,label,Icon,badge})=>h('button',{key:id,className:'nav-item'+(page===id?' active':''),onClick:()=>{setPage(id);onClose&&onClose();}},h(Icon),label,badge&&badges[badge]>0&&h('span',{className:'nav-badge'},badges[badge]))))))
   );
 }
 
@@ -668,7 +849,7 @@ function WorkOrders({setPage}){
 }
 
 // ── The full Work Order Form — tabs: Info, Time, Parts, Lights, Body, Fluids, Brakes, Tires, Electrical, Findings
-function WOForm({id,setPage}){
+function WOForm({id,setPage,isAdmin=true,isTech=false}){
   const isEdit=Boolean(id);
   const{data:wo,loading:loadWO,refetch:refetchWO}=useQuery(()=>id?sb.from('work_orders').select('*,asset:assets(id,name,asset_number,asset_type,year,make,model,vin,license_plate,odometer_miles,engine_hours),technician:technicians(id,name)').eq('id',id).single():{data:null},[id]);
   const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type,odometer_miles,engine_hours').order('asset_number'));
@@ -980,8 +1161,8 @@ function WOForm({id,setPage}){
           ))),
           !showPf?h('button',{className:'btn btn-ghost',onClick:()=>setShowPf(true)},h(IPlus),' Add Part'):
           h('div',{style:{background:'#1e2333',borderRadius:10,padding:16,marginTop:8}},
-            h('div',{style:{fontSize:11,color:'#4ade80',marginBottom:10,padding:'6px 10px',background:'rgba(34,197,94,.07)',borderRadius:6}},'✓ New parts are auto-saved to Parts Inventory'),h('div',{className:'form-group'},h('label',{className:'form-label'},'Pick from inventory'),h('select',{className:'form-select',value:pf.part_id,onChange:selPart},h('option',{value:''},'— Select from inventory or fill in below —'),(allParts||[]).map(p=>h('option',{key:p.id,value:p.id},p.name+(p.part_number?' ('+p.part_number+')':'')+(p.unit_cost?' — $'+parseFloat(p.unit_cost).toFixed(2):'')))),),
-            h('div',{className:'form-grid form-grid-2',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Part Name *'),h('input',{className:'form-input',placeholder:'Oil Filter',value:pf.part_name,onChange:e=>setPf(x=>({...x,part_name:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Alt Name'),h('input',{className:'form-input',placeholder:'Optional',value:pf.alt_name||'',onChange:e=>setPf(x=>({...x,alt_name:e.target.value}))}))),
+            !isTech&&h('div',{style:{fontSize:11,color:'#4ade80',marginBottom:10,padding:'6px 10px',background:'rgba(34,197,94,.07)',borderRadius:6}},'✓ New parts are auto-saved to Parts Inventory'),h('div',{className:'form-group'},h('label',{className:'form-label'},'Pick from inventory'),h('select',{className:'form-select',value:pf.part_id,onChange:selPart},h('option',{value:''},'— Select from inventory or fill in below —'),(allParts||[]).map(p=>h('option',{key:p.id,value:p.id},p.name+(p.part_number?' ('+p.part_number+')':'')+(p.unit_cost?' — $'+parseFloat(p.unit_cost).toFixed(2):'')))),),
+            !isTech&&h('div',{className:'form-grid form-grid-2',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Part Name *'),h('input',{className:'form-input',placeholder:'Oil Filter',value:pf.part_name,onChange:e=>setPf(x=>({...x,part_name:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Alt Name'),h('input',{className:'form-input',placeholder:'Optional',value:pf.alt_name||'',onChange:e=>setPf(x=>({...x,alt_name:e.target.value}))}))),
             h('div',{className:'form-grid form-grid-2',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:pf.part_number,onChange:e=>setPf(x=>({...x,part_number:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Alt Part #'),h('input',{className:'form-input',placeholder:'Optional',value:pf.alt_part_number||'',onChange:e=>setPf(x=>({...x,alt_part_number:e.target.value}))}))),
             h('div',{className:'form-grid form-grid-3',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:pf.category||'',onChange:e=>setPf(x=>({...x,category:e.target.value}))},h('option',{value:''},'Select...'),['filters','brakes','fluids','electrical','belts','tires','accessories','other'].map(c=>h('option',{key:c,value:c},c)))),h('div',null,h('label',{className:'form-label'},'Supplier'),h('input',{className:'form-input',placeholder:'NAPA',value:pf.supplier||'',onChange:e=>setPf(x=>({...x,supplier:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Bin/Shelf'),h('input',{className:'form-input',placeholder:'A-12',value:pf.location||'',onChange:e=>setPf(x=>({...x,location:e.target.value}))}))),
             h('div',{className:'form-grid form-grid-3',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Qty Used'),h('input',{type:'number',step:0.01,min:0.01,className:'form-input',value:pf.qty,onChange:e=>setPf(x=>({...x,qty:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Unit Cost ($)'),h('input',{type:'number',step:0.01,className:'form-input',placeholder:'0.00',value:pf.unit_cost,onChange:e=>setPf(x=>({...x,unit_cost:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Reorder Pt'),h('input',{type:'number',className:'form-input',placeholder:'5',value:pf.reorder_point||'',onChange:e=>setPf(x=>({...x,reorder_point:e.target.value}))}))),
@@ -2151,6 +2332,7 @@ function Documents({setPage}){
 }
 
 function App(){
+  const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech}=useAuth();
   const[page,setPage]=useState('dashboard');const[drawerOpen,setDrawerOpen]=useState(false);
   const[isDark,setIsDark]=useState(true);
   const toggleTheme=()=>{
@@ -2168,13 +2350,19 @@ function App(){
   const{data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
   const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point,track_inventory'));
   const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point).length};
+  const visibleNav=isTech?NAV.filter(n=>n.id==='workorders'):isAdmin?NAV:NAV.filter(n=>n.id!=='users');
   const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'Maintainly';
+  // Auth gate — show login if no session
+  if(authLoading)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},h('div',{style:{color:'#6b7a9f',fontSize:14}},'Loading…'));
+  if(!session||!appUser)return h(LoginScreen,{signIn});
+  if(appUser.active===false)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:18,color:'#f87171',marginBottom:8}},'Account Disabled'),h('div',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Contact your administrator.'),h('button',{className:'btn btn-ghost',onClick:signOut},'Sign Out')));
+
   const render=()=>{
     if(page==='dashboard')return h(Dashboard,{setPage});
     if(page==='workorders')return h(WorkOrders,{setPage});
-    if(page==='wo-new')return h(WOForm,{id:null,setPage});
-    if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage});
-    if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage});
+    if(page==='wo-new')return h(WOForm,{id:null,setPage,isAdmin,isTech});
+    if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage,isAdmin,isTech});
+    if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage,isAdmin,isTech});
     if(page==='fleet'||page.startsWith('fleet-back-')||page.startsWith('fleet-status-'))return h(Fleet,{setPage,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):'',initialStatus:page.startsWith('fleet-status-')?page.replace('fleet-status-',''):''});
     if(page==='asset-new')return h(AssetForm,{id:null,setPage});
     if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
@@ -2185,6 +2373,7 @@ function App(){
     if(page==='intervals')return h(ServiceIntervals,{setPage});
     if(page==='scheduler')return h(Scheduler,{setPage});
     if(page==='documents')return h(Documents,{setPage});
+    if(page==='users'&&isAdmin)return h(UsersPage,{setPage});
     return h(Dashboard,{setPage});
   };
   return h('div',{className:'shell'},
@@ -2193,8 +2382,8 @@ function App(){
       title:isDark?'Switch to light mode':'Switch to dark mode',
       style:{position:'fixed',bottom:20,right:20,zIndex:200,background:isDark?'#1e2333':'#fff',border:'0.5px solid '+(isDark?'#2a3048':'#e2e8f0'),borderRadius:20,padding:'8px 14px',cursor:'pointer',boxShadow:'0 4px 12px rgba(0,0,0,.25)',display:'flex',alignItems:'center',gap:6,color:isDark?'#e2e8f0':'#1a202c',fontFamily:'inherit',fontSize:12,fontWeight:500}
     },isDark?'☀️  Light':'🌙  Dark'),
-    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,onClose:null})),
-    h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,onClose:()=>setDrawerOpen(false)}))),
+    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,appUser,signOut,onClose:null})),
+    h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,appUser,signOut,onClose:()=>setDrawerOpen(false)}))),
     h('div',{className:'main'},h('div',{className:'mobile-bar'},h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),h('span',null,lbl)),render())
   );
 }
