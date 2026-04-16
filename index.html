@@ -1095,7 +1095,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const handlePrint=()=>{
     const pa=document.getElementById('printArea');
     const asset=wo?.asset||{};const tech=wo?.technician||{};
-    const esc=(v)=>String(v??'—').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[m]));
+    const esc=(v)=>String(v??'—').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
     const printClass=(v='')=>{
       const s=String(v||'').trim().toLowerCase();
       if(!s) return '';
