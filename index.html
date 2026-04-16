@@ -849,48 +849,112 @@ function WorkOrders({setPage,isTech=false,myTechId=null}){
   );
 }
 
+
 function UsersPage({setPage}){
-  const {data:users,loading,refetch}=useQuery(()=>sb.from('app_users').select('*').order('full_name',{ascending:true}));
+  const {data:users,loading,refetch}=useQuery(()=>sb.from('app_users').select('*,technician:technicians(id,name)').order('full_name',{ascending:true}));
+  const {data:techs}=useQuery(()=>sb.from('technicians').select('id,name,status').order('name'));
   const [search,setSearch]=useState('');
   const [savingId,setSavingId]=useState(null);
+  const [modal,setModal]=useState(null);
+  const [savingModal,setSavingModal]=useState(false);
+  const [modalErr,setModalErr]=useState('');
+
+  const activeTechs=(techs||[]).filter(t=>!t.status || t.status==='active');
+
+  const blankUser={full_name:'',email:'',role:'tech',active:true,technician_id:''};
+  const [form,setForm]=useState(blankUser);
+  const sf=(k,v)=>setForm(x=>({...x,[k]:v}));
+
+  const openNew=()=>{
+    setModalErr('');
+    setForm(blankUser);
+    setModal({mode:'new'});
+  };
+
+  const openEdit=u=>{
+    setModalErr('');
+    setForm({
+      full_name:u.full_name||'',
+      email:u.email||'',
+      role:u.role||'tech',
+      active:u.active!==false,
+      technician_id:u.technician_id||u.technician?.id||''
+    });
+    setModal({mode:'edit',user:u});
+  };
 
   const filtered=(users||[]).filter(u=>{
     const q=search.trim().toLowerCase();
     if(!q)return true;
     return (u.full_name||'').toLowerCase().includes(q)
       || (u.email||'').toLowerCase().includes(q)
-      || (u.role||'').toLowerCase().includes(q);
+      || (u.role||'').toLowerCase().includes(q)
+      || (u.technician?.name||'').toLowerCase().includes(q);
   });
 
   const updateUser=async(id,patch)=>{
     setSavingId(id);
-    await sb.from('app_users').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
+    const {error:e}=await sb.from('app_users').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
     setSavingId(null);
+    if(e){alert(e.message||'Unable to update user');return;}
+    refetch();
+  };
+
+  const saveModal=async()=>{
+    if(!form.full_name.trim()){setModalErr('Name is required');return;}
+    if(!form.email.trim()){setModalErr('Email is required');return;}
+    setSavingModal(true); setModalErr('');
+    const payload={
+      full_name:form.full_name.trim(),
+      email:form.email.trim(),
+      role:form.role||'tech',
+      active:form.active!==false,
+      technician_id:form.technician_id||null,
+      updated_at:new Date().toISOString()
+    };
+    let res;
+    if(modal?.mode==='edit' && modal.user?.id){
+      res=await sb.from('app_users').update(payload).eq('id',modal.user.id);
+    }else{
+      payload.created_at=new Date().toISOString();
+      res=await sb.from('app_users').insert(payload);
+    }
+    setSavingModal(false);
+    if(res.error){setModalErr(res.error.message||'Unable to save user');return;}
+    setModal(null);
     refetch();
   };
 
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Users & Permissions'),h('p',null,(filtered||[]).length+' users')),
-      h('button',{className:'btn btn-ghost',onClick:()=>setPage('dashboard')},'Back')
+      h('div',{style:{display:'flex',gap:8}},
+        h('button',{className:'btn btn-p',onClick:openNew},h(IPlus),' New User'),
+        h('button',{className:'btn btn-ghost',onClick:()=>setPage('dashboard')},'Back')
+      )
     ),
     h('div',{className:'filters'},
       h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search users...',value:search,onChange:e=>setSearch(e.target.value)}))
     ),
     h('div',{className:'card'},
       h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Name','Email','Role','Status','Actions'].map(c=>h('th',{key:c},c)))),
+        h('thead',null,h('tr',null,['Name','Email','Role','Assigned Tech','Status','Actions'].map(c=>h('th',{key:c},c)))),
         h('tbody',null,
           loading
-            ? h('tr',null,h('td',{colSpan:5,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...'))
+            ? h('tr',null,h('td',{colSpan:6,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...'))
             : filtered.length===0
-              ? h('tr',null,h('td',{colSpan:5,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'No users found'))
+              ? h('tr',null,h('td',{colSpan:6,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'No users found'))
               : filtered.map(u=>h('tr',{key:u.id},
                   h('td',null,h('div',{style:{fontWeight:500}},u.full_name||'—')),
                   h('td',{style:{color:'#94a3b8',fontSize:12}},u.email||'—'),
                   h('td',null,h('select',{className:'form-select',style:{width:120,fontSize:12,padding:'4px 8px'},value:u.role||'tech',onChange:e=>updateUser(u.id,{role:e.target.value})},['admin','tech'].map(r=>h('option',{key:r,value:r},r)))),
+                  h('td',null,h('select',{className:'form-select',style:{minWidth:160,fontSize:12,padding:'4px 8px'},value:u.technician_id||u.technician?.id||'',onChange:e=>updateUser(u.id,{technician_id:e.target.value||null})},
+                    h('option',{value:''},'— Unassigned —'),
+                    activeTechs.map(t=>h('option',{key:t.id,value:t.id},t.name))
+                  )),
                   h('td',null,h(PBadge,{cls:u.active===false?'b-down':'b-active',label:u.active===false?'inactive':'active'})),
                   h('td',null,h('div',{style:{display:'flex',gap:8}},
+                    h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
                     h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable')
                   ))
                 ))
@@ -902,14 +966,46 @@ function UsersPage({setPage}){
           : filtered.map(u=>h('div',{key:u.id,className:'divide-row',style:{flexDirection:'column',alignItems:'flex-start',gap:8}},
               h('div',{style:{fontWeight:600,color:'#e2e8f0'}},u.full_name||'—'),
               h('div',{style:{fontSize:12,color:'#94a3b8'}},u.email||'—'),
+              h('div',{style:{fontSize:12,color:'#94a3b8'}},'Tech: ',u.technician?.name||'Unassigned'),
               h('div',{style:{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}},
                 h('select',{className:'form-select',style:{width:120,fontSize:12,padding:'4px 8px'},value:u.role||'tech',onChange:e=>updateUser(u.id,{role:e.target.value})},['admin','tech'].map(r=>h('option',{key:r,value:r},r))),
-                h(PBadge,{cls:u.active===false?'b-down':'b-active',label:u.active===false?'inactive':'active'}),
+                h(PBadge,{cls:u.active===false?'b-down':'b-active',label:u.active===false?'inactive':'active'})
+              ),
+              h('select',{className:'form-select',style:{width:'100%',fontSize:12,padding:'8px 10px'},value:u.technician_id||u.technician?.id||'',onChange:e=>updateUser(u.id,{technician_id:e.target.value||null})},
+                h('option',{value:''},'— Unassigned —'),
+                activeTechs.map(t=>h('option',{key:t.id,value:t.id},t.name))
+              ),
+              h('div',{style:{display:'flex',gap:8}},
+                h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
                 h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable')
               )
             ))
       )
-    )
+    ),
+    modal&&h('div',{className:'modal-overlay'},h('div',{className:'modal'},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+        h('h3',{style:{marginBottom:0}},modal.mode==='edit'?'Edit User':'New User'),
+        h('button',{className:'btn btn-ghost',onClick:()=>setModal(null)},'✕')
+      ),
+      modalErr&&h('div',{style:{padding:'10px 12px',marginBottom:12,border:'1px solid #7f1d1d',background:'#2b1111',color:'#fecaca',borderRadius:10,fontSize:12}},modalErr),
+      h('div',{className:'form-grid'},
+        h('div',null,h('label',null,'Full Name'),h('input',{className:'form-input',value:form.full_name,onChange:e=>sf('full_name',e.target.value),placeholder:'User name'})),
+        h('div',null,h('label',null,'Email'),h('input',{className:'form-input',type:'email',value:form.email,onChange:e=>sf('email',e.target.value),placeholder:'name@company.com'})),
+        h('div',null,h('label',null,'Role'),h('select',{className:'form-select',value:form.role,onChange:e=>sf('role',e.target.value)},['admin','tech'].map(r=>h('option',{key:r,value:r},r)))),
+        h('div',null,h('label',null,'Assigned Technician'),h('select',{className:'form-select',value:form.technician_id,onChange:e=>sf('technician_id',e.target.value)},
+          h('option',{value:''},'— Unassigned —'),
+          activeTechs.map(t=>h('option',{key:t.id,value:t.id},t.name))
+        )),
+        h('div',null,h('label',null,'Status'),h('select',{className:'form-select',value:form.active===false?'inactive':'active',onChange:e=>sf('active',e.target.value==='active')},
+          h('option',{value:'active'},'active'),
+          h('option',{value:'inactive'},'inactive')
+        ))
+      ),
+      h('div',{className:'modal-actions'},
+        h('button',{className:'btn btn-ghost',onClick:()=>setModal(null)},'Cancel'),
+        h('button',{className:'btn btn-p',disabled:savingModal,onClick:saveModal},savingModal?'Saving...':'Save User')
+      )
+    )))
   );
 }
 
