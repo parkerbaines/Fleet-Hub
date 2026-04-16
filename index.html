@@ -604,7 +604,7 @@ const NAV=[{id:'dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},{id:
   {id:'documents',label:'Documents',Icon:IParts,section:'Resources'},
   {id:'users',label:'Users & Permissions',Icon:IEdit,section:'Admin'}];
 
-function SidebarNav({page,setPage,badges,appUser,signOut,onClose}){
+function SidebarNav({page,setPage,badges,appUser,signOut,visibleNav,onClose}){
   const secs=[...new Set(visibleNav.map(n=>n.section))];
   return h(Fragment,null,
     h('div',{className:'sidebar-logo'},
@@ -2430,8 +2430,8 @@ function App(){
       title:isDark?'Switch to light mode':'Switch to dark mode',
       style:{position:'fixed',bottom:20,right:20,zIndex:200,background:isDark?'#1e2333':'#fff',border:'0.5px solid '+(isDark?'#2a3048':'#e2e8f0'),borderRadius:20,padding:'8px 14px',cursor:'pointer',boxShadow:'0 4px 12px rgba(0,0,0,.25)',display:'flex',alignItems:'center',gap:6,color:isDark?'#e2e8f0':'#1a202c',fontFamily:'inherit',fontSize:12,fontWeight:500}
     },isDark?'☀️  Light':'🌙  Dark'),
-    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,appUser,signOut,onClose:null})),
-    h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,appUser,signOut,onClose:()=>setDrawerOpen(false)}))),
+    h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,appUser,signOut,visibleNav,onClose:null})),
+    h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,appUser,signOut,visibleNav,onClose:()=>setDrawerOpen(false)}))),
     h('div',{className:'main'},h('div',{className:'mobile-bar'},h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),h('span',null,lbl)),render())
   );
 }
