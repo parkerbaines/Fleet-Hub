@@ -314,7 +314,16 @@ body.light [style*="rgba(245,158,11,.1)"],body.light [style*="rgba(245,158,11, .
 body.light [style*="rgba(245,158,11,.15)"],body.light [style*="rgba(245,158,11, .15)"]{background:rgba(146,64,14,.1)!important}
 body.light [style*="rgba(59,126,255,.1)"],body.light [style*="rgba(59,126,255, .1)"]{background:rgba(29,78,216,.08)!important}
 body.light [style*="rgba(59,126,255,.2)"],body.light [style*="rgba(59,126,255, .2)"]{background:rgba(29,78,216,.1)!important}
-body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}</style>
+body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}
+#printArea{display:none}
+@media print{
+  html,body{background:#fff!important;height:auto!important;overflow:visible!important}
+  body>*:not(#printArea){display:none!important}
+  #root{display:none!important}
+  #printArea{display:block!important;position:static!important;inset:auto!important;width:auto!important;height:auto!important;overflow:visible!important;background:#fff!important;color:#000!important;padding:0!important;margin:0!important}
+  #printArea *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  @page{size:auto;margin:.5in}
+}</style>
 
 
 </head>
@@ -1086,7 +1095,20 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const handlePrint=()=>{
     const pa=document.getElementById('printArea');
     const asset=wo?.asset||{};const tech=wo?.technician||{};
-    pa.innerHTML=`<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#000;font-size:11px}
+    const esc=(v)=>String(v??'—').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[m]));
+    const printClass=(v='')=>{
+      const s=String(v||'').trim().toLowerCase();
+      if(!s) return '';
+      if(['good','pass','full','clean','works','normal','no leak','none'].includes(s)) return 'ok';
+      if(['fair','moderate','low','minor','wear indicators'].includes(s)) return 'warn';
+      if(['bad','fail','check engine','fault code','replace','cracking','cupping','weak'].includes(s)) return 'bad';
+      return '';
+    };
+    const inspHtml=Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).map(([k,v])=>{
+      const cls=printClass(v);
+      return `<div class="ii ${cls}"><div class="ip">${esc(k.replace(/_/g,' '))}</div><div class="iv ${cls}">${esc(v)}</div></div>`;
+    }).join('');
+    pa.innerHTML=`<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#000;font-size:11px;background:#fff}
     .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:14px}
     .hdr h1{font-size:18px;font-weight:700}.hdr .sub{font-size:12px;color:#333;margin-top:3px}
     .hdr .meta{text-align:right;font-size:11px;line-height:1.7}
@@ -1095,30 +1117,34 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:10px}
     .fl{font-size:10px;color:#666;text-transform:uppercase;display:block;margin-bottom:1px}
     .fv{font-size:12px;font-weight:500;border-bottom:0.5px solid #ddd;padding-bottom:2px;min-height:16px}
-    .ta{border:0.5px solid #ccc;border-radius:3px;padding:8px;min-height:48px;margin-bottom:10px;font-size:12px;width:100%}
+    .ta{border:0.5px solid #ccc;border-radius:3px;padding:8px;min-height:48px;margin-bottom:10px;font-size:12px;width:100%;background:#fff}
     .ig{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px}
-    .ii{border:0.5px solid #ccc;border-radius:3px;padding:4px 6px}
-    .ip{font-size:9px;color:#666;margin-bottom:1px}.iv{font-size:11px;font-weight:600}
+    .ii{border:0.5px solid #ccc;border-radius:3px;padding:4px 6px;background:#fff}
+    .ii.ok{background:#dcfce7;border-color:#22c55e}.ii.warn{background:#fef3c7;border-color:#f59e0b}.ii.bad{background:#fee2e2;border-color:#ef4444}
+    .ip{font-size:9px;color:#666;margin-bottom:1px}.iv{font-size:11px;font-weight:600;color:#111}.iv.ok{color:#166534}.iv.warn{color:#92400e}.iv.bad{color:#991b1b}
     table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
     th{background:#f0f0f0;padding:5px 8px;text-align:left;font-weight:600;border:0.5px solid #ccc}
-    td{padding:4px 8px;border:0.5px solid #ddd}
+    td{padding:4px 8px;border:0.5px solid #ddd;background:#fff}
     .tr td{font-weight:700;background:#f8f8f8}
     .costs{max-width:260px;margin:0 0 12px}
     .sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px;padding-top:12px;border-top:1px solid #ccc}
     .sl{border-bottom:1px solid #999;height:32px;margin-bottom:3px}.slb{font-size:9px;color:#666;text-transform:uppercase}</style>
-    <div class="hdr"><div><h1>Work Order ${wo?.order_number||''}</h1><div class="sub">${f.title||'—'}</div></div><div class="meta">Status: <b>${statusLabel[f.status]||f.status}</b><br>Priority: <b>${f.priority}</b><br>Date: ${new Date().toLocaleDateString()}<br>Due: ${f.due_date?new Date(f.due_date).toLocaleDateString():'—'}</div></div>
-    <div class="sec">Vehicle</div><div class="g3"><div><span class="fl">Asset</span><div class="fv">${asset.name||'—'}</div></div><div><span class="fl">Asset #</span><div class="fv">${asset.asset_number||'—'}</div></div><div><span class="fl">Year Make Model</span><div class="fv">${[asset.year,asset.make,asset.model].filter(Boolean).join(' ')||'—'}</div></div><div><span class="fl">VIN</span><div class="fv">${asset.vin||'—'}</div></div><div><span class="fl">License</span><div class="fv">${asset.license_plate||'—'}</div></div><div><span class="fl">Mileage In</span><div class="fv">${f.mileage_in||'—'}</div></div></div>
-    <div class="sec">Work Order</div><div class="g3"><div><span class="fl">Technician</span><div class="fv">${tech.name||'Unassigned'}</div></div><div><span class="fl">Category</span><div class="fv">${f.category||'—'}</div></div><div><span class="fl">Est Hours</span><div class="fv">${f.estimated_hours||'—'}</div></div></div>
-    <div class="sec">Complaint / Requested Work</div><div class="ta">${f.complaint||'—'}</div>
-    ${(timeEntries||[]).length>0?`<div class="sec">Time Log — ${totalHrs.toFixed(2)} hrs total</div><table><thead><tr><th>Date</th><th>Tech</th><th>Hours</th><th>Notes</th></tr></thead><tbody>${(timeEntries||[]).map(e=>`<tr><td>${fmtDate(e.logged_at)}</td><td>${e.technician?.name||'—'}</td><td>${e.hours}</td><td>${e.notes||'—'}</td></tr>`).join('')}<tr class="tr"><td colspan="2">Total</td><td>${totalHrs.toFixed(2)} hrs</td><td></td></tr></tbody></table>`:''}
-    ${(woParts||[]).length>0?`<div class="sec">Parts Used</div><table><thead><tr><th>Part</th><th>Part #</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead><tbody>${(woParts||[]).map(p=>`<tr><td>${p.part_name||'—'}</td><td>${p.part_number||'—'}</td><td>${p.quantity_used}</td><td>${p.unit_cost?'$'+parseFloat(p.unit_cost).toFixed(2):'—'}</td><td>${p.unit_cost?'$'+(parseFloat(p.quantity_used)*parseFloat(p.unit_cost)).toFixed(2):'—'}</td></tr>`).join('')}<tr class="tr"><td colspan="4">Parts Total</td><td>$${partsTotal.toFixed(2)}</td></tr></tbody></table>`:''}
-    <div class="sec">Cost Summary</div><table class="costs"><tbody><tr><td>Labor (${totalHrs.toFixed(2)} hrs @ $$${techRate.toFixed(2)}/hr)</td><td style="text-align:right">${laborCost>0?'$'+laborCost.toFixed(2):'—'}</td></tr><tr><td>Parts Subtotal</td><td style="text-align:right">$${partsSubtotal.toFixed(2)}</td></tr><tr><td>Sales Tax (9%)</td><td style="text-align:right">$${partsTax.toFixed(2)}</td></tr><tr class="tr"><td>Grand Total</td><td style="text-align:right">$${grandTotal.toFixed(2)}</td></tr></tbody></table>
-    <div class="g2"><div><div class="sec">Findings / Diagnosis</div><div class="ta">${f.findings||'—'}</div></div><div><div class="sec">Work Performed</div><div class="ta">${f.work_performed||'—'}</div></div></div>
-    <div class="sec">Recommendations</div><div class="ta">${f.recommendations||'—'}</div>
-    ${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).length>0?`<div class="sec">Vehicle Inspection</div><div class="ig">${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).map(([k,v])=>`<div class="ii"><div class="ip">${k.replace(/_/g,' ')}</div><div class="iv">${v}</div></div>`).join('')}</div>`:''}
-    <div class="sec">Mileage Out</div><div class="g3"><div><span class="fl">Mileage Out</span><div class="fv">${f.mileage_out||'—'}</div></div></div>
+    <div class="hdr"><div><h1>Work Order ${esc(wo?.order_number||'')}</h1><div class="sub">${esc(f.title||'—')}</div></div><div class="meta">Status: <b>${esc(statusLabel[f.status]||f.status||'')}</b><br>Priority: <b>${esc(f.priority||'')}</b><br>Date: ${new Date().toLocaleDateString()}<br>Due: ${f.due_date?new Date(f.due_date).toLocaleDateString():'—'}</div></div>
+    <div class="sec">Vehicle</div><div class="g3"><div><span class="fl">Asset</span><div class="fv">${esc(asset.name||'—')}</div></div><div><span class="fl">Asset #</span><div class="fv">${esc(asset.asset_number||'—')}</div></div><div><span class="fl">Year Make Model</span><div class="fv">${esc([asset.year,asset.make,asset.model].filter(Boolean).join(' ')||'—')}</div></div><div><span class="fl">VIN</span><div class="fv">${esc(asset.vin||'—')}</div></div><div><span class="fl">License</span><div class="fv">${esc(asset.license_plate||'—')}</div></div><div><span class="fl">Mileage In</span><div class="fv">${esc(f.mileage_in||'—')}</div></div></div>
+    <div class="sec">Work Order</div><div class="g3"><div><span class="fl">Technician</span><div class="fv">${esc(tech.name||'Unassigned')}</div></div><div><span class="fl">Category</span><div class="fv">${esc(f.category||'—')}</div></div><div><span class="fl">Est Hours</span><div class="fv">${esc(f.estimated_hours||'—')}</div></div></div>
+    <div class="sec">Complaint / Requested Work</div><div class="ta">${esc(f.complaint||'—')}</div>
+    ${(timeEntries||[]).length>0?`<div class="sec">Time Log — ${totalHrs.toFixed(2)} hrs total</div><table><thead><tr><th>Date</th><th>Tech</th><th>Hours</th><th>Notes</th></tr></thead><tbody>${(timeEntries||[]).map(e=>`<tr><td>${esc(fmtDate(e.logged_at))}</td><td>${esc(e.technician?.name||'—')}</td><td>${esc(e.hours)}</td><td>${esc(e.notes||'—')}</td></tr>`).join('')}<tr class="tr"><td colspan="2">Total</td><td>${totalHrs.toFixed(2)} hrs</td><td></td></tr></tbody></table>`:''}
+    ${(woParts||[]).length>0?`<div class="sec">Parts Used</div><table><thead><tr><th>Part</th><th>Part #</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead><tbody>${(woParts||[]).map(p=>`<tr><td>${esc(p.part_name||'—')}</td><td>${esc(p.part_number||'—')}</td><td>${esc(p.quantity_used)}</td><td>${p.unit_cost?'$'+parseFloat(p.unit_cost).toFixed(2):'—'}</td><td>${p.unit_cost?'$'+(parseFloat(p.quantity_used)*parseFloat(p.unit_cost)).toFixed(2):'—'}</td></tr>`).join('')}<tr class="tr"><td colspan="4">Parts Total</td><td>$${partsTotal.toFixed(2)}</td></tr></tbody></table>`:''}
+    <div class="sec">Cost Summary</div><table class="costs"><tbody><tr><td>Labor (${totalHrs.toFixed(2)} hrs @ $${techRate.toFixed(2)}/hr)</td><td style="text-align:right">${laborCost>0?'$'+laborCost.toFixed(2):'—'}</td></tr><tr><td>Parts Subtotal</td><td style="text-align:right">$${partsSubtotal.toFixed(2)}</td></tr><tr><td>Sales Tax (9%)</td><td style="text-align:right">$${partsTax.toFixed(2)}</td></tr><tr class="tr"><td>Grand Total</td><td style="text-align:right">$${grandTotal.toFixed(2)}</td></tr></tbody></table>
+    <div class="g2"><div><div class="sec">Findings / Diagnosis</div><div class="ta">${esc(f.findings||'—')}</div></div><div><div class="sec">Work Performed</div><div class="ta">${esc(f.work_performed||'—')}</div></div></div>
+    <div class="sec">Recommendations</div><div class="ta">${esc(f.recommendations||'—')}</div>
+    ${inspHtml?`<div class="sec">Vehicle Inspection</div><div class="ig">${inspHtml}</div>`:''}
+    <div class="sec">Mileage Out</div><div class="g3"><div><span class="fl">Mileage Out</span><div class="fv">${esc(f.mileage_out||'—')}</div></div></div>
     <div class="sigs"><div><div class="sl"></div><div class="slb">Technician Signature / Date</div></div><div><div class="sl"></div><div class="slb">Supervisor Approval / Date</div></div></div>`;
-    window.print();setTimeout(()=>{pa.innerHTML='';},3000);
+    const cleanup=()=>{pa.innerHTML='';};
+    window.addEventListener('afterprint',cleanup,{once:true});
+    setTimeout(cleanup,2000);
+    setTimeout(()=>window.print(),50);
   };
 
   if(loadWO&&isEdit)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Loading...');
