@@ -850,7 +850,6 @@ function WorkOrders({setPage,isTech=false,myTechId=null}){
 }
 
 
-
 function UsersPage({setPage}){
   const {data:users,loading,refetch}=useQuery(()=>sb.from('app_users').select('*,technician:technicians(id,name)').order('full_name',{ascending:true}));
   const {data:techs}=useQuery(()=>sb.from('technicians').select('id,name,status').order('name'));
@@ -859,7 +858,6 @@ function UsersPage({setPage}){
   const [modal,setModal]=useState(null);
   const [savingModal,setSavingModal]=useState(false);
   const [modalErr,setModalErr]=useState('');
-  const [resettingId,setResettingId]=useState(null);
 
   const activeTechs=(techs||[]).filter(t=>!t.status || t.status==='active');
 
@@ -902,11 +900,10 @@ function UsersPage({setPage}){
     refetch();
   };
 
-  const sendReset=async(email,id)=>{
-    if(!email){alert('User has no email');return;}
-    setResettingId(id||email);
+
+  const sendResetForUser=async(email)=>{
+    if(!email){alert('User has no email address');return;}
     const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
-    setResettingId(null);
     if(error){alert(error.message||'Unable to send reset email');return;}
     alert('Password reset email sent to '+email);
   };
@@ -927,7 +924,6 @@ function UsersPage({setPage}){
     if(modal?.mode==='edit' && modal.user?.id){
       res=await sb.from('app_users').update(payload).eq('id',modal.user.id);
     }else{
-      payload.id=(crypto?.randomUUID?crypto.randomUUID():('u_'+Date.now()));
       payload.created_at=new Date().toISOString();
       res=await sb.from('app_users').insert(payload);
     }
@@ -965,10 +961,12 @@ function UsersPage({setPage}){
                     activeTechs.map(t=>h('option',{key:t.id,value:t.id},t.name))
                   )),
                   h('td',null,h(PBadge,{cls:u.active===false?'b-down':'b-active',label:u.active===false?'inactive':'active'})),
-                  h('td',null,h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-                    h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
-                    h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable'),
-                    h('button',{className:'btn btn-ghost',disabled:resettingId===u.id,onClick:()=>sendReset(u.email,u.id)},resettingId===u.id?'Sending...':'Reset Password')
+                  h('td',null,h('div',{style:{display:'flex',gap:8}},
+                    h(Fragment,null,
+                  h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
+                  h('button',{className:'btn btn-ghost',onClick:()=>sendResetForUser(u.email)},'Reset Password')
+                ),
+                    h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable')
                   ))
                 ))
         )
@@ -988,10 +986,12 @@ function UsersPage({setPage}){
                 h('option',{value:''},'— Unassigned —'),
                 activeTechs.map(t=>h('option',{key:t.id,value:t.id},t.name))
               ),
-              h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-                h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
-                h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable'),
-                h('button',{className:'btn btn-ghost',disabled:resettingId===u.id,onClick:()=>sendReset(u.email,u.id)},resettingId===u.id?'Sending...':'Reset Password')
+              h('div',{style:{display:'flex',gap:8}},
+                h(Fragment,null,
+                  h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
+                  h('button',{className:'btn btn-ghost',onClick:()=>sendResetForUser(u.email)},'Reset Password')
+                ),
+                h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable')
               )
             ))
       )
@@ -1013,16 +1013,13 @@ function UsersPage({setPage}){
         h('div',null,h('label',null,'Status'),h('select',{className:'form-select',value:form.active===false?'inactive':'active',onChange:e=>sf('active',e.target.value==='active')},
           h('option',{value:'active'},'active'),
           h('option',{value:'inactive'},'inactive')
-        )),
-        modal?.mode==='edit'
-          ? h('div',null,h('label',null,'Password'),h('button',{className:'btn btn-ghost',style:{width:'100%'},disabled:resettingId==='modal',onClick:async()=>{setResettingId('modal');await sendReset(form.email,'modal');setResettingId(null);}},resettingId==='modal'?'Sending reset...':'Send reset email'))
-          : h('div',null,h('label',null,'Password'),h('div',{style:{padding:'12px 14px',border:'1px solid #23304f',borderRadius:10,color:'#94a3b8',fontSize:12,background:'#0f1424'}},'Profile-only create in this client build. Use Reset Password after creating if needed.'))
+        ))
       ),
       h('div',{className:'modal-actions'},
         h('button',{className:'btn btn-ghost',onClick:()=>setModal(null)},'Cancel'),
         h('button',{className:'btn btn-p',disabled:savingModal,onClick:saveModal},savingModal?'Saving...':'Save User')
       )
-    )))
+    ))
   );
 }
 
