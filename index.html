@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>FleetOps</title>
+<title>Maintainly</title>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="FleetOps"/>
+<meta name="apple-mobile-web-app-title" content="Maintainly"/>
 <meta name="theme-color" content="#0f1117"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -184,78 +184,81 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .cost-line.total,.cline.tot{font-weight:700;font-size:16px;border-top:0.5px solid rgba(59,126,255,.3);margin-top:8px;padding-top:10px;color:#60a5fa}
 
 /* ── Light mode contrast fixes ─────────────────────────────────────── */
-body.light{background:#f0f4f9;color:#1a202c}
-body.light .page{background:#f0f4f9}
-body.light .sidebar{background:#ffffff;border-right-color:#e2e8f0}
-body.light .sidebar-logo h1{color:#1a202c}
+body.light{background:#e9ecf5;color:#1e2433}
+body.light .page{background:#e9ecf5}
+body.light .sidebar{background:#f0f2fa;border-right-color:#d0d6e8}
+body.light .sidebar-logo h1{color:#1e2433}
 body.light .sidebar-logo p{color:#4a5568}
 body.light .nav-section{color:#4a5568}
 body.light .nav-item{color:#4a5568}
-body.light .nav-item:hover{background:#f7fafc;color:#1a202c}
-body.light .nav-item.active{background:rgba(59,126,255,.1);color:#2b6cb0}
-body.light .mobile-bar{background:#fff;border-bottom-color:#e2e8f0}
-body.light .mobile-bar span{color:#1a202c}
-body.light .card{background:#fff;border-color:#e2e8f0}
-body.light .card-header{border-bottom-color:#e2e8f0}
-body.light .card-title{color:#1a202c}
-body.light .card-link{color:#2b6cb0}
-body.light .metric{background:#fff;border-color:#e2e8f0}
+body.light .nav-item:hover{background:#e2e6f3;color:#1e2433}
+body.light .nav-item.active{background:rgba(59,126,255,.12);color:#1d4ed8}
+body.light .mobile-bar{background:#f0f2fa;border-bottom-color:#d0d6e8}
+body.light .mobile-bar span{color:#1e2433}
+body.light .card{background:#f5f6fa;border-color:#d0d6e8}
+body.light .card-header{border-bottom-color:#d0d6e8}
+body.light .card-title{color:#1e2433}
+body.light .card-link{color:#1d4ed8}
+body.light .metric{background:#f5f6fa;border-color:#d0d6e8}
 body.light .metric-label{color:#4a5568}
-body.light .metric-value{color:#1a202c}
+body.light .metric-value{color:#1e2433}
 body.light .metric-sub{color:#4a5568}
-body.light .divide-row{border-bottom-color:#e2e8f0;color:#1a202c}
-body.light .divide-row:hover{background:#f7fafc}
-body.light .row{border-bottom-color:#e2e8f0}
-body.light .row:hover{background:#f7fafc}
-body.light th{color:#4a5568;border-bottom-color:#e2e8f0;background:#f7fafc}
-body.light td{border-bottom-color:#e2e8f0;color:#1a202c;background:#fff}
-body.light tr:hover td{background:#f7fafc}
+body.light .divide-row{border-bottom-color:#d0d6e8;color:#1e2433}
+body.light .divide-row:hover{background:#e8ebf5}
+body.light .row{border-bottom-color:#d0d6e8}
+body.light .row:hover{background:#e8ebf5}
+body.light th{color:#4a5568;border-bottom-color:#d0d6e8;background:#eaecf6}
+body.light td{border-bottom-color:#d0d6e8;color:#1e2433;background:#f5f6fa}
+body.light tr:hover td{background:#e8ebf5}
 body.light .mono{color:#4a5568}
 body.light .form-label,.body.light .fl{color:#4a5568}
-body.light .form-input,.body.light .fi,body.light .form-select,.body.light .fsel,body.light .form-textarea,.body.light .fta{background:#fff;border-color:#cbd5e0;color:#1a202c}
-body.light .form-input::placeholder,.body.light .fi::placeholder{color:#a0aec0}
+body.light .form-input,.body.light .fi,body.light .form-select,.body.light .fsel,body.light .form-textarea,.body.light .fta{background:#f5f6fa;border-color:#bec6d8;color:#1e2433}
+body.light .form-input::placeholder,.body.light .fi::placeholder{color:#94a3b8}
 body.light .form-input:focus,.body.light .fi:focus,body.light .form-select:focus,.body.light .fsel:focus{border-color:#3b7eff}
-body.light .page-header h2,.body.light .phdr h2{color:#1a202c}
+body.light .page-header h2,.body.light .phdr h2{color:#1e2433}
 body.light .page-header p,.body.light .phdr p{color:#4a5568}
-body.light .modal{background:#fff;border-color:#e2e8f0}
-body.light .modal h3{color:#1a202c}
-body.light .modal-overlay,.body.light .moverlay{background:rgba(0,0,0,.5)}
-body.light .tabs{background:#e8edf4;border-color:#e2e8f0}
+body.light .modal{background:#f5f6fa;border-color:#d0d6e8}
+body.light .modal h3{color:#1e2433}
+body.light .modal-overlay,.body.light .moverlay{background:rgba(0,0,0,.45)}
+body.light .tabs{background:#dde1ef;border-color:#d0d6e8}
 body.light .tab{color:#4a5568}
-body.light .tab.active,.body.light .tab.on{background:#fff;color:#1a202c;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-body.light .wo-section,.body.light .wo-sec{background:#fff;border:0.5px solid #e2e8f0}
-body.light .wo-section-header,.body.light .wo-sec-hdr{border-bottom-color:#e2e8f0}
-body.light .wo-section-title,.body.light .wo-sec-title{color:#1a202c}
-body.light .insp-item,.body.light .ii{background:#f7fafc;border-color:#e2e8f0}
+body.light .tab.active,.body.light .tab.on{background:#f5f6fa;color:#1e2433;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+body.light .wo-section,.body.light .wo-sec{background:#f5f6fa;border:0.5px solid #d0d6e8}
+body.light .wo-section-header,.body.light .wo-sec-hdr{border-bottom-color:#d0d6e8}
+body.light .wo-section-title,.body.light .wo-sec-title{color:#1e2433}
+body.light .insp-item,.body.light .ii{background:#eaecf6;border-color:#d0d6e8}
 body.light .insp-item label,.body.light .ii label{color:#4a5568}
-body.light .isel{background:#fff;border-color:#cbd5e0;color:#1a202c}
-body.light .insp-full input,.body.light .ifull input{background:#fff;border-color:#cbd5e0;color:#1a202c}
-body.light .corner-box,.body.light .cbox{background:#f7fafc;border-color:#e2e8f0}
+body.light .isel{background:#f5f6fa;border-color:#bec6d8;color:#1e2433}
+body.light .insp-full input,.body.light .ifull input{background:#f5f6fa;border-color:#bec6d8;color:#1e2433}
+body.light .corner-box,.body.light .cbox{background:#eaecf6;border-color:#d0d6e8}
 body.light .corner-box .pos,.body.light .cpos{color:#4a5568}
-body.light .corner-box input,.body.light .cbox input{background:#fff;border-color:#cbd5e0;color:#1a202c}
+body.light .corner-box input,.body.light .cbox input{background:#f5f6fa;border-color:#bec6d8;color:#1e2433}
 body.light .corner-box .unit,.body.light .cunit{color:#4a5568}
-body.light .btn-ghost,.body.light .btn-g{border-color:#cbd5e0;color:#4a5568;background:#fff}
-body.light .btn-ghost:hover,.body.light .btn-g:hover{background:#f7fafc;color:#1a202c}
+body.light .btn-ghost,.body.light .btn-g{border-color:#bec6d8;color:#4a5568;background:#f5f6fa}
+body.light .btn-ghost:hover,.body.light .btn-g:hover{background:#e8ebf5;color:#1e2433}
 body.light .btn-icon,.body.light .icon-btn{color:#4a5568}
-body.light .btn-icon:hover,.body.light .icon-btn:hover{color:#1a202c}
-body.light .drawer{background:#fff;border-right-color:#e2e8f0}
+body.light .btn-icon:hover,.body.light .icon-btn:hover{color:#1e2433}
+body.light .drawer{background:#f5f6fa;border-right-color:#d0d6e8}
 body.light .back-btn,.body.light .back{color:#4a5568}
-body.light .back-btn:hover,.body.light .back:hover{color:#1a202c}
-body.light .quick-btn,.body.light .qbtn{border-color:#e2e8f0;background:#fff}
-body.light .quick-btn:hover,.body.light .qbtn:hover{border-color:#3b7eff;background:#ebf4ff}
-body.light .quick-btn .q-title,.body.light .qt{color:#1a202c}
+body.light .back-btn:hover,.body.light .back:hover{color:#1e2433}
+body.light .quick-btn,.body.light .qbtn{border-color:#d0d6e8;background:#f5f6fa}
+body.light .quick-btn:hover,.body.light .qbtn:hover{border-color:#3b7eff;background:#e8eeff}
+body.light .quick-btn .q-title,.body.light .qt{color:#1e2433}
 body.light .quick-btn .q-sub,.body.light .qs{color:#4a5568}
-body.light .cost-line,.body.light .cline{color:#1a202c}
-body.light .asset-card,.body.light .acard{background:#fff;border-color:#e2e8f0}
+body.light .cost-line,.body.light .cline{color:#1e2433}
+body.light .asset-card,.body.light .acard{background:#f5f6fa;border-color:#d0d6e8}
 body.light .asset-card:hover,.body.light .acard:hover{border-color:#3b7eff}
-body.light .import-zone,.body.light .izone{border-color:#cbd5e0}
-body.light .type-btn,.body.light .tpick-btn{border-color:#cbd5e0;color:#4a5568;background:#fff}
-body.light .error-box,.body.light .ebox{background:rgba(239,68,68,.08)}
-body.light .alert-danger,.body.light .alert-d{background:rgba(239,68,68,.08)}
-body.light .alert-warn,.body.light .alert-w{background:rgba(245,158,11,.08)}
-body.light .workload-bar-bg{background:#e2e8f0}
-body.light .nav-badge{background:rgba(239,68,68,.15)}
-body.light .search-wrap svg,.body.light .sw svg{color:#a0aec0}
+body.light .import-zone,.body.light .izone{border-color:#bec6d8}
+body.light .type-btn,.body.light .tpick-btn{border-color:#bec6d8;color:#4a5568;background:#f5f6fa}
+body.light .error-box,.body.light .ebox{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:#b91c1c}
+body.light .alert-danger,.body.light .alert-d{background:rgba(239,68,68,.1);color:#b91c1c;border-left-color:#ef4444}
+body.light .alert-warn,.body.light .alert-w{background:rgba(245,158,11,.1);color:#92400e;border-left-color:#f59e0b}
+body.light .workload-bar-bg{background:#d0d6e8}
+body.light .nav-badge{background:rgba(239,68,68,.18);color:#b91c1c}
+body.light .search-wrap svg,.body.light .sw svg{color:#94a3b8}
+body.light .table-wrap{background:#f5f6fa}
+body.light .filters{background:#e9ecf5}
+body.light .badge{opacity:.9}
 
 /* ── Print ───────────────────────────────────────────────────────── */
 @media print{
@@ -362,7 +365,7 @@ function parseCSV(t){
 }
 function toCSV(rows,cols){return[cols.map(c=>c.l).join(','),...rows.map(r=>cols.map(c=>{const v=String(r[c.k]??'');return v.includes(',')?'"'+v+'"':v;}).join(','))].join('\n');}
 function dlCSV(fn,ct){const b=new Blob([ct],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=fn;a.click();URL.revokeObjectURL(u);}
-function dlTmpl(type){const d={vehicle:{c:['name','asset_number','year','make','model','vin','license_plate','odometer_miles','status','notes'],s:['2022 Kenworth T680','VH-01','2022','Kenworth','T680','1XKWDB0X2NJ123456','ABC1234','87500','active','Primary haul truck']},trailer:{c:['name','asset_number','year','make','model','vin','license_plate','status','notes'],s:['Utility Trailer 1','TR-01','2021','Big Tex','14ET','5B4EP2321LN123456','XYZ789','active','']},equipment:{c:['name','asset_number','year','make','model','vin','engine_hours','status','notes'],s:['Forklift 1','EQ-01','2019','Toyota','8FGU25','60812','1250','active','']}};const x=d[type];dlCSV('fleetops_'+type+'_template.csv',x.c.join(',')+'\n'+x.s.join(','));}
+function dlTmpl(type){const d={vehicle:{c:['name','asset_number','year','make','model','vin','license_plate','odometer_miles','status','notes'],s:['2022 Kenworth T680','VH-01','2022','Kenworth','T680','1XKWDB0X2NJ123456','ABC1234','87500','active','Primary haul truck']},trailer:{c:['name','asset_number','year','make','model','vin','license_plate','status','notes'],s:['Utility Trailer 1','TR-01','2021','Big Tex','14ET','5B4EP2321LN123456','XYZ789','active','']},equipment:{c:['name','asset_number','year','make','model','vin','engine_hours','status','notes'],s:['Forklift 1','EQ-01','2019','Toyota','8FGU25','60812','1250','active','']}};const x=d[type];dlCSV('maintainly_'+type+'_template.csv',x.c.join(',')+'\n'+x.s.join(','));}
 
 const NAV=[{id:'dashboard',label:'Dashboard',Icon:IDash,section:'Overview'},{id:'workorders',label:'Work Orders',Icon:IWO,section:'Operations',badge:'wo'},{id:'servicelogs',label:'Service Logs',Icon:ILogs,section:'Operations'},{id:'fleet',label:'Fleet',Icon:IFleet,section:'Assets'},{id:'parts',label:'Parts Inventory',Icon:IParts,section:'Resources',badge:'parts'},{id:'technicians',label:'Technicians',Icon:ITech,section:'Resources'},
   {id:'intervals',label:'Service Intervals',Icon:IClock,section:'Resources'},
@@ -373,7 +376,7 @@ function SidebarNav({page,setPage,badges,onClose}){
   const secs=[...new Set(NAV.map(n=>n.section))];
   return h(Fragment,null,
     h('div',{className:'sidebar-logo'},
-      h('h1',null,'FleetOps'),
+      h('h1',null,'Maintainly'),
       h('p',null,'Maintenance Platform')
     ),
     h('nav',{className:'sidebar-nav'},secs.map(sec=>h('div',{key:sec},h('div',{className:'nav-section'},sec),NAV.filter(n=>n.section===sec).map(({id,label,Icon,badge})=>h('button',{key:id,className:'nav-item'+(page===id?' active':''),onClick:()=>{setPage(id);onClose&&onClose();}},h(Icon),label,badge&&badges[badge]>0&&h('span',{className:'nav-badge'},badges[badge]))))))
@@ -505,9 +508,9 @@ function SamsaraBtn({refetch}){
             result.matched?.length>0&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Updated: '+(result.matched||[]).map(m=>m.asset+(m.odometer_miles?' — '+m.odometer_miles.toLocaleString()+' mi':'')+(m.matched_by?' ['+m.matched_by+']':'')).join(', ')),
             (result.skipped_count>0)&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},result.skipped_count+' skipped'),
             (result.skipped_sample?.length>0)&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},result.skipped_sample.join(' | ')),
-            result.fleetops_vins_loaded!=null&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},'FleetOps VINs loaded: '+result.fleetops_vins_loaded),
+            result.maintainly_vins_loaded!=null&&h('div',{style:{fontSize:10,color:'#6b7a9f',marginTop:2}},'Maintainly VINs loaded: '+result.maintainly_vins_loaded),
             result.errors?.length>0&&h('div',{style:{fontSize:11,color:'#f87171'}},result.errors.join(', ')),
-            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:6}},'Tip: VINs must match between Samsara and FleetOps for auto-matching.')
+            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:6}},'Tip: VINs must match between Samsara and Maintainly for auto-matching.')
           ),
       h('button',{style:{marginTop:8,fontSize:11,color:'#6b7a9f',background:'none',border:'none',cursor:'pointer'},onClick:()=>setResult(null)},'Dismiss')
     )
@@ -521,7 +524,7 @@ function Fleet({setPage,initialType}){
   const fleetLastSync=fleetSyncCfg?.value;
   const{data:assets,loading,refetch}=useQuery(()=>{let q=sb.from('assets').select('*').order('asset_type').order('name');if(typeF)q=q.eq('asset_type',typeF);return q;},[typeF]);
   const filtered=(assets||[]).filter(a=>{if(statusF&&a.status!==statusF)return false;if(search){const q=search.toLowerCase();return a.name?.toLowerCase().includes(q)||a.asset_number?.toLowerCase().includes(q)||a.vin?.toLowerCase().includes(q);}return true;});
-  const handleExport=()=>{const cols=[{k:'name',l:'name'},{k:'asset_number',l:'asset_number'},{k:'asset_type',l:'asset_type'},{k:'year',l:'year'},{k:'make',l:'make'},{k:'model',l:'model'},{k:'vin',l:'vin'},{k:'license_plate',l:'license_plate'},{k:'odometer_miles',l:'odometer_miles'},{k:'engine_hours',l:'engine_hours'},{k:'status',l:'status'},{k:'notes',l:'notes'}];dlCSV('fleetops_fleet_'+new Date().toISOString().slice(0,10)+'.csv',toCSV(filtered,cols));};
+  const handleExport=()=>{const cols=[{k:'name',l:'name'},{k:'asset_number',l:'asset_number'},{k:'asset_type',l:'asset_type'},{k:'year',l:'year'},{k:'make',l:'make'},{k:'model',l:'model'},{k:'vin',l:'vin'},{k:'license_plate',l:'license_plate'},{k:'odometer_miles',l:'odometer_miles'},{k:'engine_hours',l:'engine_hours'},{k:'status',l:'status'},{k:'notes',l:'notes'}];dlCSV('maintainly_fleet_'+new Date().toISOString().slice(0,10)+'.csv',toCSV(filtered,cols));};
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Fleet'),h('p',null,(assets||[]).filter(a=>a.asset_type==='vehicle').length+' vehicles · '+(assets||[]).filter(a=>a.asset_type==='trailer').length+' trailers · '+(assets||[]).filter(a=>a.asset_type==='equipment').length+' equipment')),
@@ -1164,7 +1167,7 @@ function Parts(){
     return h('div',{className:'modal-overlay'},h('div',{className:'modal'},h('h3',null,isEdit?'Edit Part':'Add Part'),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Part #'),h('input',{className:'form-input',placeholder:'OFK-001',value:f.part_number,onChange:e=>s('part_number',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Category'),h('select',{className:'form-select',value:f.category,onChange:e=>s('category',e.target.value)},h('option',{value:''},'Select...'),['filters','brakes','fluids','electrical','belts','tires','accessories','other'].map(c=>h('option',{key:c,value:c},c))))),h('div',{className:'form-group'},h('label',{className:'form-label'},'Name *'),h('input',{className:'form-input',value:f.name,onChange:e=>s('name',e.target.value)})),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Alt Name'),h('input',{className:'form-input',placeholder:'Alternate name',value:f.alt_name,onChange:e=>s('alt_name',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Alt Part #'),h('input',{className:'form-input',placeholder:'Alternate part #',value:f.alt_part_number,onChange:e=>s('alt_part_number',e.target.value)}))),h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,padding:'8px 12px',background:'rgba(59,126,255,.07)',borderRadius:8}},h('input',{type:'checkbox',id:'track_inv',checked:f.track_inventory,onChange:e=>s('track_inventory',e.target.checked),style:{width:16,height:16,cursor:'pointer'}}),h('label',{htmlFor:'track_inv',style:{fontSize:13,cursor:'pointer',userSelect:'none'}},'Track inventory & reorder alerts')),h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Qty on hand'),h('input',{type:'number',className:'form-input',value:f.quantity_on_hand,onChange:e=>s('quantity_on_hand',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Reorder at'),h('input',{type:'number',className:'form-input',value:f.reorder_point,onChange:e=>s('reorder_point',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Unit cost'),h('input',{type:'number',step:.01,className:'form-input',placeholder:'0.00',value:f.unit_cost,onChange:e=>s('unit_cost',e.target.value)}))),h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},h('div',null,h('label',{className:'form-label'},'Supplier'),h('input',{className:'form-input',value:f.supplier,onChange:e=>s('supplier',e.target.value)})),h('div',null,h('label',{className:'form-label'},'Bin/Shelf'),h('input',{className:'form-input',placeholder:'A-12',value:f.location,onChange:e=>s('location',e.target.value)}))),err&&h('div',{className:'error-box'},err),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':isEdit?'Save':'Add part'),h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel'))));
   };
   return h('div',{className:'page'},
-    h('div',{className:'page-header'},h('div',null,h('h2',null,'Parts Inventory'),h('p',null,(parts||[]).length+' parts total')),h('div',{className:'btn-row'},h('button',{className:'btn btn-ghost',onClick:()=>dlCSV('fleetops_parts.csv',toCSV(parts||[],expCols))},h(IDownload),' Export'),h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add Part'))),
+    h('div',{className:'page-header'},h('div',null,h('h2',null,'Parts Inventory'),h('p',null,(parts||[]).length+' parts total')),h('div',{className:'btn-row'},h('button',{className:'btn btn-ghost',onClick:()=>dlCSV('maintainly_parts.csv',toCSV(parts||[],expCols))},h(IDownload),' Export'),h('button',{className:'btn btn-primary',onClick:()=>setModal({})},h(IPlus),' Add Part'))),
     outParts.length>0&&h('div',{className:'alert alert-danger'},h(IAlert),outParts.length+' out of stock: '+outParts.map(p=>p.name).join(', ')),
     lowParts.length>outParts.length&&h('div',{className:'alert alert-warn'},h(IAlert),(lowParts.length-outParts.length)+' below reorder point'),
     h('div',{className:'filters'},h('div',{className:'search-wrap'},h(ISearch),h('input',{className:'form-input search-input',placeholder:'Search parts...',value:search,onChange:e=>setSearch(e.target.value)})),h('select',{className:'form-select',style:{width:160},value:catF,onChange:e=>setCatF(e.target.value)},h('option',{value:''},'All categories'),cats.map(c=>h('option',{key:c,value:c},c)))),
@@ -2133,19 +2136,19 @@ function App(){
   const toggleTheme=()=>{
     const next=!isDark;
     setIsDark(next);
-    try{localStorage.setItem('fleetops_theme',next?'dark':'light');}catch(e){}
+    try{localStorage.setItem('maintainly_theme',next?'dark':'light');}catch(e){}
     document.body.classList.toggle('light',!next);
   };
   useEffect(()=>{
     try{
-      const saved=localStorage.getItem('fleetops_theme');
+      const saved=localStorage.getItem('maintainly_theme');
       if(saved==='light'){setIsDark(false);document.body.classList.add('light');}
     }catch(e){}
   },[]);
   const{data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
   const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point,track_inventory'));
   const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point).length};
-  const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'FleetOps';
+  const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'Maintainly';
   const render=()=>{
     if(page==='dashboard')return h(Dashboard,{setPage});
     if(page==='workorders')return h(WorkOrders,{setPage});
