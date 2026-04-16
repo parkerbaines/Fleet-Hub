@@ -368,7 +368,8 @@ function useAuth(){
   };
   const isAdmin=appUser?.role==='admin';
   const isTech=appUser?.role==='tech';
-  return{session,appUser,authLoading,signIn,signOut,isAdmin,isTech};
+  const myTechId=appUser?.technician_id||null;
+  return{session,appUser,authLoading,signIn,signOut,isAdmin,isTech,myTechId};
 }
 
 
@@ -444,13 +445,14 @@ function LoginScreen({signIn}){
 
 // ── Users & Permissions Page (admin only) ────────────────────────────────────
 function UsersPage({setPage}){
-  const{data:users,refetch}=useQuery(()=>sb.from('app_users').select('*').order('full_name'));
+  const{data:users,refetch}=useQuery(()=>sb.from('app_users').select('*,technician:technicians(name)').order('full_name'));
+  const{data:technicians}=useQuery(()=>sb.from('technicians').select('id,name').order('name'));
   const[modal,setModal]=useState(null); // null | 'new' | user obj
   const[err,setErr]=useState('');
 
   const UserModal=({user,onClose})=>{
     const isEdit=Boolean(user?.id);
-    const[f,setF]=useState({email:user?.email||'',full_name:user?.full_name||'',role:user?.role||'tech',active:user?.active!==false,password:'',confirm_password:''});
+    const[f,setF]=useState({email:user?.email||'',full_name:user?.full_name||'',role:user?.role||'tech',active:user?.active!==false,technician_id:user?.technician_id||'',password:'',confirm_password:''});
     const[saving,setSaving]=useState(false);const[merr,setMerr]=useState('');
     const s=(k,v)=>setF(x=>({...x,[k]:v}));
 
@@ -463,7 +465,7 @@ function UsersPage({setPage}){
       try{
         if(isEdit){
           // Update role/name/active
-          const{error:e}=await sb.from('app_users').update({full_name:f.full_name.trim(),role:f.role,active:f.active,updated_at:new Date().toISOString()}).eq('id',user.id);
+          const{error:e}=await sb.from('app_users').update({full_name:f.full_name.trim(),role:f.role,active:f.active,technician_id:f.technician_id||null,updated_at:new Date().toISOString()}).eq('id',user.id);
           if(e)throw e;
           // Update password if provided via admin API (needs service role — use edge fn)
           if(f.password){
@@ -472,7 +474,7 @@ function UsersPage({setPage}){
           }
         }else{
           // Create new user via edge function (needs service role key to create auth user)
-          const{error:e}=await sb.functions.invoke('admin-create-user',{body:{email:f.email.trim(),password:f.password,full_name:f.full_name.trim(),role:f.role}});
+          const{error:e}=await sb.functions.invoke('admin-create-user',{body:{email:f.email.trim(),password:f.password,full_name:f.full_name.trim(),role:f.role,technician_id:f.technician_id||null}});
           if(e)throw new Error(e.message||'Failed to create user');
         }
         onClose();refetch();
@@ -500,7 +502,15 @@ function UsersPage({setPage}){
           )
         )
       ),
-      h('div',{style:{fontSize:12,color:'#6b7a9f',marginBottom:8,fontWeight:500}},isEdit?'Change Password (leave blank to keep current)':'Password'),
+      f.role==='tech'&&h('div',{className:'form-group',style:{marginBottom:12}},
+        h('label',{className:'form-label'},'Linked Technician'),
+        h('select',{className:'form-select',value:f.technician_id,onChange:e=>s('technician_id',e.target.value)},
+          h('option',{value:''},'— Not linked to a technician —'),
+          (technicians||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))
+        ),
+        h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:4}},'Links this login to a technician so work orders can be filtered for them')
+      ),
+            h('div',{style:{fontSize:12,color:'#6b7a9f',marginBottom:8,fontWeight:500}},isEdit?'Change Password (leave blank to keep current)':'Password'),
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},isEdit?'New Password':'Password *'),h('input',{type:'password',className:'form-input',placeholder:'Min 8 characters',value:f.password,onChange:e=>s('password',e.target.value)})),
         h('div',null,h('label',{className:'form-label'},'Confirm Password'),h('input',{type:'password',className:'form-input',placeholder:'Repeat password',value:f.confirm_password,onChange:e=>s('confirm_password',e.target.value)}))
@@ -521,11 +531,12 @@ function UsersPage({setPage}){
     err&&h('div',{className:'alert alert-danger'},err),
     h('div',{className:'card'},
       h('div',{className:'table-wrap'},h('table',null,
-        h('thead',null,h('tr',null,['Name','Email','Role','Status','Created',''].map(c=>h('th',{key:c},c)))),
+        h('thead',null,h('tr',null,['Name','Email','Role','Linked Tech','Status','Created',''].map(c=>h('th',{key:c},c)))),
         h('tbody',null,(users||[]).map(u=>h('tr',{key:u.id},
           h('td',{style:{fontWeight:500}},u.full_name||'—'),
           h('td',{style:{fontSize:12,color:'#6b7a9f'}},u.email),
           h('td',null,h('span',{className:'badge '+(u.role==='admin'?'b-normal':'b-low')},u.role==='admin'?'Admin / Manager':'Technician')),
+          h('td',{style:{fontSize:12,color:'#6b7a9f'}},u.technician?.name||'—'),
           h('td',null,h('span',{className:'badge '+(u.active?'b-active':'b-retired')},u.active?'Active':'Inactive')),
           h('td',{style:{fontSize:12,color:'#6b7a9f'}},u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
           h('td',null,h('button',{className:'icon-btn',onClick:()=>setModal(u)},h(IEdit)))
@@ -850,11 +861,12 @@ function AssetForm({id,setPage}){
   );
 }
 
-function WorkOrders({setPage,isTech=false}){
+function WorkOrders({setPage,isTech=false,myTechId=null}){
   const[search,setSearch]=useState('');const[statusF,setStatusF]=useState('');const[priorityF,setPriorityF]=useState('');
   const[woTab,setWoTab]=useState('active');
   const{data:wos,loading,refetch}=useQuery(()=>sb.from('work_orders').select('*,asset:assets(name,asset_number),technician:technicians(name)').order('created_at',{ascending:false}));
-  const allFiltered=(wos||[]).filter(wo=>{if(statusF&&wo.status!==statusF)return false;if(priorityF&&wo.priority!==priorityF)return false;if(search){const q=search.toLowerCase();return wo.title?.toLowerCase().includes(q)||wo.order_number?.toLowerCase().includes(q)||wo.asset?.name?.toLowerCase().includes(q)||wo.technician?.name?.toLowerCase().includes(q);}return true;});
+  const allFiltered=(wos||[]).filter(wo=>{if(statusF&&wo.status!==statusF)return false;if(priorityF&&wo.priority!==priorityF)return false;if(search){const q=search.toLowerCase();
+  const filtered2=isTech&&myTechId?(filtered.filter(wo=>!wo.technician_id||wo.technician_id===myTechId)):filtered;return wo.title?.toLowerCase().includes(q)||wo.order_number?.toLowerCase().includes(q)||wo.asset?.name?.toLowerCase().includes(q)||wo.technician?.name?.toLowerCase().includes(q);}return true;});
 
   const filtered=allFiltered.filter(wo=>woTab==='active'?wo.status!=='completed'&&wo.status!=='cancelled':wo.status==='completed'||wo.status==='cancelled');  const chStatus=async(e,wo)=>{e.stopPropagation();const u={status:e.target.value,updated_at:new Date().toISOString()};if(e.target.value==='completed')u.completed_at=new Date().toISOString();await sb.from('work_orders').update(u).eq('id',wo.id);refetch();};
   return h('div',{className:'page'},
@@ -867,8 +879,8 @@ function WorkOrders({setPage,isTech=false}){
     h('div',{className:'card'},
       h('div',{className:'table-wrap'},h('table',null,
         h('thead',null,h('tr',null,['Order #','Title','Asset #','Name','Technician','Priority','Status','Due',''].map(c=>h('th',{key:c},c)))),
-        h('tbody',null,loading?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):filtered.length===0?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'No work orders found')):
-          filtered.map(wo=>h('tr',{key:wo.id,style:{cursor:'pointer'},onClick:()=>setPage('wo-'+wo.id)},
+        h('tbody',null,loading?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},'Loading...')):filtered.length===0?h('tr',null,h('td',{colSpan:8,style:{textAlign:'center',color:'#6b7a9f',padding:32}},isTech&&myTechId?'No work orders assigned to you':'No work orders found')):
+          filtered2.map(wo=>h('tr',{key:wo.id,style:{cursor:'pointer'},onClick:()=>setPage('wo-'+wo.id)},
             h('td',null,h('span',{className:'mono'},wo.order_number)),
             h('td',null,h('span',{style:{maxWidth:200,display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},wo.title)),
             h('td',{style:{color:'#94a3b8',fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},wo.asset?.asset_number||'—'),h('td',{style:{color:'#94a3b8',fontSize:12}},wo.asset?.name||'—'),
@@ -876,7 +888,10 @@ function WorkOrders({setPage,isTech=false}){
             h('td',null,h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority})),
             h('td',{onClick:e=>e.stopPropagation()},h('select',{className:'form-select',style:{width:130,fontSize:12,padding:'4px 8px'},value:wo.status,onChange:e=>chStatus(e,wo)},['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
             h('td',{style:{color:'#6b7a9f',fontSize:12}},wo.due_date?new Date(wo.due_date).toLocaleDateString():'—'),
-            h('td',null,h('button',{className:'btn-icon',onClick:e=>{e.stopPropagation();setPage('wo-'+wo.id);}},h(IEdit)))
+            h('td',null,h('div',{style:{display:'flex',gap:4,alignItems:'center'}},
+            isTech&&myTechId&&!wo.technician_id&&h('button',{style:{fontSize:11,padding:'3px 10px',background:'rgba(34,197,94,.15)',border:'.5px solid rgba(34,197,94,.3)',color:'#4ade80',borderRadius:6,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},onClick:async e=>{e.stopPropagation();await sb.from('work_orders').update({technician_id:myTechId,updated_at:new Date().toISOString()}).eq('id',wo.id);refetch();}},'✓ Accept'),
+            h('button',{className:'btn-icon',onClick:e=>{e.stopPropagation();setPage('wo-'+wo.id);}},h(IEdit))
+          ))
           ))
         )
       )),
@@ -890,7 +905,7 @@ function WorkOrders({setPage,isTech=false}){
 }
 
 // ── The full Work Order Form — tabs: Info, Time, Parts, Lights, Body, Fluids, Brakes, Tires, Electrical, Findings
-function WOForm({id,setPage,isAdmin=true,isTech=false}){
+function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const isEdit=Boolean(id);
   const{data:wo,loading:loadWO,refetch:refetchWO}=useQuery(()=>id?sb.from('work_orders').select('*,asset:assets(id,name,asset_number,asset_type,year,make,model,vin,license_plate,odometer_miles,engine_hours),technician:technicians(id,name)').eq('id',id).single():{data:null},[id]);
   const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type,odometer_miles,engine_hours').order('asset_number'));
@@ -1114,6 +1129,10 @@ function WOForm({id,setPage,isAdmin=true,isTech=false}){
     ),
     error&&h('div',{className:'error-box',style:{marginBottom:12}},error),
     // Tab bar
+    isTech&&myTechId&&wo&&!wo.technician_id&&h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px',background:'rgba(34,197,94,.08)',border:'.5px solid rgba(34,197,94,.25)',borderRadius:10,marginBottom:12}},
+      h('span',{style:{fontSize:13,color:'#4ade80'}},'⚡ This work order is unassigned — you can accept it'),
+      h('button',{style:{fontSize:12,padding:'5px 14px',background:'rgba(34,197,94,.2)',border:'.5px solid rgba(34,197,94,.4)',color:'#4ade80',borderRadius:6,cursor:'pointer',fontFamily:'inherit'},onClick:async()=>{await sb.from('work_orders').update({technician_id:myTechId,updated_at:new Date().toISOString()}).eq('id',id);refetch();}},'✓ Accept')
+    ),
     h('div',{style:{display:'flex',gap:2,marginBottom:16,overflowX:'auto',paddingBottom:2}},TABS.map(t=>h('button',{key:t.id,className:'tab'+(activeTab===t.id?' active':''),onClick:()=>setActiveTab(t.id)},t.label))),
 
     // ── INFO tab ────────────────────────────────────────────────────────────
@@ -2373,7 +2392,7 @@ function Documents({setPage,isTech=false}){
   );
 }
 
-function TechDashboard({setPage}){
+function TechDashboard({setPage,myTechId=null}){
   const{data:wos,loading:wl}=useQuery(()=>sb.from('work_orders')
     .select('*,asset:assets(name,asset_number),technician:technicians(name)')
     .in('status',['open','in_progress','on_hold'])
@@ -2383,7 +2402,8 @@ function TechDashboard({setPage}){
     .order('next_service_date',{ascending:true,nullsFirst:false}));
 
   const now=new Date();
-  const urgentWOs=(wos||[]).filter(wo=>wo.priority==='urgent');
+  const myWOs=myTechId?(wos||[]).filter(wo=>!wo.technician_id||wo.technician_id===myTechId):(wos||[]);
+  const urgentWOs=myWOs.filter(wo=>wo.priority==='urgent');
   const dueIntervals=(intervals||[]).filter(a=>{
     const cur=a.asset?.odometer_miles||0;
     const milesUntil=a.next_service_miles!=null?a.next_service_miles-cur:null;
@@ -2411,8 +2431,8 @@ function TechDashboard({setPage}){
         h('button',{className:'card-link',onClick:()=>setPage('workorders')},'View all →')
       ),
       wl?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'Loading...'):
-      (wos||[]).length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},'No open work orders 🎉'):
-      (wos||[]).slice(0,8).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id),style:{cursor:'pointer'}},
+      myWOs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f'}},myTechId?'No work orders assigned to you 🎉':'No open work orders 🎉'):
+      myWOs.slice(0,8).map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id),style:{cursor:'pointer'}},
         h('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},
           h('span',{className:'mono',style:{fontSize:12,flexShrink:0}},wo.order_number),
           h('div',{style:{flex:1,minWidth:0}},
@@ -2477,7 +2497,7 @@ function TechDashboard({setPage}){
 
 
 function App(){
-  const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech}=useAuth();
+  const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech,myTechId}=useAuth();
   const[page,setPage_]=useState('dashboard');
   const setPage=(p)=>setPage_(p);
   // Redirect tech to their dashboard once auth resolves
@@ -2516,12 +2536,12 @@ function App(){
   if(appUser.active===false)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:18,color:'#f87171',marginBottom:8}},'Account Disabled'),h('div',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Contact your administrator.'),h('button',{className:'btn btn-ghost',onClick:signOut},'Sign Out')));
 
   const render=()=>{
-    if(page==='tech-dashboard')return h(TechDashboard,{setPage});
+    if(page==='tech-dashboard')return h(TechDashboard,{setPage,myTechId});
     if(page==='dashboard')return h(Dashboard,{setPage,isTech});
-    if(page==='workorders')return h(WorkOrders,{setPage,isTech});
-    if(page==='wo-new')return h(WOForm,{id:null,setPage,isAdmin,isTech});
-    if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage,isAdmin,isTech});
-    if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage,isAdmin,isTech});
+    if(page==='workorders')return h(WorkOrders,{setPage,isTech,myTechId});
+    if(page==='wo-new')return h(WOForm,{id:null,setPage,isAdmin,isTech,myTechId});
+    if(page.startsWith('wo-edit-'))return h(WOForm,{id:page.replace('wo-edit-',''),setPage,isAdmin,isTech,myTechId});
+    if(page.startsWith('wo-'))return h(WOForm,{id:page.replace('wo-',''),setPage,isAdmin,isTech,myTechId});
     if(page==='fleet'||page.startsWith('fleet-back-')||page.startsWith('fleet-status-'))return h(Fleet,{setPage,isTech,initialType:page.startsWith('fleet-back-')?page.replace('fleet-back-',''):'',initialStatus:page.startsWith('fleet-status-')?page.replace('fleet-status-',''):''});
     if(page==='asset-new')return h(AssetForm,{id:null,setPage});
     if(page.startsWith('asset-edit-'))return h(AssetForm,{id:page.replace('asset-edit-',''),setPage});
