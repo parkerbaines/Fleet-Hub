@@ -722,7 +722,7 @@ function WOForm({id,setPage}){
   const doSave=async(statusOverride)=>{
     if(!f.title.trim()){setError('Title is required');setActiveTab('info');return;}
     setSaving(true);setError(null);
-    const payload={...f,status:statusOverride||f.status,asset_type:f.asset_type||null,asset_id:f.asset_id||null,technician_id:f.technician_id||null,estimated_hours:f.estimated_hours?parseFloat(f.estimated_hours):null,mileage_in:f.mileage_in?parseInt(f.mileage_in):null,mileage_out:f.mileage_out?parseInt(f.mileage_out):null,labor_cost:f.labor_cost?parseFloat(f.labor_cost):null,inspection_data:insp,updated_at:new Date().toISOString()};
+    const payload={...f,order_number:undefined,status:statusOverride||f.status,asset_type:f.asset_type||null,asset_id:f.asset_id||null,technician_id:f.technician_id||null,estimated_hours:f.estimated_hours?parseFloat(f.estimated_hours):null,mileage_in:f.mileage_in?parseInt(f.mileage_in):null,mileage_out:f.mileage_out?parseInt(f.mileage_out):null,labor_cost:f.labor_cost?parseFloat(f.labor_cost):null,inspection_data:insp,updated_at:new Date().toISOString()};
     if((statusOverride||f.status)==='completed')payload.completed_at=new Date().toISOString();
     if(statusOverride)setF(x=>({...x,status:statusOverride}));
     const{data:saved,error:err}=isEdit?await sb.from('work_orders').update(payload).eq('id',id).select().single():await sb.from('work_orders').insert(payload).select().single();
@@ -2143,7 +2143,7 @@ function App(){
     }catch(e){}
   },[]);
   const{data:wos}=useQuery(()=>sb.from('work_orders').select('id').in('status',['open','in_progress']));
-  const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point'));
+  const{data:parts}=useQuery(()=>sb.from('parts').select('id,quantity_on_hand,reorder_point,track_inventory'));
   const badges={wo:(wos||[]).length,parts:(parts||[]).filter(p=>p.track_inventory!==false&&p.quantity_on_hand<=p.reorder_point).length};
   const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'FleetOps';
   const render=()=>{
