@@ -900,14 +900,6 @@ function UsersPage({setPage}){
     refetch();
   };
 
-
-  const sendResetForUser=async(email)=>{
-    if(!email){alert('User has no email address');return;}
-    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
-    if(error){alert(error.message||'Unable to send reset email');return;}
-    alert('Password reset email sent to '+email);
-  };
-
   const saveModal=async()=>{
     if(!form.full_name.trim()){setModalErr('Name is required');return;}
     if(!form.email.trim()){setModalErr('Email is required');return;}
@@ -924,6 +916,7 @@ function UsersPage({setPage}){
     if(modal?.mode==='edit' && modal.user?.id){
       res=await sb.from('app_users').update(payload).eq('id',modal.user.id);
     }else{
+      payload.id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('usr_'+Date.now()+'_'+Math.random().toString(36).slice(2,8));
       payload.created_at=new Date().toISOString();
       res=await sb.from('app_users').insert(payload);
     }
@@ -962,10 +955,7 @@ function UsersPage({setPage}){
                   )),
                   h('td',null,h(PBadge,{cls:u.active===false?'b-down':'b-active',label:u.active===false?'inactive':'active'})),
                   h('td',null,h('div',{style:{display:'flex',gap:8}},
-                    h(Fragment,null,
-                  h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
-                  h('button',{className:'btn btn-ghost',onClick:()=>sendResetForUser(u.email)},'Reset Password')
-                ),
+                    h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
                     h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable')
                   ))
                 ))
@@ -987,10 +977,7 @@ function UsersPage({setPage}){
                 activeTechs.map(t=>h('option',{key:t.id,value:t.id},t.name))
               ),
               h('div',{style:{display:'flex',gap:8}},
-                h(Fragment,null,
-                  h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
-                  h('button',{className:'btn btn-ghost',onClick:()=>sendResetForUser(u.email)},'Reset Password')
-                ),
+                h('button',{className:'btn btn-ghost',onClick:()=>openEdit(u)},'Edit'),
                 h('button',{className:'btn btn-ghost',disabled:savingId===u.id,onClick:()=>updateUser(u.id,{active:u.active===false})},u.active===false?'Enable':'Disable')
               )
             ))
