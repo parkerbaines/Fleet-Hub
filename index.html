@@ -878,7 +878,7 @@ function WOForm({id,setPage}){
         h('div',{className:'form-group'},h('label',{className:'form-label'},'Title / Job Description *'),h('input',{className:'form-input',placeholder:'e.g. 45k mile PM, brake job, oil change, pre-trip inspection...',value:f.title,onChange:e=>sf('title',e.target.value)})),
         h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
           h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type,onChange:e=>{sf('asset_type',e.target.value);sf('asset_id','');}},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-          h('div',null,h('label',{className:'form-label'},'Asset'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;sf('asset_id',aid);const a=assets?.find(x=>x.id===aid);if(a&&!isEdit&&a.odometer_miles)sf('mileage_in',String(a.odometer_miles));}},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name)))),
+          h('div',null,h('label',{className:'form-label'},'Asset'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;sf('asset_id',aid);const a=assets?.find(x=>x.id===aid);if(a&&!isEdit&&a.odometer_miles)sf('mileage_in',String(a.odometer_miles));}},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name)))),
           h('div',null,h('label',{className:'form-label'},'Assigned Technician'),h('select',{className:'form-select',value:f.technician_id,onChange:e=>sf('technician_id',e.target.value)},h('option',{value:''},'Unassigned'),(techs||[]).map(t=>h('option',{key:t.id,value:t.id},t.name))))
         ),
         selAsset&&h('div',{style:{background:'rgba(59,126,255,.07)',border:'0.5px solid rgba(59,126,255,.2)',borderRadius:10,padding:12,marginBottom:12,display:'flex',gap:20,flexWrap:'wrap',fontSize:12,color:'#e2e8f0'}},
@@ -1405,7 +1405,7 @@ function ServiceLogs(){
       // Asset type then asset
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type,onChange:e=>{s('asset_type',e.target.value);s('asset_id','');}},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;s('asset_id',aid);const a=(assets||[]).find(x=>x.id===aid);if(a&&!f.odometer_miles&&a.odometer_miles)s('odometer_miles',String(a.odometer_miles));}},h('option',{value:''},'Select...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},a.name))))
+        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>{const aid=e.target.value;s('asset_id',aid);const a=(assets||[]).find(x=>x.id===aid);if(a&&!f.odometer_miles&&a.odometer_miles)s('odometer_miles',String(a.odometer_miles));}},h('option',{value:''},'Select...'),(assets||[]).filter(a=>!f.asset_type||a.asset_type===f.asset_type).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name))))
       ),
       // Vendor
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
@@ -2025,7 +2025,7 @@ function Documents({setPage}){
       h('h3',null,'Add Document'),
       h('div',{className:'form-grid form-grid-3',style:{marginBottom:12}},
         h('div',null,h('label',{className:'form-label'},'Asset Type'),h('select',{className:'form-select',value:f.asset_type_filter,onChange:e=>s('asset_type_filter',e.target.value)},h('option',{value:''},'All Types'),['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1))))),
-        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type_filter||a.asset_type===f.asset_type_filter).map(a=>h('option',{key:a.id,value:a.id},a.name)))),
+        h('div',null,h('label',{className:'form-label'},'Asset *'),h('select',{className:'form-select',value:f.asset_id,onChange:e=>s('asset_id',e.target.value)},h('option',{value:''},'Select asset...'),(assets||[]).filter(a=>!f.asset_type_filter||a.asset_type===f.asset_type_filter).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name)))),
         h('div',null,h('label',{className:'form-label'},'Document Type'),h('select',{className:'form-select',value:f.doc_type,onChange:e=>e.target.value==='__new__'?setShowNewType(true):s('doc_type',e.target.value)},(docTypes||[{name:'registration'},{name:'smog'},{name:'insurance'},{name:'inspection'},{name:'title'},{name:'other'}]).map(t=>h('option',{key:t.id||t.name,value:t.name},t.name.charAt(0).toUpperCase()+t.name.slice(1))),h('option',{value:'__new__'},'+ Add new type...')),showNewType&&h('div',{style:{display:'flex',gap:6,marginTop:6}},h('input',{className:'form-input',placeholder:'New type name',value:newTypeName,onChange:e=>setNewTypeName(e.target.value),style:{flex:1}}),h('button',{className:'btn btn-p',style:{fontSize:12},onClick:async()=>{if(!newTypeName.trim())return;await sb.from('document_types').insert({name:newTypeName.trim().toLowerCase()});s('doc_type',newTypeName.trim().toLowerCase());setNewTypeName('');setShowNewType(false);}},'+')))
       ),
       h('div',{className:'form-grid form-grid-2',style:{marginBottom:12}},
@@ -2087,7 +2087,7 @@ function Documents({setPage}){
     ),
     h('div',{className:'filters'},
       h('select',{className:'form-select',style:{width:160},value:filterType,onChange:e=>setFilterType(e.target.value)},h('option',{value:''},'All Types'),(docTypes||[]).map(t=>h('option',{key:t.id||t.name,value:t.name},t.name.charAt(0).toUpperCase()+t.name.slice(1)))),
-      h('select',{className:'form-select',style:{width:200},value:filterAsset,onChange:e=>setFilterAsset(e.target.value)},h('option',{value:''},'All Assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},a.name)))
+      h('select',{className:'form-select',style:{width:200},value:filterAsset,onChange:e=>setFilterAsset(e.target.value)},h('option',{value:''},'All Assets'),(assets||[]).map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name)))
     ),
     h('div',{className:'card'},
       filtered.length===0?h('div',{style:{padding:32,textAlign:'center',color:'#6b7a9f'}},'No documents yet.'):
