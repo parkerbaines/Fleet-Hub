@@ -333,35 +333,44 @@ function useAuth(){
   const[authLoading,setAuthLoading]=useState(true);
 
   const loadAppUser=async(uid)=>{
-    const{data}=await sb.from('app_users').select('*').eq('id',uid).single();
-    setAppUser(data||null);
+    try{
+      const{data,error}=await sb.from('app_users').select('*').eq('id',uid).single();
+      if(error){console.warn('loadAppUser error:',error.message);setAppUser(null);}
+      else setAppUser(data||null);
+    }catch(e){console.warn('loadAppUser failed:',e);setAppUser(null);}
+    finally{setAuthLoading(false);}
   };
 
   useEffect(()=>{
+    // Get initial session
     sb.auth.getSession().then(({data:{session:s}})=>{
       setSession(s);
-      if(s?.user)loadAppUser(s.user.id);
+      if(s?.user) loadAppUser(s.user.id);
       else setAuthLoading(false);
-    });
-    const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{
+    }).catch(()=>setAuthLoading(false));
+
+    // Listen for auth changes
+    const{data:{subscription}}=sb.auth.onAuthStateChange((_event,s)=>{
       setSession(s);
-      if(s?.user)loadAppUser(s.user.id).then(()=>setAuthLoading(false));
+      if(s?.user) loadAppUser(s.user.id);
       else{setAppUser(null);setAuthLoading(false);}
     });
     return()=>subscription.unsubscribe();
   },[]);
 
-  useEffect(()=>{if(session&&appUser)setAuthLoading(false);},[session,appUser]);
-
   const signIn=async(email,password)=>{
     const{error}=await sb.auth.signInWithPassword({email,password});
     return error;
   };
-  const signOut=async()=>{await sb.auth.signOut();setSession(null);setAppUser(null);};
+  const signOut=async()=>{
+    await sb.auth.signOut();
+    setSession(null);setAppUser(null);setAuthLoading(false);
+  };
   const isAdmin=appUser?.role==='admin';
   const isTech=appUser?.role==='tech';
   return{session,appUser,authLoading,signIn,signOut,isAdmin,isTech};
 }
+
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen({signIn}){
@@ -2386,7 +2395,14 @@ function App(){
   const lbl=NAV.find(n=>page===n.id||page.startsWith(n.id.replace('workorders','wo').replace('fleet','asset').replace('servicelogs','service')))?.label||'Maintainly';
   // Auth gate — show login if no session
   if(authLoading)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},h('div',{style:{color:'#6b7a9f',fontSize:14}},'Loading…'));
-  if(!session||!appUser)return h(LoginScreen,{signIn});
+  if(!session)return h(LoginScreen,{signIn});
+  if(!appUser)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},
+    h('div',{style:{textAlign:'center'}},
+      h('div',{style:{fontSize:16,color:'#e2e8f0',marginBottom:8}},'Account not set up'),
+      h('div',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Your login works but your account has no role assigned. Contact your administrator.'),
+      h('button',{className:'btn btn-ghost',onClick:signOut},'Sign Out')
+    )
+  );
   if(appUser.active===false)return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:18,color:'#f87171',marginBottom:8}},'Account Disabled'),h('div',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Contact your administrator.'),h('button',{className:'btn btn-ghost',onClick:signOut},'Sign Out')));
 
   const render=()=>{
