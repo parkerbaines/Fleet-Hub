@@ -365,6 +365,7 @@ function useAuth(){
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen({signIn}){
+  const[mode,setMode]=useState('login'); // 'login' | 'forgot' | 'sent'
   const[email,setEmail]=useState('');
   const[password,setPassword]=useState('');
   const[loading,setLoading]=useState(false);
@@ -378,28 +379,59 @@ function LoginScreen({signIn}){
     if(error)setErr(error.message==='Invalid login credentials'?'Incorrect email or password':error.message);
   };
 
+  const sendReset=async()=>{
+    if(!email.trim()){setErr('Enter your email address first');return;}
+    setLoading(true);setErr('');
+    const{error}=await sb.auth.resetPasswordForEmail(email.trim(),{redirectTo:window.location.origin});
+    setLoading(false);
+    if(error){setErr(error.message);return;}
+    setMode('sent');
+  };
+
   return h('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1117'}},
     h('div',{style:{width:'100%',maxWidth:380,padding:'0 16px'}},
       h('div',{style:{textAlign:'center',marginBottom:32}},
         h('div',{style:{fontSize:28,fontWeight:600,color:'#e2e8f0',letterSpacing:'-.5px',marginBottom:4}},'Maintainly'),
         h('div',{style:{fontSize:13,color:'#6b7a9f'}},'Fleet Maintenance Management')
       ),
-      h('div',{style:{background:'#1e2333',border:'.5px solid #2a3048',borderRadius:16,padding:28}},
-        h('div',{style:{marginBottom:16}},
-          h('label',{style:{display:'block',fontSize:12,color:'#6b7a9f',marginBottom:6,fontWeight:500}},'Email'),
-          h('input',{type:'email',className:'form-input',placeholder:'you@company.com',value:email,onChange:e=>setEmail(e.target.value),onKeyDown:e=>e.key==='Enter'&&submit(),style:{width:'100%',boxSizing:'border-box'}})
-        ),
-        h('div',{style:{marginBottom:20}},
-          h('label',{style:{display:'block',fontSize:12,color:'#6b7a9f',marginBottom:6,fontWeight:500}},'Password'),
-          h('input',{type:'password',className:'form-input',placeholder:'••••••••',value:password,onChange:e=>setPassword(e.target.value),onKeyDown:e=>e.key==='Enter'&&submit(),style:{width:'100%',boxSizing:'border-box'}})
-        ),
-        err&&h('div',{style:{fontSize:12,color:'#f87171',marginBottom:12,padding:'8px 12px',background:'rgba(239,68,68,.1)',borderRadius:8}},err),
-        h('button',{className:'btn btn-primary',onClick:submit,disabled:loading,style:{width:'100%',justifyContent:'center',padding:'11px',fontSize:14}},loading?'Signing in…':'Sign In')
-      ),
-      h('div',{style:{textAlign:'center',marginTop:16,fontSize:12,color:'#6b7a9f'}},'Contact your administrator to reset your password')
+      mode==='sent'
+        ?h('div',{style:{background:'#1e2333',border:'.5px solid #2a3048',borderRadius:16,padding:28,textAlign:'center'}},
+            h('div',{style:{fontSize:32,marginBottom:12}},'📬'),
+            h('div',{style:{fontSize:15,fontWeight:500,color:'#e2e8f0',marginBottom:8}},'Check your inbox'),
+            h('div',{style:{fontSize:13,color:'#6b7a9f',marginBottom:20}},'We sent a password reset link to '+email+'. Check your spam folder if you don\'t see it.'),
+            h('button',{className:'btn btn-ghost',onClick:()=>{setMode('login');setErr('');},style:{width:'100%',justifyContent:'center'}},'← Back to Sign In')
+          )
+        :h('div',{style:{background:'#1e2333',border:'.5px solid #2a3048',borderRadius:16,padding:28}},
+            h('div',{style:{marginBottom:16}},
+              h('label',{style:{display:'block',fontSize:12,color:'#6b7a9f',marginBottom:6,fontWeight:500}},mode==='forgot'?'Enter your email to reset password':'Email'),
+              h('input',{type:'email',className:'form-input',placeholder:'you@company.com',value:email,
+                onChange:e=>setEmail(e.target.value),
+                onKeyDown:e=>e.key==='Enter'&&(mode==='login'?submit():sendReset()),
+                style:{width:'100%',boxSizing:'border-box'}})
+            ),
+            mode==='login'&&h('div',{style:{marginBottom:20}},
+              h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},
+                h('label',{style:{fontSize:12,color:'#6b7a9f',fontWeight:500}},'Password'),
+                h('button',{onClick:()=>{setMode('forgot');setErr('');},style:{background:'none',border:'none',cursor:'pointer',fontSize:11,color:'#6b7a9f',padding:0,textDecoration:'underline'}},'Forgot password?')
+              ),
+              h('input',{type:'password',className:'form-input',placeholder:'••••••••',value:password,
+                onChange:e=>setPassword(e.target.value),
+                onKeyDown:e=>e.key==='Enter'&&submit(),
+                style:{width:'100%',boxSizing:'border-box'}})
+            ),
+            err&&h('div',{style:{fontSize:12,color:'#f87171',marginBottom:12,padding:'8px 12px',background:'rgba(239,68,68,.1)',borderRadius:8}},err),
+            mode==='login'
+              ?h('button',{className:'btn btn-primary',onClick:submit,disabled:loading,style:{width:'100%',justifyContent:'center',padding:'11px',fontSize:14}},loading?'Signing in…':'Sign In')
+              :h('div',null,
+                  h('button',{className:'btn btn-primary',onClick:sendReset,disabled:loading,style:{width:'100%',justifyContent:'center',padding:'11px',fontSize:14,marginBottom:10}},loading?'Sending…':'Send Reset Link'),
+                  h('button',{onClick:()=>{setMode('login');setErr('');},style:{width:'100%',background:'none',border:'none',cursor:'pointer',fontSize:12,color:'#6b7a9f',padding:'8px',textAlign:'center'}},'← Back to Sign In')
+                )
+          ),
+      h('div',{style:{textAlign:'center',marginTop:16,fontSize:12,color:'#6b7a9f'}},'Contact your administrator to create or deactivate accounts')
     )
   );
 }
+
 
 // ── Users & Permissions Page (admin only) ────────────────────────────────────
 function UsersPage({setPage}){
