@@ -1084,6 +1084,23 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
 
   const TABS=[{id:'info',label:'ℹ Info'},{id:'time',label:'⏱ Time'},{id:'parts',label:'🔧 Parts'},{id:'lights',label:'💡 Lights'},{id:'body',label:'🚗 Body'},{id:'fluids',label:'🛢 Fluids'},{id:'brakes',label:'🛑 Brakes'},{id:'tires',label:'🔵 Tires'},{id:'electrical',label:'⚡ Electrical'},{id:'findings',label:'📋 Findings'}];
 
+  const printInspTone=(v)=>{
+    const s=String(v||'').trim().toLowerCase();
+    if(!s) return null;
+    const good=new Set(['good','full','clean','pass','works','normal','no leak','none','n/a','12.6v+ good']);
+    const warn=new Set(['fair','moderate','low','minor','wear indicators','12.4v fair']);
+    const bad=new Set(['bad','fail','check engine','fault code','replace','cracking','cupping','weak','<12.2v weak']);
+    if(good.has(s)) return {bg:'#dcfce7',bd:'#86efac',fg:'#166534'};
+    if(warn.has(s)) return {bg:'#fef3c7',bd:'#fcd34d',fg:'#92400e'};
+    if(bad.has(s)) return {bg:'#fee2e2',bd:'#fca5a5',fg:'#991b1b'};
+    return null;
+  };
+  const printInspBox=(k,v)=>{
+    const t=printInspTone(v);
+    const boxStyle=t?`background:${t.bg};border-color:${t.bd};`: 'background:#fff;border-color:#ccc;';
+    const valStyle=t?`color:${t.fg};`: 'color:#111827;';
+    return `<div class="ii" style="${boxStyle}"><div class="ip">${k.replace(/_/g,' ')}</div><div class="iv" style="${valStyle}">${v}</div></div>`;
+  };
   const handlePrint=()=>{
     const pa=document.getElementById('printArea');
     const asset=wo?.asset||{};const tech=wo?.technician||{};
@@ -1102,8 +1119,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     .fv{font-size:12px;font-weight:500;border-bottom:0.5px solid #ddd;padding-bottom:2px;min-height:16px}
     .ta{border:0.5px solid #ccc;border-radius:3px;padding:8px;min-height:48px;margin-bottom:10px;font-size:12px;width:100%}
     .ig{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px}
-    .ii{border:0.5px solid #ccc;border-radius:3px;padding:4px 6px}
-    .ip{font-size:9px;color:#666;margin-bottom:1px}.iv{font-size:11px;font-weight:600}
+    .ii{border:0.5px solid #ccc;border-radius:3px;padding:4px 6px;background:#fff;break-inside:avoid;page-break-inside:avoid}
+    .ip{font-size:9px;color:#666;margin-bottom:1px}.iv{font-size:11px;font-weight:600;color:#111827}
     table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
     th{background:#f0f0f0;padding:5px 8px;text-align:left;font-weight:600;border:0.5px solid #ccc}
     td{padding:4px 8px;border:0.5px solid #ddd}
@@ -1120,7 +1137,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     <div class="sec">Cost Summary</div><table class="costs"><tbody><tr><td>Labor (${totalHrs.toFixed(2)} hrs @ $$${techRate.toFixed(2)}/hr)</td><td style="text-align:right">${laborCost>0?'$'+laborCost.toFixed(2):'—'}</td></tr><tr><td>Parts Subtotal</td><td style="text-align:right">$${partsSubtotal.toFixed(2)}</td></tr><tr><td>Sales Tax (9%)</td><td style="text-align:right">$${partsTax.toFixed(2)}</td></tr><tr class="tr"><td>Grand Total</td><td style="text-align:right">$${grandTotal.toFixed(2)}</td></tr></tbody></table>
     <div class="g2"><div><div class="sec">Findings / Diagnosis</div><div class="ta">${f.findings||'—'}</div></div><div><div class="sec">Work Performed</div><div class="ta">${f.work_performed||'—'}</div></div></div>
     <div class="sec">Recommendations</div><div class="ta">${f.recommendations||'—'}</div>
-    ${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).length>0?`<div class="sec">Vehicle Inspection</div><div class="ig">${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).map(([k,v])=>`<div class="ii"><div class="ip">${k.replace(/_/g,' ')}</div><div class="iv">${v}</div></div>`).join('')}</div>`:''}
+    ${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).length>0?`<div class="sec">Vehicle Inspection</div><div class="ig">${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).map(([k,v])=>printInspBox(k,v)).join('')}</div>`:''}
     <div class="sec">Mileage Out</div><div class="g3"><div><span class="fl">Mileage Out</span><div class="fv">${f.mileage_out||'—'}</div></div></div>
     <div class="sigs"><div><div class="sl"></div><div class="slb">Technician Signature / Date</div></div><div><div class="sl"></div><div class="slb">Supervisor Approval / Date</div></div></div>`;
     const cleanupPrint=()=>{pa.innerHTML='';pa.style.display='none';window.removeEventListener('afterprint',cleanupPrint);};
