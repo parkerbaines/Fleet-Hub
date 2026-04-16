@@ -314,7 +314,16 @@ body.light [style*="rgba(245,158,11,.1)"],body.light [style*="rgba(245,158,11, .
 body.light [style*="rgba(245,158,11,.15)"],body.light [style*="rgba(245,158,11, .15)"]{background:rgba(146,64,14,.1)!important}
 body.light [style*="rgba(59,126,255,.1)"],body.light [style*="rgba(59,126,255, .1)"]{background:rgba(29,78,216,.08)!important}
 body.light [style*="rgba(59,126,255,.2)"],body.light [style*="rgba(59,126,255, .2)"]{background:rgba(29,78,216,.1)!important}
-body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}</style>
+body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}
+@media print{
+  html,body{background:#fff!important;height:auto!important;overflow:visible!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #root{display:none!important}
+  #printArea{display:block!important;position:static!important;inset:auto!important;width:auto!important;height:auto!important;overflow:visible!important;background:#fff!important;margin:0!important;padding:0!important}
+  body>*:not(#printArea){display:none!important}
+  #printArea,#printArea *{visibility:visible!important}
+}
+#printArea{display:none}
+</style>
 
 
 </head>
@@ -1062,14 +1071,6 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const grandTotal=parseFloat((laborCost+partsTotal).toFixed(2));
 
   // Inspection helpers
-  const iClass=(v)=>{
-    if(!v)return '';
-    const s=String(v).toLowerCase();
-    if(['good','full','pass','works','functional','clean','no leak','none','12.6v+ good'].includes(s)) return ' ok';
-    if(['fair','moderate','wear indicators','12.4v fair','minor','normal'].includes(s)) return ' warn';
-    if(['bad','low','fail','does not work','replace','dirty','very dirty','metal particles','needs flush','contaminated','corrosion','leaking','seeping','fault code','active','pending','history','severe','weak'].includes(s)) return ' bad';
-    return '';
-  };
   const IS=({field,label,opts})=>h('div',{className:'insp-item'},h('label',null,label),h('select',{className:'isel '+iClass(insp[field]),value:insp[field],onChange:e=>si(field,e.target.value)},h('option',{value:''},'—'),opts.map(o=>h('option',{key:o,value:o},o))));
   const IN=({field,label,placeholder})=>{const inRef=useRef(null);useEffect(()=>{if(inRef.current&&document.activeElement!==inRef.current)inRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'insp-item insp-full'},h('label',null,label),h('input',{ref:inRef,defaultValue:insp[field]||'',placeholder:placeholder||'Notes...',onBlur:e=>si(field,e.target.value),onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}));};
   // Color scale for brake pad depth (mm): >=6 green, 3-5 yellow, <=2 red
@@ -1086,6 +1087,10 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const handlePrint=()=>{
     const pa=document.getElementById('printArea');
     const asset=wo?.asset||{};const tech=wo?.technician||{};
+    pa.style.display='block';
+    pa.style.background='#fff';
+    pa.style.padding='0';
+    pa.style.margin='0';
     pa.innerHTML=`<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#000;font-size:11px}
     .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:14px}
     .hdr h1{font-size:18px;font-weight:700}.hdr .sub{font-size:12px;color:#333;margin-top:3px}
@@ -1118,7 +1123,10 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     ${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).length>0?`<div class="sec">Vehicle Inspection</div><div class="ig">${Object.entries(insp).filter(([k,v])=>v&&!k.endsWith('_notes')).map(([k,v])=>`<div class="ii"><div class="ip">${k.replace(/_/g,' ')}</div><div class="iv">${v}</div></div>`).join('')}</div>`:''}
     <div class="sec">Mileage Out</div><div class="g3"><div><span class="fl">Mileage Out</span><div class="fv">${f.mileage_out||'—'}</div></div></div>
     <div class="sigs"><div><div class="sl"></div><div class="slb">Technician Signature / Date</div></div><div><div class="sl"></div><div class="slb">Supervisor Approval / Date</div></div></div>`;
-    window.print();setTimeout(()=>{pa.innerHTML='';},3000);
+    const cleanupPrint=()=>{pa.innerHTML='';pa.style.display='none';window.removeEventListener('afterprint',cleanupPrint);};
+    window.addEventListener('afterprint',cleanupPrint);
+    window.print();
+    setTimeout(cleanupPrint,3000);
   };
 
   if(loadWO&&isEdit)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Loading...');
