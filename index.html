@@ -23,25 +23,25 @@
 /* ── Base reset ─────────────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0f1117;color:#e2e8f0}
-#root{height:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#root{min-height:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a3048;border-radius:2px}
 /* ── Layout ─────────────────────────────────────────────────────── */
-.shell{display:flex;height:100vh;overflow:hidden}
+.shell{display:flex;height:100dvh;min-height:100dvh;overflow:hidden}
 .sidebar{width:220px;flex-shrink:0;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column}
 .sidebar-logo{padding:14px 12px;border-bottom:1px solid #1f2937}
 .sidebar-logo h1{font-size:15px;font-weight:600;color:#e2e8f0;letter-spacing:-0.02em}
 .sidebar-logo p{font-size:11px;color:#6b7a9f;margin-top:2px}
-.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10pxflex:1;overflow-y:auto;}
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10px;}
 .nav-section{font-size:10px;color:#6b7a9f;text-transform:uppercase;letter-spacing:.08em;padding:10px 10px 4px;font-weight:600}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:13px;color:#6b7a9f;cursor:pointer;margin-bottom:1px;transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
 .nav-item:hover{color:#e2e8f0;background:#1e2333}
 .nav-item.active{background:rgba(59,126,255,.15);color:#3b7eff;font-weight:500}
 .nav-badge{margin-left:auto;background:rgba(239,68,68,.2);color:#f87171;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
-.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
 .mobile-bar{display:none;align-items:center;gap:12px;padding:12px 16px;border-bottom:0.5px solid #2a3048;background:#181c27}
 .mobile-bar span{font-size:14px;font-weight:500}
 .menu-btn{background:none;border:none;color:#6b7a9f;cursor:pointer;padding:4px;border-radius:6px;display:flex;flex-shrink:0}
-.page{flex:1;overflow-y:auto;padding:20px 24px}
+.page{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 24px;min-height:0}
 .overlay{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6)}
 .overlay.open{display:flex}
 .drawer{width:260px;background:#181c27;border-right:0.5px solid #2a3048;display:flex;flex-direction:column;position:relative;z-index:1}
@@ -314,7 +314,23 @@ body.light [style*="rgba(245,158,11,.1)"],body.light [style*="rgba(245,158,11, .
 body.light [style*="rgba(245,158,11,.15)"],body.light [style*="rgba(245,158,11, .15)"]{background:rgba(146,64,14,.1)!important}
 body.light [style*="rgba(59,126,255,.1)"],body.light [style*="rgba(59,126,255, .1)"]{background:rgba(29,78,216,.08)!important}
 body.light [style*="rgba(59,126,255,.2)"],body.light [style*="rgba(59,126,255, .2)"]{background:rgba(29,78,216,.1)!important}
-body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}</style>
+body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159, .1)"]{background:rgba(74,85,104,.08)!important}
+@media(max-width:900px){
+  .sidebar{display:none}
+  .mobile-bar{display:flex;position:sticky;top:0;z-index:30;padding-top:calc(12px + env(safe-area-inset-top))}
+  .main{min-width:0;width:100%}
+  .page{padding:14px 14px 18px}
+  .page-header,.phdr{margin-bottom:14px}
+  .drawer{width:min(86vw,320px);padding-top:env(safe-area-inset-top)}
+  .metric-grid,.quick-grid,.stats-grid{grid-template-columns:1fr!important}
+  .form-grid-2,.form-grid-3,.form-grid-4,.grid-2,.grid-3,.grid-4{grid-template-columns:1fr!important}
+  .wo-page,.wo-wrap{max-width:none}
+  .card{border-radius:10px}
+  .wo-section,.wo-sec{padding:14px}
+  .tabs{margin-bottom:12px}
+}
+
+</style>
 
 
 </head>
@@ -1062,14 +1078,6 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const grandTotal=parseFloat((laborCost+partsTotal).toFixed(2));
 
   // Inspection helpers
-  const iClass=(v= '')=>{
-    const s=String(v||'').toLowerCase().trim();
-    if(!s)return 'i-empty';
-    if(['good','pass','full','clean','works','normal','no leak','none'].includes(s))return 'i-good';
-    if(['fair','moderate','low','minor','wear indicators','n/a','no'].includes(s))return 'i-warn';
-    if(['bad','fail','check engine','fault code','replace','cracking','cupping','weak','yes'].includes(s))return 'i-bad';
-    return 'i-empty';
-  };
   const IS=({field,label,opts})=>h('div',{className:'insp-item'},h('label',null,label),h('select',{className:'isel '+iClass(insp[field]),value:insp[field],onChange:e=>si(field,e.target.value)},h('option',{value:''},'—'),opts.map(o=>h('option',{key:o,value:o},o))));
   const IN=({field,label,placeholder})=>{const inRef=useRef(null);useEffect(()=>{if(inRef.current&&document.activeElement!==inRef.current)inRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'insp-item insp-full'},h('label',null,label),h('input',{ref:inRef,defaultValue:insp[field]||'',placeholder:placeholder||'Notes...',onBlur:e=>si(field,e.target.value),onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}));};
   // Color scale for brake pad depth (mm): >=6 green, 3-5 yellow, <=2 red
@@ -1105,7 +1113,23 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     .tr td{font-weight:700;background:#f8f8f8}
     .costs{max-width:260px;margin:0 0 12px}
     .sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px;padding-top:12px;border-top:1px solid #ccc}
-    .sl{border-bottom:1px solid #999;height:32px;margin-bottom:3px}.slb{font-size:9px;color:#666;text-transform:uppercase}</style>
+    .sl{border-bottom:1px solid #999;height:32px;margin-bottom:3px}.slb{font-size:9px;color:#666;text-transform:uppercase}
+@media(max-width:900px){
+  .sidebar{display:none}
+  .mobile-bar{display:flex;position:sticky;top:0;z-index:30;padding-top:calc(12px + env(safe-area-inset-top))}
+  .main{min-width:0;width:100%}
+  .page{padding:14px 14px 18px}
+  .page-header,.phdr{margin-bottom:14px}
+  .drawer{width:min(86vw,320px);padding-top:env(safe-area-inset-top)}
+  .metric-grid,.quick-grid,.stats-grid{grid-template-columns:1fr!important}
+  .form-grid-2,.form-grid-3,.form-grid-4,.grid-2,.grid-3,.grid-4{grid-template-columns:1fr!important}
+  .wo-page,.wo-wrap{max-width:none}
+  .card{border-radius:10px}
+  .wo-section,.wo-sec{padding:14px}
+  .tabs{margin-bottom:12px}
+}
+
+</style>
     <div class="hdr"><div><h1>Work Order ${wo?.order_number||''}</h1><div class="sub">${f.title||'—'}</div></div><div class="meta">Status: <b>${statusLabel[f.status]||f.status}</b><br>Priority: <b>${f.priority}</b><br>Date: ${new Date().toLocaleDateString()}<br>Due: ${f.due_date?new Date(f.due_date).toLocaleDateString():'—'}</div></div>
     <div class="sec">Vehicle</div><div class="g3"><div><span class="fl">Asset</span><div class="fv">${asset.name||'—'}</div></div><div><span class="fl">Asset #</span><div class="fv">${asset.asset_number||'—'}</div></div><div><span class="fl">Year Make Model</span><div class="fv">${[asset.year,asset.make,asset.model].filter(Boolean).join(' ')||'—'}</div></div><div><span class="fl">VIN</span><div class="fv">${asset.vin||'—'}</div></div><div><span class="fl">License</span><div class="fv">${asset.license_plate||'—'}</div></div><div><span class="fl">Mileage In</span><div class="fv">${f.mileage_in||'—'}</div></div></div>
     <div class="sec">Work Order</div><div class="g3"><div><span class="fl">Technician</span><div class="fv">${tech.name||'Unassigned'}</div></div><div><span class="fl">Category</span><div class="fv">${f.category||'—'}</div></div><div><span class="fl">Est Hours</span><div class="fv">${f.estimated_hours||'—'}</div></div></div>
@@ -2511,7 +2535,7 @@ function App(){
   // Redirect tech to their dashboard once auth resolves
   useEffect(()=>{
     if(!authLoading&&isTech&&page==='dashboard')setPage_('tech-dashboard');
-  },[authLoading,isTech]);const[drawerOpen,setDrawerOpen]=useState(false);
+  },[authLoading,isTech]);const[drawerOpen,setDrawerOpen]=useState(()=>window.innerWidth<=900);
   const[isDark,setIsDark]=useState(true);
   const toggleTheme=()=>{
     const next=!isDark;
