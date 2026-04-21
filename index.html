@@ -903,7 +903,7 @@ function UsersPage({setPage}){
   const saveModal=async()=>{
     if(!form.full_name.trim()){setModalErr('Name is required');return;}
     if(!form.email.trim()){setModalErr('Email is required');return;}
-    if(modal?.mode==='new'&&(!form.password||form.password.length<6)){setSavingModal(false);setModalErr('Password must be at least 6 characters');return;}
+    if(modal?.mode==='new'&&(!form.password||form.password.length<6)){setModalErr('Password must be at least 6 characters');return;}
     setSavingModal(true); setModalErr('');
     const payload={
       full_name:form.full_name.trim(),
@@ -917,12 +917,16 @@ function UsersPage({setPage}){
     if(modal?.mode==='edit' && modal.user?.id){
       res=await sb.from('app_users').update(payload).eq('id',modal.user.id);
     }else{
-      if(!form.password||form.password.length<6){setSavingModal(false);setModalErr('Password must be at least 6 characters');return;}
-      const{data:signUpData,error:signUpErr}=await sb.auth.signUp({email:form.email.trim(),password:form.password,options:{data:{full_name:form.full_name.trim()}}});
-      if(signUpErr){setSavingModal(false);setModalErr(signUpErr.message);return;}
-      payload.id=signUpData?.user?.id;
-      payload.created_at=new Date().toISOString();
-      res=await sb.from('app_users').insert(payload);
+      // Use edge function to create auth user + app_users record atomically
+      const{data:{session}}=await sb.auth.getSession();
+      const fnRes=await fetch(`${SUPA_URL}/functions/v1/create-user`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token},
+        body:JSON.stringify({email:form.email.trim(),password:form.password,full_name:form.full_name.trim(),role:form.role||'tech',active:form.active!==false,technician_id:form.technician_id||null})
+      });
+      const fnJson=await fnRes.json();
+      if(!fnRes.ok||fnJson.error){setSavingModal(false);setModalErr(fnJson.error||'Failed to create user');return;}
+      setSavingModal(false);setModal(null);refetch();return;
     }
     setSavingModal(false);
     if(res.error){setModalErr(res.error.message||'Unable to save user');return;}
