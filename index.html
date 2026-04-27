@@ -1001,6 +1001,7 @@ function UsersPage({setPage}){
         h('div',null,h('label',null,'Full Name'),h('input',{className:'form-input',value:form.full_name,onChange:e=>sf('full_name',e.target.value),placeholder:'User name'})),
         h('div',null,h('label',null,'Email'),h('input',{className:'form-input',type:'email',value:form.email,onChange:e=>sf('email',e.target.value),placeholder:'name@company.com'})),
         modal?.mode==='new'&&h('div',null,h('label',null,'Password'),h('input',{className:'form-input',type:'password',value:form.password||'',onChange:e=>sf('password',e.target.value),placeholder:'Min 6 characters',autoComplete:'new-password'})),
+        modal?.mode==='new'&&h('div',null,h('label',null,'Password'),h('input',{className:'form-input',type:'password',value:form.password||'',onChange:e=>sf('password',e.target.value),placeholder:'Min 6 characters',autoComplete:'new-password'})),
         h('div',null,h('label',null,'Role'),h('select',{className:'form-select',value:form.role,onChange:e=>sf('role',e.target.value)},['admin','tech'].map(r=>h('option',{key:r,value:r},r)))),
         h('div',null,h('label',null,'Assigned Technician'),h('select',{className:'form-select',value:form.technician_id,onChange:e=>sf('technician_id',e.target.value)},
           h('option',{value:''},'— Unassigned —'),
@@ -1768,37 +1769,8 @@ function Technicians({setPage}){
   );
 }
 
-function ServiceLogs(){
-  const[assetTypeF,setAssetTypeF]=useState('');
-  const[search,setSearch]=useState('');
-  const[vendorF,setVendorF]=useState('');
-  const[sortBy,setSortBy]=useState('date_desc');
-  const[showModal,setShowModal]=useState(false);
-  const[detailLog,setDetailLog]=useState(null);
-  const{data:logs,loading,refetch}=useQuery(()=>{
-    let q=sb.from('service_logs').select('*,asset:assets(name,asset_number,asset_type)').order('serviced_at',{ascending:false});
-    if(assetTypeF)q=q.eq('asset_type',assetTypeF);
-    return q;
-  },[assetTypeF]);
-  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type').order('asset_number'));
-  const{data:vendors,refetch:refetchVendors}=useQuery(()=>sb.from('vendors').select('*').order('name'));
-  const[addVendorName,setAddVendorName]=useState('');
 
-  const filtered=((logs||[]).filter(l=>{
-    if(vendorF&&l.vendor_name!==vendorF)return false;
-    if(search){const q=search.toLowerCase();return l.service_type?.toLowerCase().includes(q)||l.asset?.name?.toLowerCase().includes(q)||l.vendor_name?.toLowerCase().includes(q);}
-    return true;
-  })).sort((a,b)=>{
-    if(sortBy==='date_desc')return new Date(b.serviced_at)-new Date(a.serviced_at);
-    if(sortBy==='date_asc')return new Date(a.serviced_at)-new Date(b.serviced_at);
-    if(sortBy==='cost_desc')return(parseFloat(b.cost)||0)-(parseFloat(a.cost)||0);
-    if(sortBy==='vendor')return(a.vendor_name||'').localeCompare(b.vendor_name||'');
-    return 0;
-  });
-
-  const allVendors=[...new Set((logs||[]).map(l=>l.vendor_name).filter(Boolean))].sort();
-
-  const LogModal=({onClose})=>{
+function LogModal({onClose,assets,vendors,onSaved}){
     const[f,setF]=useState({asset_type:'',asset_id:'',service_type:'',description:'',odometer_miles:'',engine_hours:'',cost:'',serviced_at:new Date().toISOString().slice(0,16),next_service_miles:'',next_service_date:'',vendor_id:'',vendor_name:'',invoice_name:'',invoice_data:''});
     const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);
     const s=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -1826,12 +1798,12 @@ function ServiceLogs(){
       let finalVendorName=f.vendor_name||null;
       if(!f.vendor_id&&newVendor.trim()){
         const{data:nv}=await sb.from('vendors').insert({name:newVendor.trim()}).select().single();
-        if(nv){finalVendorId=nv.id;finalVendorName=nv.name;refetchVendors();}
+        if(nv){finalVendorId=nv.id;finalVendorName=nv.name;}
       }
       const woAsset=assets?.find(a=>a.id===f.asset_id);
       const payload={asset_id:f.asset_id,asset_type:f.asset_type||woAsset?.asset_type||null,service_type:f.service_type,description:f.description||null,odometer_miles:f.odometer_miles?parseInt(f.odometer_miles):null,engine_hours:f.engine_hours?parseFloat(f.engine_hours):null,cost:f.cost?parseFloat(f.cost):null,serviced_at:f.serviced_at||new Date().toISOString(),next_service_miles:f.next_service_miles?parseInt(f.next_service_miles):null,next_service_date:f.next_service_date||null,vendor_id:finalVendorId,vendor_name:finalVendorName,invoice_name:f.invoice_name||null,invoice_data:f.invoice_data||null};
       const{error:e}=await sb.from('service_logs').insert(payload);
-      setSaving(false);if(e){setErr(e.message);return;}onClose();refetch();
+      setSaving(false);if(e){setErr(e.message);return;}onClose();if(onSaved)onSaved();
     };
 
     return h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
@@ -1879,6 +1851,37 @@ function ServiceLogs(){
       h('div',{className:'btn-row'},h('button',{className:'btn btn-p',onClick:save,disabled:saving},saving?'Saving...':'Log Service'),h('button',{className:'btn btn-g',onClick:onClose},'Cancel'))
     ));
   };
+function ServiceLogs(){
+  const[assetTypeF,setAssetTypeF]=useState('');
+  const[search,setSearch]=useState('');
+  const[vendorF,setVendorF]=useState('');
+  const[sortBy,setSortBy]=useState('date_desc');
+  const[showModal,setShowModal]=useState(false);
+  const[detailLog,setDetailLog]=useState(null);
+  const{data:logs,loading,refetch}=useQuery(()=>{
+    let q=sb.from('service_logs').select('*,asset:assets(name,asset_number,asset_type)').order('serviced_at',{ascending:false});
+    if(assetTypeF)q=q.eq('asset_type',assetTypeF);
+    return q;
+  },[assetTypeF]);
+  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type').order('asset_number'));
+  const{data:vendors,refetch:refetchVendors}=useQuery(()=>sb.from('vendors').select('*').order('name'));
+  const[addVendorName,setAddVendorName]=useState('');
+
+  const filtered=((logs||[]).filter(l=>{
+    if(vendorF&&l.vendor_name!==vendorF)return false;
+    if(search){const q=search.toLowerCase();return l.service_type?.toLowerCase().includes(q)||l.asset?.name?.toLowerCase().includes(q)||l.vendor_name?.toLowerCase().includes(q);}
+    return true;
+  })).sort((a,b)=>{
+    if(sortBy==='date_desc')return new Date(b.serviced_at)-new Date(a.serviced_at);
+    if(sortBy==='date_asc')return new Date(a.serviced_at)-new Date(b.serviced_at);
+    if(sortBy==='cost_desc')return(parseFloat(b.cost)||0)-(parseFloat(a.cost)||0);
+    if(sortBy==='vendor')return(a.vendor_name||'').localeCompare(b.vendor_name||'');
+    return 0;
+  });
+
+  const allVendors=[...new Set((logs||[]).map(l=>l.vendor_name).filter(Boolean))].sort();
+
+
 
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
@@ -1915,7 +1918,7 @@ function ServiceLogs(){
         )
       ))
     ),
-    showModal&&h(LogModal,{onClose:()=>setShowModal(false)}),
+    showModal&&h(LogModal,{onClose:()=>setShowModal(false),assets,vendors,onSaved:refetch}),
     detailLog&&h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
         h('h3',{style:{marginBottom:0}},detailLog.service_type),
@@ -1932,16 +1935,22 @@ function ServiceLogs(){
       detailLog.description&&h('div',{style:{marginBottom:12}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('div',{style:{fontSize:13,background:'#181c27',borderRadius:8,padding:12}},detailLog.description)),
       detailLog.invoice_name&&h('div',{style:{marginTop:12}},
         detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:application/pdf')
-          ? h('div',{style:{padding:'12px 14px',background:'rgba(59,130,246,.08)',border:'.5px solid rgba(59,130,246,.25)',borderRadius:10,display:'flex',alignItems:'center',gap:12,marginTop:8}},
-              h('span',{style:{fontSize:22}},'PDF'),
-              h('div',{style:{flex:1}},
-                h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:2}},detailLog.invoice_name),
-                h('div',{style:{fontSize:11,color:'#6b7a9f'}},'PDF document')
-              ),
-              h('button',{style:{padding:'7px 16px',borderRadius:8,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:12,cursor:'pointer',flexShrink:0},
-                onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'⬇ Download')
+          ? h('div',null,
+              h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600,textTransform:'uppercase',letterSpacing:'.04em'}},'Invoice Preview'),
+              h('iframe',{
+                src:detailLog.invoice_data,
+                style:{width:'100%',height:500,borderRadius:8,border:'.5px solid #2a3048',background:'#fff'},
+                title:'Invoice PDF'
+              }),
+              h('button',{style:{marginTop:8,fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'⬇ Download: '+detailLog.invoice_name)
             )
-          : h('button',{style:{fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{if(detailLog.invoice_data){const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}}},'📄 Download Invoice: '+detailLog.invoice_name)
+          : detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:image')
+            ? h('div',null,
+                h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600,textTransform:'uppercase',letterSpacing:'.04em'}},'Invoice Preview'),
+                h('img',{src:detailLog.invoice_data,style:{maxWidth:'100%',borderRadius:8,border:'.5px solid #2a3048'}}),
+                h('button',{style:{marginTop:8,fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'⬇ Download: '+detailLog.invoice_name)
+              )
+            : h('button',{style:{fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{if(detailLog.invoice_data){const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}}},'📄 Download Invoice: '+detailLog.invoice_name)
       )
     ))
   );
