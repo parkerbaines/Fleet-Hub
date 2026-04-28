@@ -1935,7 +1935,15 @@ function ServiceLogs(){
       detailLog.description&&h('div',{style:{marginBottom:12}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('div',{style:{fontSize:13,background:'#181c27',borderRadius:8,padding:12}},detailLog.description)),
       detailLog.invoice_name&&h('div',{style:{marginTop:12}},
         detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:application/pdf')
-          ? h('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'12px',background:'rgba(24,95,165,.08)',border:'.5px solid rgba(24,95,165,.3)',borderRadius:10}},h('span',{style:{fontSize:24}},'📄'),h('div',{style:{flex:1}},h('div',{style:{fontWeight:600,fontSize:13,color:'#e2e8f0'}},detailLog.invoice_name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},'PDF Invoice')),h('button',{style:{padding:'7px 16px',borderRadius:8,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:12,cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'Download'))
+          ? h('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'12px',background:'rgba(24,95,165,.08)',border:'.5px solid rgba(24,95,165,.3)',borderRadius:10,marginTop:8}},
+              h('span',{style:{fontSize:28,lineHeight:1}},'PDF'),
+              h('div',{style:{flex:1,minWidth:0}},
+                h('div',{style:{fontWeight:600,fontSize:13,color:'#e2e8f0',marginBottom:2}},detailLog.invoice_name),
+                h('div',{style:{fontSize:11,color:'#6b7a9f'}},'PDF Invoice')
+              ),
+              h('button',{style:{flexShrink:0,padding:'7px 16px',borderRadius:8,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:12,cursor:'pointer'},
+                onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'⬇ Download')
+            )
           : detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:image')
             ? h('div',null,
                 h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600,textTransform:'uppercase',letterSpacing:'.04em'}},'Invoice Preview'),
@@ -2552,7 +2560,11 @@ function Documents({setPage,isTech=false}){
       ),
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 20px',marginBottom:14}},[['Asset',(detailDoc.asset?.asset_number?detailDoc.asset.asset_number+' — ':'')+( detailDoc.asset?.name||'')],['Type',detailDoc.doc_type],['Issue Date',detailDoc.issue_date?new Date(detailDoc.issue_date+'T12:00:00').toLocaleDateString():'—'],['Expires',detailDoc.expiration_date?new Date(detailDoc.expiration_date+'T12:00:00').toLocaleDateString():'—'],['Days Remaining',daysUntil(detailDoc.expiration_date)!==null?urgLabel(daysUntil(detailDoc.expiration_date)):'No expiry'],['Renewals',(detailDoc.renewal_count||0)+'']].map(([k,v])=>h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:1}},k),h('div',{style:{fontSize:13,fontWeight:500}},v||'—')))),
       detailDoc.notes&&h('div',{style:{marginBottom:12}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('div',{style:{fontSize:13,background:'#181c27',borderRadius:8,padding:10}},detailDoc.notes)),
-      detailDoc.file_name&&h('div',null,detailDoc.file_data?.startsWith('data:application/pdf')?h('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'12px',background:'rgba(24,95,165,.08)',border:'.5px solid rgba(24,95,165,.3)',borderRadius:10}},h('span',{style:{fontSize:24}},'📄'),h('div',{style:{flex:1}},h('div',{style:{fontWeight:600,fontSize:13,color:'#e2e8f0'}},detailDoc.file_name),h('div',{style:{fontSize:11,color:'#6b7a9f'}},'PDF')),h('button',{style:{padding:'7px 16px',borderRadius:8,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:12,cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailDoc.file_data;a.download=detailDoc.file_name;a.click();}},'Download')):detailDoc.file_data?.startsWith('data:image')?h('img',{src:detailDoc.file_data,style:{maxWidth:'100%',borderRadius:8,marginBottom:8}}):null,h('button',{style:{marginTop:6,fontSize:11,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:6,padding:'4px 12px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailDoc.file_data;a.download=detailDoc.file_name;a.click();}},'⬇ Download: '+detailDoc.file_name))
+      detailDoc.file_name&&h('div',null,detailDoc.file_data?.startsWith('data:application/pdf')?h('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'12px',background:'rgba(24,95,165,.08)',border:'.5px solid rgba(24,95,165,.3)',borderRadius:10}},
+          h('span',{style:{fontSize:24}},'PDF'),
+          h('div',{style:{flex:1}},h('div',{style:{fontWeight:600,fontSize:13,color:'#e2e8f0'}},detailDoc.file_name)),
+          h('button',{style:{padding:'7px 16px',borderRadius:8,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:12,cursor:'pointer'},
+            onClick:()=>{const a=document.createElement('a');a.href=detailDoc.file_data;a.download=detailDoc.file_name;a.click();}},'⬇ Download')):detailDoc.file_data?.startsWith('data:image')?h('img',{src:detailDoc.file_data,style:{maxWidth:'100%',borderRadius:8,marginBottom:8}}):null,h('button',{style:{marginTop:6,fontSize:11,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:6,padding:'4px 12px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailDoc.file_data;a.download=detailDoc.file_name;a.click();}},'⬇ Download: '+detailDoc.file_name))
     ))
   );
 }
