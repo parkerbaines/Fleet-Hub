@@ -1935,14 +1935,14 @@ function ServiceLogs(){
       detailLog.description&&h('div',{style:{marginBottom:12}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('div',{style:{fontSize:13,background:'#181c27',borderRadius:8,padding:12}},detailLog.description)),
       detailLog.invoice_name&&h('div',{style:{marginTop:12}},
         detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:application/pdf')
-          ? h('div',null,
-              h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:6,fontWeight:600,textTransform:'uppercase',letterSpacing:'.04em'}},'Invoice Preview'),
-              h('iframe',{
-                src:detailLog.invoice_data,
-                style:{width:'100%',height:500,borderRadius:8,border:'.5px solid #2a3048',background:'#fff'},
-                title:'Invoice PDF'
-              }),
-              h('button',{style:{marginTop:8,fontSize:12,color:'#60a5fa',background:'rgba(59,126,255,.1)',border:'.5px solid rgba(59,126,255,.3)',borderRadius:8,padding:'6px 14px',cursor:'pointer'},onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'⬇ Download: '+detailLog.invoice_name)
+          ? h('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'rgba(59,130,246,.08)',border:'.5px solid rgba(59,130,246,.3)',borderRadius:10,marginTop:4}},
+              h('div',{style:{fontSize:28,lineHeight:1}},'📄'),
+              h('div',{style:{flex:1,minWidth:0}},
+                h('div',{style:{fontWeight:600,fontSize:13,color:'#e2e8f0',marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},detailLog.invoice_name),
+                h('div',{style:{fontSize:11,color:'#6b7a9f'}},'PDF Invoice')
+              ),
+              h('button',{style:{flexShrink:0,padding:'7px 16px',borderRadius:8,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:12,cursor:'pointer',fontWeight:500},
+                onClick:()=>{const a=document.createElement('a');a.href=detailLog.invoice_data;a.download=detailLog.invoice_name;a.click();}},'\u2b07 Download')
             )
           : detailLog.invoice_data&&detailLog.invoice_data.startsWith('data:image')
             ? h('div',null,
