@@ -1021,6 +1021,111 @@ function UsersPage({setPage}){
 }
 
 // ── The full Work Order Form — tabs: Info, Time, Parts, Lights, Body, Fluids, Brakes, Tires, Electrical, Findings
+
+// ── Section Media Component — top-level stable ────────────────────────────────
+function SectionMedia({workOrderId, section, isEdit}){
+  const[media,setMedia]=useState([]);
+  const[uploading,setUploading]=useState(false);
+  const[lightbox,setLightbox]=useState(null); // {file_data, file_name}
+  const fileInputRef=useRef(null);
+
+  useEffect(()=>{
+    if(!isEdit||!workOrderId)return;
+    sb.from('wo_section_media').select('*')
+      .eq('work_order_id',workOrderId)
+      .eq('section',section)
+      .order('created_at')
+      .then(({data})=>setMedia(data||[]));
+  },[workOrderId,section,isEdit]);
+
+  const handleFile=async(e)=>{
+    const files=Array.from(e.target.files);
+    if(!files.length)return;
+    setUploading(true);
+    for(const file of files){
+      const reader=new FileReader();
+      await new Promise(res=>{
+        reader.onload=async ev=>{
+          const file_data=ev.target.result;
+          const media_type=file.type.startsWith('image/')?'photo':'document';
+          const{data:p}=await sb.from('wo_section_media').insert({
+            work_order_id:workOrderId,section,media_type,
+            file_name:file.name,file_data
+          }).select().single();
+          if(p)setMedia(x=>[...x,p]);
+          res();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    setUploading(false);
+    e.target.value='';
+  };
+
+  const delMedia=async(id)=>{
+    await sb.from('wo_section_media').delete().eq('id',id);
+    setMedia(x=>x.filter(m=>m.id!==id));
+  };
+
+  const photos=media.filter(m=>m.media_type==='photo');
+  const docs=media.filter(m=>m.media_type==='document');
+
+  if(!isEdit)return null;
+
+  return h('div',{style:{marginTop:16,borderTop:'.5px solid #2a3048',paddingTop:14}},
+    // Header row
+    h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
+      h('div',{style:{fontSize:12,fontWeight:500,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.05em'}},
+        '\uD83D\uDCCE Photos & Documents'+(media.length?' ('+media.length+')':'')),
+      h('div',{style:{display:'flex',gap:6}},
+        // Camera button - triggers camera on mobile
+        h('label',{style:{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:7,border:'.5px solid #2a3048',background:'rgba(255,255,255,.04)',color:'#94a3b8',fontSize:11,cursor:'pointer',whiteSpace:'nowrap'}},
+          '\uD83D\uDCF7 Camera',
+          h('input',{ref:fileInputRef,type:'file',accept:'image/*',capture:'environment',multiple:false,style:{display:'none'},onChange:handleFile})
+        ),
+        // Gallery / file button
+        h('label',{style:{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:7,border:'.5px solid #2a3048',background:'rgba(255,255,255,.04)',color:'#94a3b8',fontSize:11,cursor:'pointer',whiteSpace:'nowrap'}},
+          uploading?'Uploading...':'\uD83D\uDCC2 Add File',
+          h('input',{type:'file',accept:'image/*,.pdf,.doc,.docx',multiple:true,style:{display:'none'},onChange:handleFile})
+        )
+      )
+    ),
+
+    // Photo grid
+    photos.length>0&&h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(90px,1fr))',gap:6,marginBottom:docs.length>0?10:0}},
+      photos.map(m=>h('div',{key:m.id,style:{position:'relative',aspectRatio:'1',borderRadius:7,overflow:'hidden',cursor:'pointer',background:'#181c27',border:'.5px solid #2a3048'},onClick:()=>setLightbox(m)},
+        h('img',{src:m.file_data,alt:m.file_name,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'}}),
+        !isEdit||h('button',{onClick:e=>{e.stopPropagation();delMedia(m.id);},
+          style:{position:'absolute',top:3,right:3,width:20,height:20,borderRadius:'50%',background:'rgba(0,0,0,.7)',border:'none',color:'#f87171',fontSize:12,lineHeight:1,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}},
+          '\u00d7')
+      ))
+    ),
+
+    // Document list
+    docs.length>0&&h('div',{style:{display:'flex',flexDirection:'column',gap:4}},
+      docs.map(m=>h('div',{key:m.id,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'rgba(24,95,165,.08)',border:'.5px solid rgba(24,95,165,.2)',borderRadius:7}},
+        h('span',{style:{fontSize:16}},'\uD83D\uDCC4'),
+        h('span',{style:{flex:1,fontSize:12,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},m.file_name),
+        h('a',{href:m.file_data,download:m.file_name,style:{fontSize:11,color:'#93c5fd',textDecoration:'none',flexShrink:0}},'\u2b07 Download'),
+        h('button',{onClick:()=>delMedia(m.id),style:{border:'none',background:'transparent',color:'#f87171',cursor:'pointer',fontSize:14,flexShrink:0}},'\u00d7')
+      ))
+    ),
+
+    media.length===0&&h('div',{style:{fontSize:12,color:'#475569',fontStyle:'italic',paddingBottom:4}},
+      'No photos or documents yet'),
+
+    // Lightbox
+    lightbox&&h('div',{style:{position:'fixed',inset:0,zIndex:999,background:'rgba(0,0,0,.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'},onClick:()=>setLightbox(null)},
+      h('div',{style:{position:'absolute',top:16,right:16,display:'flex',gap:10},onClick:e=>e.stopPropagation()},
+        h('a',{href:lightbox.file_data,download:lightbox.file_name,style:{padding:'6px 14px',borderRadius:8,background:'#185FA5',color:'#E6F1FB',fontSize:12,textDecoration:'none'}},'\u2b07 Download'),
+        h('button',{onClick:()=>setLightbox(null),style:{padding:'6px 14px',borderRadius:8,border:'.5px solid #334155',background:'rgba(255,255,255,.1)',color:'#e2e8f0',fontSize:12,cursor:'pointer'}},'\u2715 Close')
+      ),
+      h('img',{src:lightbox.file_data,alt:lightbox.file_name,style:{maxWidth:'92vw',maxHeight:'80vh',objectFit:'contain',borderRadius:8},onClick:e=>e.stopPropagation()})
+    )
+  );
+}
+
+
 function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const isEdit=Boolean(id);
   const{data:wo,loading:loadWO,refetch:refetchWO}=useQuery(()=>id?sb.from('work_orders').select('*,asset:assets(id,name,asset_number,asset_type,year,make,model,vin,license_plate,odometer_miles,engine_hours),technician:technicians(id,name)').eq('id',id).single():{data:null},[id]);
@@ -1399,7 +1504,9 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
             h('div',{className:'form-grid form-grid-3',style:{marginBottom:10}},h('div',null,h('label',{className:'form-label'},'Qty Used'),h('input',{type:'number',step:0.01,min:0.01,className:'form-input',value:pf.qty,onChange:e=>setPf(x=>({...x,qty:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Unit Cost ($)'),h('input',{type:'number',step:0.01,className:'form-input',placeholder:'0.00',value:pf.unit_cost,onChange:e=>setPf(x=>({...x,unit_cost:e.target.value}))})),h('div',null,h('label',{className:'form-label'},'Reorder Pt'),h('input',{type:'number',className:'form-input',placeholder:'5',value:pf.reorder_point||'',onChange:e=>setPf(x=>({...x,reorder_point:e.target.value}))}))),
             h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,padding:'8px 12px',background:'rgba(59,126,255,.07)',borderRadius:8}},h('input',{type:'checkbox',id:'pf_track',checked:pf.track_inventory!==false,onChange:e=>setPf(x=>({...x,track_inventory:e.target.checked})),style:{width:16,height:16,cursor:'pointer'}}),h('label',{htmlFor:'pf_track',style:{fontSize:13,cursor:'pointer',userSelect:'none'}},'Track inventory & reorder alerts')),
             h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:addPart,disabled:addingPart},addingPart?'Adding...':'Add Part'),h('button',{className:'btn btn-ghost',onClick:()=>{setShowPf(false);setPf({part_id:'',part_name:'',part_number:'',qty:'1',unit_cost:''});}}, 'Cancel'))
-          )
+          ),
+          h(SectionMedia,{workOrderId:id,section:'parts',isEdit})
+
         )
       )
     ),
@@ -1421,6 +1528,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           h(IS,{field:'work_lights',label:'Work / Flood Lights',opts:[...GWB,...NA]}),
           h(IS,{field:'strobes',label:'Strobe / Safety Lights',opts:[...GWB,...NA]}),
           h(IN,{field:'lights_notes',label:'Lighting Notes'})
+,
+          h(SectionMedia,{workOrderId:id,section:'lights',isEdit})
         )
       )
     ),
@@ -1446,6 +1555,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           h(IS,{field:'running_boards',label:'Running Boards / Steps',opts:[...GWB,...NA]}),
           h(IS,{field:'fifth_wheel',label:'5th Wheel / Hitch / Coupler',opts:[...GWB,...NA]}),
           h(IN,{field:'body_notes',label:'Body Notes'})
+,
+          h(SectionMedia,{workOrderId:id,section:'body',isEdit})
         )
       )
     ),
@@ -1468,6 +1579,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           h(IS,{field:'oil_condition',label:'Oil Condition',opts:['Clean','Dirty','Very Dirty','Metal Particles']}),
           h(IS,{field:'coolant_condition',label:'Coolant Condition',opts:['Good','Needs Flush','Contaminated']}),
           h(IN,{field:'fluids_notes',label:'Fluids Notes'})
+,
+          h(SectionMedia,{workOrderId:id,section:'fluids',isEdit})
         )
       )
     ),
@@ -1493,6 +1606,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           h(IS,{field:'calipers',label:'Calipers / Wheel Cylinders',opts:[...GWB,...NA]}),
           h(IS,{field:'abs',label:'ABS System',opts:['Functional','Fault Code','Not Equipped']}),
           h(IN,{field:'brakes_notes',label:'Brake Notes'})
+,
+          h(SectionMedia,{workOrderId:id,section:'brakes',isEdit})
         )
       )
     ),
@@ -1524,6 +1639,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           h(IS,{field:'alignment',label:'Wear Pattern / Alignment',opts:['Normal','Outer Wear','Inner Wear','Center Wear','Feathering']}),
           h(IN,{field:'lug_torque_spec',label:'Lug Nut Torque Spec',placeholder:'e.g. 150 ft-lbs'}),
           h(IN,{field:'tires_notes',label:'Tire Notes'})
+,
+          h(SectionMedia,{workOrderId:id,section:'tires',isEdit})
         )
       )
     ),
@@ -1550,6 +1667,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           h(IS,{field:'ac_heat',label:'A/C & Heat',opts:[...GWB,...NA]}),
           h(IS,{field:'horn',label:'Horn',opts:['Works','Does Not Work']}),
           h(IN,{field:'elec_notes',label:'Electrical Notes'})
+,
+          h(SectionMedia,{workOrderId:id,section:'electrical',isEdit})
         )
       )
     ),
