@@ -323,11 +323,66 @@ body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159,
   #printArea{display:block!important;position:static!important;inset:auto!important;width:auto!important;height:auto!important;overflow:visible!important;background:#fff!important;color:#000!important;padding:0!important;margin:0!important}
   #printArea *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   @page{size:auto;margin:.5in}
-}</style>
+}
+/* ── iPhone / mobile PWA layout ─────────────────────────────────────────── */
+@media(max-width:639px){
+  /* Hide desktop sidebar, show mobile top bar */
+  .sidebar{display:none!important}
+  .mobile-bar{display:flex!important}
+  /* Shell fills screen vertically */
+  .shell{height:100dvh;height:100vh}
+  /* Main fills remaining space */
+  .main{min-height:0;overflow:hidden}
+  /* Pages scroll */
+  .page,.page-content{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  /* Page header stacks on small screens */
+  .page-header{flex-wrap:wrap;gap:8px;padding:12px 14px}
+  .page-header h2{font-size:17px}
+  .btn-row{flex-wrap:wrap;gap:6px;width:100%}
+  .btn-row .search-wrap{flex:1 1 100%}
+  /* Stats/KPI grids go 2-col */
+  .kpi-row,.stat-row{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  /* Card grids go single col */
+  .card-grid{grid-template-columns:1fr!important}
+  /* Tables: allow horizontal scroll */
+  table{min-width:600px}
+  .table-wrap,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
+  /* Modals: slide up from bottom */
+  .modal,.modal-wide{
+    max-width:100vw!important;width:100%!important;
+    border-radius:16px 16px 0 0!important;
+    max-height:90dvh!important;max-height:90vh!important;
+  }
+  /* Form inputs: prevent iOS zoom (must be 16px+) */
+  input,select,textarea,.form-input,.form-select,.form-textarea{
+    font-size:16px!important
+  }
+  /* WO inspection tabs: scroll horizontally */
+  .wo-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:4px}
+  .wo-tab{white-space:nowrap;flex-shrink:0;font-size:12px;padding:6px 10px}
+  /* Drawer full height */
+  .drawer{width:85vw;max-width:300px}
+  /* Hide theme toggle on mobile to save space */
+  button[title*="mode"]{bottom:auto;top:10px;right:10px;padding:6px 10px;font-size:11px}
+  /* Insp grids 2-col on mobile */
+  .insp-grid{grid-template-columns:1fr 1fr!important;gap:6px}
+  /* Safe area padding for iPhone notch/home indicator */
+  .mobile-bar{padding-top:max(12px,env(safe-area-inset-top));
+    padding-left:max(16px,env(safe-area-inset-left));
+    padding-right:max(16px,env(safe-area-inset-right))}
+  .main{padding-bottom:env(safe-area-inset-bottom)}
+}
+/* ── Small tablet (iPad mini portrait etc) ──────────────────────────────── */
+@media(min-width:640px) and (max-width:900px){
+  .sidebar{width:60px;overflow:hidden}
+  .sidebar-logo h1,.sidebar-logo p{display:none}
+  .nav-item span:not(.nav-badge){display:none}
+  .nav-item{justify-content:center;padding:12px}
+}
+</style>
 
 
-</head>
-<body>
+</head><body>
 <div id="root"></div>
 <div id="printArea"></div>
 <script>
@@ -490,7 +545,7 @@ const statusLabel={open:'Open',in_progress:'In Progress',on_hold:'On Hold',compl
 const statusCls={open:'b-open',in_progress:'b-in_progress',on_hold:'b-on_hold',completed:'b-completed',cancelled:'b-cancelled'};
 const assetStatusCls={active:'b-active',in_shop:'b-in_shop',down:'b-down',retired:'b-retired'};
 const dotCls={active:'dot-green',in_shop:'dot-amber',down:'dot-red',retired:'dot-gray'};
-const fmtDate=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+const fmtDate=d=>{if(!d)return'—';const s=String(d);const dt=s.length===10?new Date(s+'T12:00:00'):new Date(s);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});};
 const timeAgo=d=>{if(!d)return'never';const s=Math.floor((Date.now()-new Date(d))/1000);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';};
 const fmtCur=v=>(v!=null&&v!==''&&parseFloat(v)!==0)?'$'+parseFloat(v).toFixed(2):'—';
 const initials=n=>{const p=n.trim().split(' ');return(p.length>=2?p[0][0]+p[p.length-1][0]:p[0].slice(0,2)).toUpperCase();};
@@ -825,7 +880,7 @@ function WorkOrders({setPage,isTech=false,myTechId=null}){
                   h('td',{style:{color:'#94a3b8',fontSize:12}},wo.technician?.name||'Unassigned'),
                   h('td',null,h(PBadge,{cls:priorityCls[wo.priority],label:wo.priority})),
                   h('td',{onClick:e=>e.stopPropagation()},h('select',{className:'form-select',style:{width:130,fontSize:12,padding:'4px 8px'},value:wo.status,onChange:e=>chStatus(e,wo)},['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},s.replace('_',' '))))),
-                  h('td',{style:{color:'#6b7a9f',fontSize:12}},wo.due_date?new Date(wo.due_date).toLocaleDateString():'—'),
+                  h('td',{style:{color:'#6b7a9f',fontSize:12}},wo.due_date?new Date(wo.due_date+'T12:00:00').toLocaleDateString():'—'),
                   h('td',null,h('div',{style:{display:'flex',gap:4,alignItems:'center'}},
                     isTech&&myTechId&&!wo.technician_id&&h('button',{style:{fontSize:11,padding:'3px 10px',background:'rgba(34,197,94,.15)',border:'.5px solid rgba(34,197,94,.3)',color:'#4ade80',borderRadius:6,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'},onClick:async e=>{e.stopPropagation();await sb.from('work_orders').update({technician_id:myTechId,updated_at:new Date().toISOString()}).eq('id',wo.id);refetch();}},'✓ Accept'),
                     h('button',{className:'btn-icon',onClick:e=>{e.stopPropagation();setPage('wo-'+wo.id);}},h(IEdit))
@@ -1371,7 +1426,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     .costs{max-width:260px;margin:0 0 12px}
     .sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px;padding-top:12px;border-top:1px solid #ccc}
     .sl{border-bottom:1px solid #999;height:32px;margin-bottom:3px}.slb{font-size:9px;color:#666;text-transform:uppercase}</style>
-    <div class="hdr"><div><h1>Work Order ${esc(wo?.order_number||'')}</h1><div class="sub">${esc(f.title||'—')}</div></div><div class="meta">Status: <b>${esc(statusLabel[f.status]||f.status||'')}</b><br>Priority: <b>${esc(f.priority||'')}</b><br>Date: ${new Date().toLocaleDateString()}<br>Due: ${f.due_date?new Date(f.due_date).toLocaleDateString():'—'}</div></div>
+    <div class="hdr"><div><h1>Work Order ${esc(wo?.order_number||'')}</h1><div class="sub">${esc(f.title||'—')}</div></div><div class="meta">Status: <b>${esc(statusLabel[f.status]||f.status||'')}</b><br>Priority: <b>${esc(f.priority||'')}</b><br>Date: ${new Date().toLocaleDateString()}<br>Due: ${f.due_date?new Date(f.due_date+'T12:00:00').toLocaleDateString():'—'}</div></div>
     <div class="sec">Vehicle</div><div class="g3"><div><span class="fl">Asset</span><div class="fv">${esc(asset.name||'—')}</div></div><div><span class="fl">Asset #</span><div class="fv">${esc(asset.asset_number||'—')}</div></div><div><span class="fl">Year Make Model</span><div class="fv">${esc([asset.year,asset.make,asset.model].filter(Boolean).join(' ')||'—')}</div></div><div><span class="fl">VIN</span><div class="fv">${esc(asset.vin||'—')}</div></div><div><span class="fl">License</span><div class="fv">${esc(asset.license_plate||'—')}</div></div><div><span class="fl">Mileage In</span><div class="fv">${esc(f.mileage_in||'—')}</div></div></div>
     <div class="sec">Work Order</div><div class="g3"><div><span class="fl">Technician</span><div class="fv">${esc(tech.name||'Unassigned')}</div></div><div><span class="fl">Category</span><div class="fv">${esc(f.category||'—')}</div></div><div><span class="fl">Est Hours</span><div class="fv">${esc(f.estimated_hours||'—')}</div></div></div>
     <div class="sec">Complaint / Requested Work</div><div class="ta">${esc(f.complaint||'—')}</div>
