@@ -1611,12 +1611,12 @@ function Parts({isTech=false}){
   );
 }
 
-function Technicians({setPage}){
+function Technicians({setPage,isTech=false}){
   const{data:techs,loading,refetch}=useQuery(()=>sb.from('technicians').select('*').order('name'));
   const[modal,setModal]=useState(null); // null | {} | tech obj (for edit)
   const[detail,setDetail]=useState(null); // tech obj for detail view
 
-  const del=async(id)=>{if(isTech||!confirm('Delete technician?'))return;await sb.from('technicians').delete().eq('id',id);refetch();};
+  const del=async(id)=>{if(isTech)return;if(!confirm('Delete this technician? This cannot be undone.'))return;const{error}=await sb.from('technicians').delete().eq('id',id);if(error){alert('Error: '+error.message);return;}refetch();};
 
   const TechModal=({tech,onClose})=>{
     const isEdit=Boolean(tech?.id);
