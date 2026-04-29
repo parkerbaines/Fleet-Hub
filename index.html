@@ -22,7 +22,7 @@
 
 /* ── Base reset ─────────────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0f1117;color:#e2e8f0}
+html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0f1117;color:#e2e8f0;overflow-x:hidden;max-width:100vw}
 #root{height:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a3048;border-radius:2px}
 /* ── Layout ─────────────────────────────────────────────────────── */
@@ -324,60 +324,72 @@ body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159,
   #printArea *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   @page{size:auto;margin:.5in}
 }
+
 /* ── iPhone / mobile PWA layout ─────────────────────────────────────────── */
+
+/* Hide theme float button on mobile, shown in mobile-bar instead */
 @media(max-width:639px){
-  /* Hide desktop sidebar, show mobile top bar */
+  .theme-toggle-btn{display:none!important}
+}
+
+@media(max-width:639px){
+  /* Kill ALL horizontal overflow */
+  html,body,#root,.shell,.main,.page,.page-content{
+    overflow-x:hidden!important;max-width:100vw!important;width:100%!important
+  }
+  /* Hide desktop sidebar */
   .sidebar{display:none!important}
-  .mobile-bar{display:flex!important}
-  /* Shell fills screen vertically */
-  .shell{height:100dvh;height:100vh}
-  /* Main fills remaining space */
-  .main{min-height:0;overflow:hidden}
-  /* Pages scroll */
-  .page,.page-content{overflow-y:auto;-webkit-overflow-scrolling:touch}
-  /* Page header stacks on small screens */
+  /* Show mobile top bar */
+  .mobile-bar{display:flex!important;position:sticky;top:0;z-index:40}
+  /* Shell layout */
+  .shell{height:100dvh;height:100vh;flex-direction:column}
+  /* Main area fills available space, no sideways scroll */
+  .main{flex:1;overflow-x:hidden!important;overflow-y:hidden;min-width:0;min-height:0}
+  /* Page and content areas */
+  .page,.content,.page-content{overflow-x:hidden!important;overflow-y:auto;-webkit-overflow-scrolling:touch;height:100%;padding-bottom:env(safe-area-inset-bottom)}
+  /* Page header wraps */
   .page-header{flex-wrap:wrap;gap:8px;padding:12px 14px}
   .page-header h2{font-size:17px}
-  .btn-row{flex-wrap:wrap;gap:6px;width:100%}
-  .btn-row .search-wrap{flex:1 1 100%}
-  /* Stats/KPI grids go 2-col */
-  .kpi-row,.stat-row{grid-template-columns:1fr 1fr!important;gap:8px!important}
-  /* Card grids go single col */
-  .card-grid{grid-template-columns:1fr!important}
-  /* Tables: allow horizontal scroll */
-  table{min-width:600px}
-  .table-wrap,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
-  /* Modals: slide up from bottom */
+  .btn-row{flex-wrap:wrap;gap:6px}
+  .btn-row .search-wrap{flex:1 1 100%;min-width:0}
+  /* Tables: contain in scrollable wrapper */
+  .table-wrap,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;max-width:100%}
+  table{min-width:500px}
+  /* Modals: slide up from bottom, no wider than screen */
+  .modal-overlay,.moverlay{align-items:flex-end!important}
   .modal,.modal-wide{
-    max-width:100vw!important;width:100%!important;
-    border-radius:16px 16px 0 0!important;
-    max-height:90dvh!important;max-height:90vh!important;
+    max-width:100vw!important;width:100%!important;box-sizing:border-box!important;
+    border-radius:16px 16px 0 0!important;max-height:90dvh!important;max-height:90vh!important;
   }
-  /* Form inputs: prevent iOS zoom (must be 16px+) */
-  input,select,textarea,.form-input,.form-select,.form-textarea{
-    font-size:16px!important
-  }
-  /* WO inspection tabs: scroll horizontally */
-  .wo-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:4px}
+  /* Prevent iOS zoom on input focus */
+  input,select,textarea,.form-input,.form-select,.form-textarea{font-size:16px!important}
+  /* WO tabs: horizontal scroll, no wrap */
+  .wo-tabs{overflow-x:auto!important;-webkit-overflow-scrolling:touch;flex-wrap:nowrap!important;padding-bottom:4px;max-width:100%}
   .wo-tab{white-space:nowrap;flex-shrink:0;font-size:12px;padding:6px 10px}
-  /* Drawer full height */
-  .drawer{width:85vw;max-width:300px}
-  /* Hide theme toggle on mobile to save space */
-  button[title*="mode"]{bottom:auto;top:10px;right:10px;padding:6px 10px;font-size:11px}
-  /* Insp grids 2-col on mobile */
+  /* Grids go 2-col or 1-col */
+  .kpi-row,.stat-row,.dash-grid{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .card-grid{grid-template-columns:1fr!important}
   .insp-grid{grid-template-columns:1fr 1fr!important;gap:6px}
-  /* Safe area padding for iPhone notch/home indicator */
-  .mobile-bar{padding-top:max(12px,env(safe-area-inset-top));
-    padding-left:max(16px,env(safe-area-inset-left));
-    padding-right:max(16px,env(safe-area-inset-right))}
-  .main{padding-bottom:env(safe-area-inset-bottom)}
+  /* Form field grids: stack on mobile */
+  .form-row,.g3,.g4,.g2{grid-template-columns:1fr!important}
+  /* WO form sections */
+  .wo-section{padding:12px!important}
+  .wo-page{padding:10px!important}
+  /* Drawer */
+  .drawer{width:80vw;max-width:300px}
+  /* Safe area - bottom of mobile bar */
+  .mobile-bar{
+    padding-left:max(14px,env(safe-area-inset-left));
+    padding-right:max(14px,env(safe-area-inset-right));
+  }
 }
-/* ── Small tablet (iPad mini portrait etc) ──────────────────────────────── */
+
+/* ── Collapsed sidebar: iPad mini / small tablet ───────────────────────── */
 @media(min-width:640px) and (max-width:900px){
-  .sidebar{width:60px;overflow:hidden}
-  .sidebar-logo h1,.sidebar-logo p{display:none}
-  .nav-item span:not(.nav-badge){display:none}
-  .nav-item{justify-content:center;padding:12px}
+  .sidebar{width:58px;overflow:hidden;flex-shrink:0}
+  .sidebar-logo h1,.sidebar-logo p,.logo-text{display:none}
+  .nav-item{justify-content:center;padding:12px 0}
+  .nav-item>span:not(.nav-badge){display:none}
 }
 </style>
 
@@ -2905,12 +2917,17 @@ function App(){
   return h('div',{className:'shell'},
     h('button',{
       onClick:toggleTheme,
+      className:'theme-toggle-btn',
       title:isDark?'Switch to light mode':'Switch to dark mode',
       style:{position:'fixed',bottom:20,right:20,zIndex:200,background:isDark?'#1e2333':'#fff',border:'0.5px solid '+(isDark?'#2a3048':'#e2e8f0'),borderRadius:20,padding:'8px 14px',cursor:'pointer',boxShadow:'0 4px 12px rgba(0,0,0,.25)',display:'flex',alignItems:'center',gap:6,color:isDark?'#e2e8f0':'#1a202c',fontFamily:'inherit',fontSize:12,fontWeight:500}
     },isDark?'☀️  Light':'🌙  Dark'),
     h('div',{className:'sidebar'},h(SidebarNav,{page,setPage,badges,appUser,signOut,visibleNav,onClose:null})),
     h('div',{className:'overlay'+(drawerOpen?' open':''),onClick:()=>setDrawerOpen(false)},h('div',{className:'drawer',onClick:e=>e.stopPropagation()},h(SidebarNav,{page,setPage,badges,appUser,signOut,visibleNav,onClose:()=>setDrawerOpen(false)}))),
-    h('div',{className:'main'},h('div',{className:'mobile-bar'},h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),h('span',null,lbl)),render())
+    h('div',{className:'main'},h('div',{className:'mobile-bar'},
+        h('button',{className:'menu-btn',onClick:()=>setDrawerOpen(true)},h(IMenu)),
+        h('span',{style:{flex:1,fontWeight:500,fontSize:14}},lbl),
+        h('button',{onClick:toggleTheme,style:{background:'none',border:'none',cursor:'pointer',fontSize:18,padding:'4px 8px',color:'#e2e8f0',flexShrink:0}},isDark?'☀️':'🌙')
+      ),render())
   );
 }
 ReactDOM.createRoot(document.getElementById('root')).render(h(App));
