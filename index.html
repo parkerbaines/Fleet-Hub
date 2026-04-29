@@ -326,82 +326,149 @@ body.light [style*="rgba(107,122,159,.1)"],body.light [style*="rgba(107,122,159,
 }
 
 
-/* ── Mobile layout: wrap, don't squish ──────────────────────────────────── */
+
+/* ══════════════════════════════════════════════════════
+   MOBILE LAYOUT — iPhone / small screen PWA
+   Max-width 639px
+   ══════════════════════════════════════════════════════ */
+
+/* ── Prevent page-level horizontal scroll ──────────────── */
+html,body{overflow-x:hidden!important}
+#root{overflow-x:hidden!important;max-width:100vw!important}
 
 @media(max-width:639px){
-  /* Prevent ALL horizontal scroll on page itself */
-  html,body{overflow-x:hidden!important;max-width:100vw}
-  #root,.shell,.main{overflow-x:hidden!important;max-width:100vw!important}
-
   /* Hide desktop sidebar, show mobile top bar */
   .sidebar{display:none!important}
   .mobile-bar{display:flex!important;position:sticky;top:0;z-index:40}
-  /* Hide floating theme button - it's in mobile-bar now */
   .theme-toggle-btn{display:none!important}
 
-  /* Shell & main */
-  .shell{height:100dvh;flex-direction:column}
-  .main{flex:1;min-width:0;overflow:hidden}
+  /* Shell: full height, column layout */
+  .shell{
+    height:100dvh;height:100vh;
+    flex-direction:column;
+    overflow:hidden
+  }
 
-  /* Pages scroll vertically */
-  .page{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;height:100%;padding-bottom:env(safe-area-inset-bottom)}
+  /* Main: fills remaining space — NO overflow:hidden (breaks iOS scroll) */
+  .main{
+    flex:1;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column
+  }
 
-  /* Page header: wrap buttons below title */
-  .page-header{flex-wrap:wrap;gap:8px;padding:12px 14px}
+  /* Page: the actual scrolling container */
+  .page{
+    flex:1;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    -webkit-overflow-scrolling:touch;
+    padding:12px 14px;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom))
+  }
+
+  /* ── Page header ──────────────────────────────────────── */
+  .page-header{
+    flex-wrap:wrap;gap:8px;
+    padding:10px 14px;
+    position:sticky;top:0;z-index:10;
+    background:#0f1117
+  }
   .page-header h2{font-size:17px}
   .btn-row{flex-wrap:wrap;gap:6px}
-  .search-wrap{flex:1 1 100%}
+  .btn-row .search-wrap{flex:1 1 100%;min-width:0}
 
-  /* ── GRIDS: use auto-fill with sensible min so they wrap naturally ── */
-  /* 4-col metrics → 2 per row */
-  .metrics{grid-template-columns:repeat(2,1fr)!important}
-  /* 4-col corner-grid → 2 per row */
-  .corner-grid,.cgrid{grid-template-columns:repeat(2,1fr)!important}
-  /* 3-col form grids → 2 per row, then 1 */
-  .form-grid-3,.fg3,.form-grid-4,.fg4{grid-template-columns:repeat(2,1fr)!important}
-  /* 2-col grids stay 2-col unless really narrow */
-  .form-grid-2,.fg2,.quick-grid,.qgrid,.grid2{grid-template-columns:repeat(2,minmax(120px,1fr))!important}
-  /* Asset/card grids: auto-fill with small min → wraps naturally */
-  .asset-grid,.agrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}
-  .detail-grid,.dgrid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important}
-  /* Inspection grid: 2 per row */
-  .insp-grid,.igrid{grid-template-columns:repeat(2,1fr)!important}
+  /* ── ALL multi-column grids → single column ───────────── */
+  /* Dashboard KPI cards */
+  .metrics,.kpi-row{
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important
+  }
+  /* Dashboard grid2 side-by-side panels → stack */
+  .grid2{
+    grid-template-columns:1fr!important;
+    gap:10px!important
+  }
+  /* Form grids */
+  .form-grid-2,.fg2,
+  .form-grid-3,.fg3,
+  .form-grid-4,.fg4,
+  .corner-grid,.cgrid,
+  .quick-grid,.qgrid{
+    grid-template-columns:1fr!important;
+    gap:8px!important
+  }
+  /* Card/asset grids */
+  .asset-grid,.agrid{
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr))!important
+  }
+  .detail-grid,.dgrid{
+    grid-template-columns:1fr 1fr!important
+  }
 
-  /* Tables: scroll horizontally inside wrapper, don't affect page scroll */
-  .table-wrap,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
-  table{min-width:480px}
+  /* ── Inspection grids → single column ────────────────── */
+  /* These are the 2-col grids in WO inspection tabs that cut off right side */
+  .insp-grid,.igrid{
+    grid-template-columns:1fr!important;
+    gap:6px!important
+  }
+  .insp-item{min-width:0!important;width:100%!important}
 
-  /* Modals: sheet from bottom */
+  /* ── Tables ───────────────────────────────────────────── */
+  .table-wrap,.tw{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch;
+    max-width:100%;
+    border-radius:8px
+  }
+  /* Don't force min-width — let tables be natural */
+
+  /* ── Modals ───────────────────────────────────────────── */
   .modal-overlay,.moverlay{align-items:flex-end!important}
   .modal,.modal-wide{
-    max-width:100vw!important;width:100%!important;
+    max-width:100vw!important;
+    width:100%!important;
     border-radius:16px 16px 0 0!important;
-    max-height:90dvh!important
+    max-height:92dvh!important;
+    max-height:92vh!important
   }
-  /* Prevent iOS auto-zoom on input focus */
+
+  /* ── Prevent iOS zoom on inputs ───────────────────────── */
   input,select,textarea{font-size:16px!important}
 
-  /* WO tabs: scroll horizontally, no wrap */
-  .wo-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap!important}
-  .wo-tab{white-space:nowrap;flex-shrink:0;font-size:12px;padding:6px 10px}
-
-  /* WO section form rows: wrap to next line */
-  .wo-section .form-row,
-  .wo-section [style*="grid-template-columns"]{
-    grid-template-columns:repeat(2,1fr)!important
+  /* ── WO form tabs: scroll horizontally ───────────────── */
+  .wo-tabs{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch;
+    flex-wrap:nowrap!important;
+    padding-bottom:4px;
+    margin:-2px 0 8px
   }
+  .wo-tab{white-space:nowrap;flex-shrink:0;padding:6px 10px;font-size:12px}
 
-  /* Drawer */
+  /* ── WO section content ────────────────────────────────── */
+  .wo-section{padding:10px 12px!important}
+  .wo-page{padding:8px!important}
+
+  /* ── Scheduler calendar ────────────────────────────────── */
+  /* Scroll horizontally rather than squish days */
+  .cal-wrap,.scheduler-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .cal-grid{min-width:360px}
+
+  /* ── Drawer ────────────────────────────────────────────── */
   .drawer{width:82vw;max-width:300px}
 
-  /* Safe area */
+  /* ── Safe area for notch / home indicator ──────────────── */
   .mobile-bar{
+    padding-top:4px;
     padding-left:max(14px,env(safe-area-inset-left));
     padding-right:max(14px,env(safe-area-inset-right))
   }
 }
 
-/* ── Tablet: icon-only sidebar ──────────────────────────────────────────── */
+/* ── Small tablet: icon-only sidebar ──────────────────── */
 @media(min-width:640px) and (max-width:900px){
   .sidebar{width:58px;overflow:hidden}
   .sidebar-logo h1,.sidebar-logo p{display:none}
