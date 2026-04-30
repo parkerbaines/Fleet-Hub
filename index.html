@@ -1414,6 +1414,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           description:logDesc.slice(0,500),
           odometer_miles:saved.mileage_out?parseInt(saved.mileage_out):saved.mileage_in?parseInt(saved.mileage_in):null,
           cost:grandTotal>0?parseFloat(grandTotal.toFixed(2)):null,
+          vendor_name:'In House',
           serviced_at:saved.completed_at||new Date().toISOString(),
         });
       }catch(logErr){console.warn('Service log creation failed:',logErr);}
@@ -2504,7 +2505,7 @@ function ServiceLogs({isTech=false}={}){
             h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}},
               h('span',{style:{fontSize:13,fontWeight:600}},log.service_type),
               h('span',{style:{fontSize:12,color:'#3b7eff'}},log.asset?.name),
-              log.vendor_name&&h('span',{style:{fontSize:11,background:'rgba(107,122,159,.15)',color:'#94a3b8',padding:'1px 8px',borderRadius:10}},log.vendor_name)
+              log.h('span',{style:{fontSize:11,background:'rgba(107,122,159,.15)',color:'#94a3b8',padding:'1px 8px',borderRadius:10}},log.vendor_name||'In House')
             ),
             h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16,flexWrap:'wrap'}},
               log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),
@@ -2530,7 +2531,7 @@ function ServiceLogs({isTech=false}={}){
         )
       ),
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 24px',marginBottom:14}},
-        [['Asset',detailLog.asset?.name+(detailLog.asset?.asset_number?' ('+detailLog.asset.asset_number+')':'')],['Vendor',detailLog.vendor_name||'—'],['Date',new Date(detailLog.serviced_at).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})],['Cost',detailLog.cost?'$'+parseFloat(detailLog.cost).toFixed(2):'—'],['Odometer',detailLog.odometer_miles?detailLog.odometer_miles.toLocaleString()+' mi':'—'],['Eng. Hours',detailLog.engine_hours?detailLog.engine_hours+' hrs':'—'],['Next Service Miles',detailLog.next_service_miles?detailLog.next_service_miles.toLocaleString()+' mi':'—'],['Next Service Date',detailLog.next_service_date?new Date(detailLog.next_service_date+'T12:00:00').toLocaleDateString():'—']].map(([k,v])=>
+        [['Asset',detailLog.asset?.name+(detailLog.asset?.asset_number?' ('+detailLog.asset.asset_number+')':'')],['Vendor',detailLog.vendor_name||'In House'],['Date',new Date(detailLog.serviced_at).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})],['Cost',detailLog.cost?'$'+parseFloat(detailLog.cost).toFixed(2):'—'],['Odometer',detailLog.odometer_miles?detailLog.odometer_miles.toLocaleString()+' mi':'—'],['Eng. Hours',detailLog.engine_hours?detailLog.engine_hours+' hrs':'—'],['Next Service Miles',detailLog.next_service_miles?detailLog.next_service_miles.toLocaleString()+' mi':'—'],['Next Service Date',detailLog.next_service_date?new Date(detailLog.next_service_date+'T12:00:00').toLocaleDateString():'—']].map(([k,v])=>
           h('div',{key:k},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:2}},k),h('div',{style:{fontSize:13,fontWeight:500}},v||'—'))
         )
       ),
