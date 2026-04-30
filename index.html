@@ -2505,7 +2505,7 @@ function ServiceLogs({isTech=false}={}){
             h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}},
               h('span',{style:{fontSize:13,fontWeight:600}},log.service_type),
               h('span',{style:{fontSize:12,color:'#3b7eff'}},log.asset?.name),
-              log.h('span',{style:{fontSize:11,background:'rgba(107,122,159,.15)',color:'#94a3b8',padding:'1px 8px',borderRadius:10}},log.vendor_name||'In House')
+              h('span',{style:{fontSize:11,background:'rgba(107,122,159,.15)',color:'#94a3b8',padding:'1px 8px',borderRadius:10}},log.vendor_name||'In House')
             ),
             h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16,flexWrap:'wrap'}},
               log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),
