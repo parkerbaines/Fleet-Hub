@@ -1429,25 +1429,27 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     let finalPartId=pf.part_id||null;
     // If no existing part selected, save it to parts inventory first
     if(!pf.part_id&&pf.part_name.trim()){
-      const{data:newPart}=await sb.from('parts').insert({
+      const{data:newPart,error:newPartErr}=await sb.from('parts').insert({
         name:pf.part_name.trim(),alt_name:pf.alt_name||null,
         part_number:pf.part_number||null,alt_part_number:pf.alt_part_number||null,
         unit_cost:pf.unit_cost?parseFloat(pf.unit_cost):null,
-        quantity_on_hand:pf.qty?parseInt(pf.qty):0,reorder_point:pf.reorder_point?parseInt(pf.reorder_point):5,
+        quantity_on_hand:0,reorder_point:pf.reorder_point?parseInt(pf.reorder_point):5,
         category:pf.category||null,supplier:pf.supplier||null,location:pf.location||null,
         track_inventory:pf.track_inventory!==false,
         updated_at:new Date().toISOString(),
       }).select().single();
+      if(newPartErr){setAddingPart(false);alert('Error saving part to inventory: '+newPartErr.message);return;}
       if(newPart)finalPartId=newPart.id;
     }
-    await sb.from('work_order_parts').insert({
+    const{error:woPartErr}=await sb.from('work_order_parts').insert({
       work_order_id:id,
       part_id:finalPartId,
       part_name:pf.part_name||(sp?.name||''),
       part_number:pf.part_number||(sp?.part_number||''),
-      quantity_used:parseFloat(pf.qty)||1,
+      quantity_used:Math.round(parseFloat(pf.qty)||1),
       unit_cost:pf.unit_cost?parseFloat(pf.unit_cost):(sp?.unit_cost||null),
     });
+    if(woPartErr){setAddingPart(false);alert('Error adding part: '+woPartErr.message);return;}
     setPf({part_id:'',part_name:'',alt_name:'',part_number:'',alt_part_number:'',qty:'1',unit_cost:'',category:'',supplier:'',location:'',reorder_point:'',track_inventory:true});
     setShowPf(false);setAddingPart(false);refetchParts();
   };
