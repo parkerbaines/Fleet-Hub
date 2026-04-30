@@ -2197,6 +2197,259 @@ function LogModal({onClose,assets,vendors,onSaved}){
       h('div',{className:'btn-row'},h('button',{className:'btn btn-p',onClick:save,disabled:saving},saving?'Saving...':'Log Service'),h('button',{className:'btn btn-g',onClick:onClose},'Cancel'))
     ));
   };
+
+// ── Service Reports Modal ─────────────────────────────────────────────────────
+function ServiceReports({onClose}){
+  const today=new Date().toISOString().slice(0,10);
+  const firstOfMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10);
+
+  const[dateFrom,setDateFrom]=useState(firstOfMonth);
+  const[dateTo,setDateTo]=useState(today);
+  const[assetType,setAssetType]=useState('');
+  const[assetId,setAssetId]=useState('');
+  const[vendorF,setVendorF]=useState('');
+  const[serviceType,setServiceType]=useState('');
+  const[loading,setLoading]=useState(false);
+  const[logs,setLogs]=useState(null); // null = not run yet
+
+  const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type').order('name'));
+
+  const runReport=async()=>{
+    setLoading(true);
+    let q=sb.from('service_logs')
+      .select('*,asset:assets(name,asset_number,asset_type)')
+      .order('serviced_at',{ascending:true});
+    if(dateFrom) q=q.gte('serviced_at',dateFrom+'T00:00:00');
+    if(dateTo)   q=q.lte('serviced_at',dateTo+'T23:59:59');
+    if(assetType) q=q.eq('asset_type',assetType);
+    if(assetId)   q=q.eq('asset_id',assetId);
+    if(vendorF)   q=q.ilike('vendor_name','%'+vendorF+'%');
+    if(serviceType) q=q.ilike('service_type','%'+serviceType+'%');
+    const{data}=await q;
+    setLogs(data||[]);
+    setLoading(false);
+  };
+
+  // Computed summary stats
+  const totalCost=logs?logs.reduce((s,l)=>s+(parseFloat(l.cost)||0),0):0;
+  const byType=logs?logs.reduce((acc,l)=>{const t=l.service_type||'Unknown';acc[t]=(acc[t]||0)+(parseFloat(l.cost)||0);return acc;},{}):null;
+  const byAsset=logs?logs.reduce((acc,l)=>{const n=l.asset?.name||'Unknown';acc[n]=(acc[n]||0)+(parseFloat(l.cost)||0);return acc;},{}):null;
+  const byVendor=logs?logs.reduce((acc,l)=>{const v=l.vendor_name||'No Vendor';acc[v]=(acc[v]||0)+(parseFloat(l.cost)||0);return acc;},{}):null;
+
+  const exportCSV=()=>{
+    if(!logs||!logs.length)return;
+    const headers=['Date','Asset','Asset #','Asset Type','Service Type','Vendor','Odometer','Engine Hours','Cost','Next Service Miles','Next Service Date','Description'];
+    const rows=logs.map(l=>[
+      l.serviced_at?new Date(l.serviced_at).toLocaleDateString():'',
+      l.asset?.name||'',
+      l.asset?.asset_number||'',
+      l.asset?.asset_type||l.asset_type||'',
+      l.service_type||'',
+      l.vendor_name||'',
+      l.odometer_miles||'',
+      l.engine_hours||'',
+      l.cost!=null?parseFloat(l.cost).toFixed(2):'',
+      l.next_service_miles||'',
+      l.next_service_date||'',
+      (l.description||'').replace(/,/g,' ').replace(/\n/g,' ')
+    ]);
+    const csv=[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download=`service_logs_${dateFrom}_to_${dateTo}.csv`;
+    a.click();
+  };
+
+  const exportSummaryCSV=()=>{
+    if(!byAsset)return;
+    const rows=[
+      ['COST REPORT: '+dateFrom+' to '+dateTo],
+      [''],
+      ['BY ASSET'],
+      ['Asset','Total Cost'],
+      ...Object.entries(byAsset).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,'$'+v.toFixed(2)]),
+      [''],
+      ['BY SERVICE TYPE'],
+      ['Service Type','Total Cost'],
+      ...Object.entries(byType||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,'$'+v.toFixed(2)]),
+      [''],
+      ['BY VENDOR'],
+      ['Vendor','Total Cost'],
+      ...Object.entries(byVendor||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,'$'+v.toFixed(2)]),
+      [''],
+      ['TOTAL COST','$'+totalCost.toFixed(2)],
+      ['TOTAL RECORDS',logs.length],
+    ];
+    const csv=rows.map(r=>r.map(c=>`"${c||''}"`).join(',')).join('\n');
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download=`cost_summary_${dateFrom}_to_${dateTo}.csv`;
+    a.click();
+  };
+
+  // Bar chart helper (simple CSS bars)
+  const BarChart=({data,label})=>{
+    const entries=Object.entries(data||{}).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const max=Math.max(...entries.map(([,v])=>v),1);
+    return h('div',{style:{marginBottom:16}},
+      h('div',{style:{fontSize:11,fontWeight:600,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},label),
+      entries.map(([k,v])=>h('div',{key:k,style:{marginBottom:6}},
+        h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:12,color:'#94a3b8',marginBottom:3}},
+          h('span',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'70%'}},k),
+          h('span',{style:{fontWeight:600,color:'#e2e8f0',flexShrink:0}},'$'+v.toFixed(0))
+        ),
+        h('div',{style:{height:6,background:'#1e293b',borderRadius:3,overflow:'hidden'}},
+          h('div',{style:{height:'100%',width:(v/max*100)+'%',background:'linear-gradient(90deg,#185FA5,#38bdf8)',borderRadius:3,transition:'width .3s'}})
+        )
+      ))
+    );
+  };
+
+  return h('div',{className:'modal-overlay'},
+    h('div',{className:'modal modal-wide',style:{maxWidth:780,maxHeight:'92vh',display:'flex',flexDirection:'column'}},
+      h('div',{className:'modal-header'},
+        h('h3',null,'Service Log Reports'),
+        h('button',{className:'icon-btn',onClick:onClose},h(IPlus,{style:{transform:'rotate(45deg)'}}))
+      ),
+      h('div',{className:'modal-body',style:{overflowY:'auto',flex:1}},
+        // ── Filters ──────────────────────────────────────────────────────────
+        h('div',{style:{background:'rgba(255,255,255,.03)',border:'.5px solid #2a3048',borderRadius:10,padding:14,marginBottom:14}},
+          h('div',{style:{fontSize:11,fontWeight:600,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:10}},'Report Filters'),
+          // Date range
+          h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}},
+            h('div',null,
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:4}},'From Date'),
+              h('input',{type:'date',className:'form-input',value:dateFrom,onChange:e=>setDateFrom(e.target.value)})
+            ),
+            h('div',null,
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:4}},'To Date'),
+              h('input',{type:'date',className:'form-input',value:dateTo,onChange:e=>setDateTo(e.target.value)})
+            )
+          ),
+          // Quick date range buttons
+          h('div',{style:{display:'flex',gap:4,flexWrap:'wrap',marginBottom:10}},
+            [
+              ['This Month',()=>{const n=new Date();setDateFrom(new Date(n.getFullYear(),n.getMonth(),1).toISOString().slice(0,10));setDateTo(n.toISOString().slice(0,10));}],
+              ['Last Month',()=>{const n=new Date();const lm=new Date(n.getFullYear(),n.getMonth()-1,1);setDateFrom(lm.toISOString().slice(0,10));setDateTo(new Date(n.getFullYear(),n.getMonth(),0).toISOString().slice(0,10));}],
+              ['Last 90 Days',()=>{const n=new Date();const f=new Date(n);f.setDate(f.getDate()-90);setDateFrom(f.toISOString().slice(0,10));setDateTo(n.toISOString().slice(0,10));}],
+              ['This Year',()=>{const n=new Date();setDateFrom(n.getFullYear()+'-01-01');setDateTo(n.toISOString().slice(0,10));}],
+              ['Last Year',()=>{const y=new Date().getFullYear()-1;setDateFrom(y+'-01-01');setDateTo(y+'-12-31');}],
+              ['All Time',()=>{setDateFrom('2020-01-01');setDateTo(new Date().toISOString().slice(0,10));}],
+            ].map(([lbl,fn])=>h('button',{key:lbl,onClick:fn,
+              style:{padding:'3px 10px',borderRadius:20,border:'.5px solid #334155',background:'transparent',color:'#64748b',fontSize:11,cursor:'pointer'}},
+              lbl))
+          ),
+          // Additional filters
+          h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}},
+            h('div',null,
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:4}},'Asset Type'),
+              h('select',{className:'form-select',value:assetType,onChange:e=>{setAssetType(e.target.value);setAssetId('');}},
+                h('option',{value:''},'All types'),
+                ['vehicle','trailer','equipment'].map(t=>h('option',{key:t,value:t},t.charAt(0).toUpperCase()+t.slice(1)))
+              )
+            ),
+            h('div',null,
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:4}},'Specific Asset'),
+              h('select',{className:'form-select',value:assetId,onChange:e=>setAssetId(e.target.value)},
+                h('option',{value:''},'All assets'),
+                (assets||[]).filter(a=>!assetType||a.asset_type===assetType)
+                  .map(a=>h('option',{key:a.id,value:a.id},(a.asset_number?a.asset_number+' — ':'')+a.name))
+              )
+            ),
+            h('div',null,
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:4}},'Service Type'),
+              h('input',{className:'form-input',placeholder:'e.g. PM service',value:serviceType,onChange:e=>setServiceType(e.target.value)})
+            )
+          )
+        ),
+
+        // ── Run button ────────────────────────────────────────────────────────
+        h('div',{style:{display:'flex',gap:8,marginBottom:14,alignItems:'center'}},
+          h('button',{onClick:runReport,disabled:loading,
+            style:{padding:'9px 24px',borderRadius:8,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:13,cursor:'pointer',fontWeight:500}},
+            loading?'Running report...':'Run Report'),
+          logs&&!loading&&h('span',{style:{fontSize:12,color:'#6b7a9f'}},
+            logs.length+' records · Total cost: ',
+            h('span',{style:{color:'#4ade80',fontWeight:600}},'$'+totalCost.toFixed(2)))
+        ),
+
+        // ── Results ───────────────────────────────────────────────────────────
+        logs&&!loading&&h('div',null,
+          // Summary charts
+          logs.length>0&&h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}},
+            h(BarChart,{data:byType,label:'Cost by Service Type'}),
+            h(BarChart,{data:byAsset,label:'Cost by Asset'}),
+            h(BarChart,{data:byVendor,label:'Cost by Vendor'})
+          ),
+
+          // KPI summary row
+          logs.length>0&&h('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}},
+            [
+              {label:'Total Records',value:logs.length,color:'#93c5fd'},
+              {label:'Total Cost',value:'$'+totalCost.toFixed(2),color:'#4ade80'},
+              {label:'Avg Cost / Log',value:'$'+(totalCost/Math.max(logs.length,1)).toFixed(2),color:'#fbbf24'},
+              {label:'Unique Assets',value:new Set(logs.map(l=>l.asset_id).filter(Boolean)).size,color:'#c4b5fd'},
+            ].map(k=>h('div',{key:k.label,style:{background:'rgba(255,255,255,.04)',border:'.5px solid #2a3048',borderRadius:8,padding:'10px 12px'}},
+              h('div',{style:{fontSize:10,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:4}},k.label),
+              h('div',{style:{fontSize:18,fontWeight:700,color:k.color}},k.value)
+            ))
+          ),
+
+          // Export buttons
+          logs.length>0&&h('div',{style:{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}},
+            h('button',{onClick:exportCSV,
+              style:{display:'flex',alignItems:'center',gap:6,padding:'7px 16px',borderRadius:8,border:'.5px solid #334155',background:'transparent',color:'#94a3b8',fontSize:12,cursor:'pointer'}},
+              '⬇ Export All Logs (CSV)'),
+            h('button',{onClick:exportSummaryCSV,
+              style:{display:'flex',alignItems:'center',gap:6,padding:'7px 16px',borderRadius:8,border:'.5px solid #334155',background:'transparent',color:'#94a3b8',fontSize:12,cursor:'pointer'}},
+              '⬇ Export Cost Summary (CSV)')
+          ),
+
+          // Log table
+          logs.length>0&&h('div',{style:{border:'.5px solid #2a3048',borderRadius:8,overflow:'hidden'}},
+            h('div',{style:{overflowX:'auto'}},
+              h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12}},
+                h('thead',null,
+                  h('tr',{style:{background:'rgba(255,255,255,.04)'}},
+                    ['Date','Asset','Service Type','Vendor','Odometer','Cost'].map(col=>
+                      h('th',{key:col,style:{padding:'8px 12px',textAlign:'left',fontSize:10,fontWeight:700,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.04em',whiteSpace:'nowrap'}},col)
+                    )
+                  )
+                ),
+                h('tbody',null,
+                  logs.map((l,i)=>h('tr',{key:l.id,style:{borderTop:i===0?'none':'.5px solid #1e293b',background:i%2===0?'transparent':'rgba(255,255,255,.01)'}},
+                    h('td',{style:{padding:'8px 12px',whiteSpace:'nowrap',color:'#94a3b8'}},
+                      l.serviced_at?new Date(l.serviced_at+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'),
+                    h('td',{style:{padding:'8px 12px'}},
+                      h('div',{style:{fontWeight:500,color:'#e2e8f0'}},l.asset?.name||'—'),
+                      l.asset?.asset_number&&h('div',{style:{fontSize:10,color:'#6b7a9f'}},l.asset.asset_number)
+                    ),
+                    h('td',{style:{padding:'8px 12px',color:'#94a3b8'}},l.service_type||'—'),
+                    h('td',{style:{padding:'8px 12px',color:'#94a3b8'}},l.vendor_name||'—'),
+                    h('td',{style:{padding:'8px 12px',color:'#94a3b8',whiteSpace:'nowrap'}},
+                      l.odometer_miles?l.odometer_miles.toLocaleString()+' mi':'—'),
+                    h('td',{style:{padding:'8px 12px',fontWeight:600,color:'#4ade80',whiteSpace:'nowrap'}},
+                      l.cost!=null?'$'+parseFloat(l.cost).toFixed(2):'—')
+                  ))
+                )
+              )
+            )
+          ),
+
+          logs.length===0&&h('div',{style:{padding:'32px',textAlign:'center',color:'#6b7a9f',border:'.5px dashed #2a3048',borderRadius:8}},
+            'No service logs found for the selected criteria'
+          )
+        )
+      ),
+      h('div',{className:'modal-footer'},
+        h('div',{style:{flex:1}}),
+        h('button',{className:'btn btn-ghost',onClick:onClose},'Close')
+      )
+    )
+  );
+}
+
+
 function ServiceLogs({isTech=false}={}){
   const[assetTypeF,setAssetTypeF]=useState('');
   const[search,setSearch]=useState('');
@@ -2204,6 +2457,7 @@ function ServiceLogs({isTech=false}={}){
   const[sortBy,setSortBy]=useState('date_desc');
   const[showModal,setShowModal]=useState(false);
   const[detailLog,setDetailLog]=useState(null);
+  const[showReports,setShowReports]=useState(false);
   const{data:logs,loading,refetch}=useQuery(()=>{
     let q=sb.from('service_logs').select('*,asset:assets(name,asset_number,asset_type)').order('serviced_at',{ascending:false});
     if(assetTypeF)q=q.eq('asset_type',assetTypeF);
@@ -2232,6 +2486,7 @@ function ServiceLogs({isTech=false}={}){
   return h('div',{className:'page'},
     h('div',{className:'page-header'},
       h('div',null,h('h2',null,'Service Logs'),h('p',null,filtered.length+' records')),
+      h('button',{className:'btn btn-ghost',onClick:()=>setShowReports(true),style:{display:'flex',alignItems:'center',gap:5}},'📊 Reports'),
       h('button',{className:'btn btn-p',onClick:()=>setShowModal(true)},h(IPlus),' Log Service')
     ),
     h('div',{className:'filters'},
@@ -2264,6 +2519,7 @@ function ServiceLogs({isTech=false}={}){
         )
       ))
     ),
+    showReports&&h(ServiceReports,{onClose:()=>setShowReports(false)}),
     showModal&&h(LogModal,{onClose:()=>setShowModal(false),assets,vendors,onSaved:refetch}),
     detailLog&&h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
