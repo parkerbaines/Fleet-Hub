@@ -1181,7 +1181,109 @@ function UsersPage({setPage}){
 // ── The full Work Order Form — tabs: Info, Time, Parts, Lights, Body, Fluids, Brakes, Tires, Electrical, Findings
 
 // ── Section Media Component — top-level stable ────────────────────────────────
-function SectionMedia({workOrderId, section, isEdit}){
+// ── FindingsMedia: shows all section photos grouped + findings uploads ─────────
+function FindingsMedia({workOrderId, isEdit}){
+  const[allMedia,setAllMedia]=useState([]);
+  const[lightbox,setLightbox]=useState(null);
+
+  const SECTION_LABELS={
+    parts:'Parts',lights:'Lights',body:'Body',
+    fluids:'Fluids',brakes:'Brakes',tires:'Tires',electrical:'Electrical'
+  };
+
+  useEffect(()=>{
+    if(!isEdit||!workOrderId)return;
+    sb.from('wo_section_media').select('*')
+      .eq('work_order_id',workOrderId)
+      .order('section').order('created_at')
+      .then(({data})=>setAllMedia(data||[]));
+  },[workOrderId,isEdit]);
+
+  const refresh=()=>{
+    sb.from('wo_section_media').select('*')
+      .eq('work_order_id',workOrderId)
+      .order('section').order('created_at')
+      .then(({data})=>setAllMedia(data||[]));
+  };
+
+  // Group by section (excluding 'findings')
+  const sectionGroups=Object.entries(SECTION_LABELS).map(([key,label])=>({
+    key,label,items:allMedia.filter(m=>m.section===key)
+  })).filter(g=>g.items.length>0);
+
+  // Findings-specific media
+  const findingsMedia=allMedia.filter(m=>m.section==='findings');
+
+  if(!isEdit)return null;
+
+  return h('div',null,
+    // ── Section photos pulled from each tab ──────────────────────────────────
+    sectionGroups.length>0&&h('div',{style:{marginBottom:16}},
+      h('div',{style:{fontSize:11,fontWeight:700,color:'#6b7a9f',textTransform:'uppercase',
+        letterSpacing:'.06em',marginBottom:10,paddingBottom:6,
+        borderBottom:'.5px solid #2a3048'}},'Photos from Inspection Sections'),
+      sectionGroups.map(({key,label,items})=>
+        h('div',{key,style:{marginBottom:14}},
+          h('div',{style:{fontSize:11,fontWeight:600,color:'#94a3b8',
+            textTransform:'uppercase',letterSpacing:'.04em',marginBottom:6}},label),
+          h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(80px,1fr))',gap:6}},
+            items.filter(m=>m.media_type==='photo').map(m=>
+              h('div',{key:m.id,
+                style:{position:'relative',aspectRatio:'1',borderRadius:7,
+                  overflow:'hidden',cursor:'pointer',background:'#181c27',
+                  border:'.5px solid #2a3048'},
+                onClick:()=>setLightbox(m)},
+                h('img',{src:m.file_data,alt:m.file_name,
+                  style:{width:'100%',height:'100%',objectFit:'cover'}})
+              )
+            ),
+            items.filter(m=>m.media_type==='document').map(m=>
+              h('div',{key:m.id,
+                style:{display:'flex',alignItems:'center',gap:6,padding:'6px 8px',
+                  background:'rgba(24,95,165,.08)',border:'.5px solid rgba(24,95,165,.2)',
+                  borderRadius:7,gridColumn:'1 / -1'}},
+                h('span',{style:{fontSize:14}},'\uD83D\uDCC4'),
+                h('span',{style:{flex:1,fontSize:11,color:'#e2e8f0',
+                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},m.file_name),
+                h('a',{href:m.file_data,download:m.file_name,
+                  style:{fontSize:11,color:'#93c5fd',textDecoration:'none',flexShrink:0}},
+                  '\u2b07')
+              )
+            )
+          )
+        )
+      )
+    ),
+
+    // ── Findings-specific upload section ─────────────────────────────────────
+    h(SectionMedia,{workOrderId,section:'findings',isEdit,onSaved:refresh}),
+
+    // ── Lightbox ─────────────────────────────────────────────────────────────
+    lightbox&&h('div',{
+      style:{position:'fixed',inset:0,zIndex:999,background:'rgba(0,0,0,.92)',
+        display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'},
+      onClick:()=>setLightbox(null)},
+      h('div',{style:{position:'absolute',top:16,right:16,display:'flex',gap:10},
+        onClick:e=>e.stopPropagation()},
+        h('div',{style:{fontSize:12,color:'#94a3b8',alignSelf:'center'}},
+          SECTION_LABELS[lightbox.section]||lightbox.section),
+        h('a',{href:lightbox.file_data,download:lightbox.file_name,
+          style:{padding:'6px 14px',borderRadius:8,background:'#185FA5',
+            color:'#E6F1FB',fontSize:12,textDecoration:'none'}},'\u2b07 Download'),
+        h('button',{onClick:()=>setLightbox(null),
+          style:{padding:'6px 14px',borderRadius:8,border:'.5px solid #334155',
+            background:'rgba(255,255,255,.1)',color:'#e2e8f0',fontSize:12,cursor:'pointer'}},
+          '\u2715 Close')
+      ),
+      h('img',{src:lightbox.file_data,alt:lightbox.file_name,
+        style:{maxWidth:'92vw',maxHeight:'80vh',objectFit:'contain',borderRadius:8},
+        onClick:e=>e.stopPropagation()})
+    )
+  );
+}
+
+
+function SectionMedia({workOrderId, section, isEdit, onSaved}){
   const[media,setMedia]=useState([]);
   const[uploading,setUploading]=useState(false);
   const[lightbox,setLightbox]=useState(null); // {file_data, file_name}
@@ -1210,7 +1312,7 @@ function SectionMedia({workOrderId, section, isEdit}){
             work_order_id:workOrderId,section,media_type,
             file_name:file.name,file_data
           }).select().single();
-          if(p)setMedia(x=>[...x,p]);
+          if(p){setMedia(x=>[...x,p]);if(onSaved)onSaved();}
           res();
         };
         reader.readAsDataURL(file);
@@ -1950,7 +2052,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
         h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'📋 Findings & Work Performed')),
         h('div',{className:'form-group'},h('label',{className:'form-label'},'Technician Findings / Diagnosis'),h('textarea',{className:'form-textarea',rows:4,placeholder:'What did you find? Measurements, conditions, diagnosis results...',value:f.findings,onChange:e=>sf('findings',e.target.value)})),
         h('div',{className:'form-group'},h('label',{className:'form-label'},'Work Performed'),h('textarea',{className:'form-textarea',rows:4,placeholder:'Describe all work completed on this visit...',value:f.work_performed,onChange:e=>sf('work_performed',e.target.value)})),
-        h('div',{className:'form-group'},h('label',{className:'form-label'},'Recommendations / Follow-Up'),h('textarea',{className:'form-textarea',rows:3,placeholder:'Future repairs, upcoming maintenance, parts to order...',value:f.recommendations,onChange:e=>sf('recommendations',e.target.value)}))
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Recommendations / Follow-Up'),h('textarea',{className:'form-textarea',rows:3,placeholder:'Future repairs, upcoming maintenance, parts to order...',value:f.recommendations,onChange:e=>sf('recommendations',e.target.value)})),
+        h(FindingsMedia,{workOrderId:id,isEdit})
       ),
       h('div',{className:'wo-section'},
         h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'💰 Labor & Costs')),
