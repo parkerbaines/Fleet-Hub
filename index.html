@@ -1492,15 +1492,35 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     if(['bad','fail','check engine','fault code','replace','cracking','cupping','weak'].includes(s)) return 'bad';
     return '';
   };
-  const IS=({field,label,opts})=>h('div',{className:'insp-item'},
-  h('label',null,label),
-  h('select',{
-    className:'isel '+iClass(insp[field]),
-    value:insp[field],
-    onChange:e=>{const v=e.target.value;requestAnimationFrame(()=>si(field,v));}
-  },
-  h('option',{value:''},'—'),
-  opts.map(o=>h('option',{key:o,value:o},o))));
+  const IS=({field,label,opts})=>{
+    const cur=insp[field]||'';
+    const cycle=()=>{
+      const idx=opts.indexOf(cur);
+      const next=idx>=0&&idx<opts.length-1?opts[idx+1]:opts[0];
+      si(field,next);
+    };
+    const clear=(e)=>{e.stopPropagation();si(field,'');};
+    const cls=iClass(cur);
+    const bgMap={good:'rgba(74,222,128,.12)',pass:'rgba(74,222,128,.12)',full:'rgba(74,222,128,.12)',clean:'rgba(74,222,128,.12)',fair:'rgba(251,191,36,.1)',moderate:'rgba(251,191,36,.1)',bad:'rgba(248,113,113,.12)',fail:'rgba(248,113,113,.12)',low:'rgba(248,113,113,.12)','n/a':'rgba(255,255,255,.05)'};
+    const bg=bgMap[(cur||'').toLowerCase()]||'rgba(255,255,255,.04)';
+    return h('div',{className:'insp-item'},
+      h('label',{style:{fontSize:10,fontWeight:600,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:4}},label),
+      h('div',{
+        onClick:cycle,
+        style:{
+          display:'flex',alignItems:'center',justifyContent:'space-between',
+          padding:'8px 10px',borderRadius:8,cursor:'pointer',
+          border:'.5px solid '+(cur?'rgba(255,255,255,.12)':'#1e293b'),
+          background:cur?bg:'#0f1117',
+          minHeight:36,userSelect:'none',WebkitUserSelect:'none',
+          transition:'background .15s'
+        }
+      },
+        h('span',{style:{fontSize:12,fontWeight:cur?600:400,color:cur?({'good':'#4ade80','fair':'#fbbf24','bad':'#f87171','pass':'#4ade80','fail':'#f87171','full':'#4ade80','low':'#f87171','moderate':'#fbbf24','n/a':'#94a3b8'}[(cur||'').toLowerCase()]||'#e2e8f0'):'#334155'}},cur||'Tap to set'),
+        cur?h('span',{onClick:clear,style:{fontSize:14,color:'#475569',lineHeight:1,padding:'0 2px',flexShrink:0}},'×'):h('span',{style:{fontSize:10,color:'#334155',flexShrink:0}},'▼')
+      )
+    );
+  };
   const IN=({field,label,placeholder})=>{const inRef=useRef(null);useEffect(()=>{if(inRef.current&&document.activeElement!==inRef.current)inRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'insp-item insp-full'},h('label',null,label),h('input',{ref:inRef,defaultValue:insp[field]||'',placeholder:placeholder||'Notes...',onBlur:e=>si(field,e.target.value),onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}));};
   // Color scale for brake pad depth (mm): >=6 green, 3-5 yellow, <=2 red
   const brakeColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n>=6)return '#22c55e';if(n>=3)return '#f59e0b';return '#ef4444';};
