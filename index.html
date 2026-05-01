@@ -1415,6 +1415,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           odometer_miles:saved.mileage_out?parseInt(saved.mileage_out):saved.mileage_in?parseInt(saved.mileage_in):null,
           cost:grandTotal>0?parseFloat(grandTotal.toFixed(2)):null,
           vendor_name:'In House',
+          work_order_id:saved.id,
           serviced_at:saved.completed_at||new Date().toISOString(),
         });
       }catch(logErr){console.warn('Service log creation failed:',logErr);}
@@ -2451,7 +2452,7 @@ function ServiceReports({onClose}){
 }
 
 
-function ServiceLogs({isTech=false}={}){
+function ServiceLogs({isTech=false,setPage}={}){
   const[assetTypeF,setAssetTypeF]=useState('');
   const[search,setSearch]=useState('');
   const[vendorF,setVendorF]=useState('');
@@ -2527,6 +2528,10 @@ function ServiceLogs({isTech=false}={}){
         h('h3',{style:{marginBottom:0}},detailLog.service_type),
         h('div',{className:'btn-row'},
           !isTech&&h('button',{className:'btn btn-danger',style:{fontSize:12},onClick:async()=>{if(!confirm('Delete this log?'))return;await sb.from('service_logs').delete().eq('id',detailLog.id);setDetailLog(null);refetch();}},h(ITrash),' Delete'),
+          detailLog.work_order_id&&h('button',{
+              className:'btn btn-secondary',style:{fontSize:12},
+              onClick:()=>{const woid=detailLog.work_order_id;setDetailLog(null);setPage('wo-'+woid);}},
+            'View Work Order'),
           h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>setDetailLog(null)},'Close')
         )
       ),
@@ -3324,7 +3329,7 @@ function App(){
     if(page.startsWith('asset-'))return h(AssetDetail,{id:page.replace('asset-',''),setPage,isTech});
     if(page==='parts')return h(Parts,{setPage,isTech});
     if(page==='technicians')return h(Technicians,{isTech});
-    if(page==='servicelogs')return h(ServiceLogs,{isTech});
+    if(page==='servicelogs')return h(ServiceLogs,{isTech,setPage});
     if(page==='intervals')return h(ServiceIntervals,{setPage,isTech});
     if(page==='scheduler')return h(Scheduler,{setPage});
     if(page==='documents')return h(Documents,{setPage,isTech});
