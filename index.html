@@ -475,6 +475,13 @@ html,body{overflow-x:hidden!important}
   .nav-item{justify-content:center;padding:12px 0}
   .nav-item>span:not(.nav-badge){display:none}
 }
+
+/* iOS touch fixes for selects */
+select,.form-select,.isel{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.isel{-webkit-appearance:none;appearance:none}
 </style>
 
 
@@ -1323,7 +1330,14 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     // Electrical
     battery:'',terminals:'',voltage:'',alternator:'',starter:'',serp_belt:'',timing_belt:'',coolant_hoses:'',fuel_lines:'',air_filter:'',cabin_filter:'',exhaust:'',dpf:'',dtc:'',ac_heat:'',horn:'',elec_notes:''
   });
-  const si=(k,v)=>setInsp(x=>{const next={...x,[k]:v};autoSave(next);return next;});
+  const siTimer=useRef(null);
+  const si=(k,v)=>{
+    setInsp(x=>{const next={...x,[k]:v};return next;});
+    clearTimeout(siTimer.current);
+    siTimer.current=setTimeout(()=>{
+      setInsp(cur=>{autoSave(cur);return cur;});
+    },400);
+  };
 
   // Time entry form
   const[tf,setTf]=useState({technician_id:'',hours:'',notes:'',logged_at:new Date().toISOString().slice(0,16)});
@@ -1478,7 +1492,15 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     if(['bad','fail','check engine','fault code','replace','cracking','cupping','weak'].includes(s)) return 'bad';
     return '';
   };
-  const IS=({field,label,opts})=>h('div',{className:'insp-item'},h('label',null,label),h('select',{className:'isel '+iClass(insp[field]),value:insp[field],onChange:e=>si(field,e.target.value)},h('option',{value:''},'—'),opts.map(o=>h('option',{key:o,value:o},o))));
+  const IS=({field,label,opts})=>h('div',{className:'insp-item'},
+  h('label',null,label),
+  h('select',{
+    className:'isel '+iClass(insp[field]),
+    value:insp[field],
+    onChange:e=>{const v=e.target.value;requestAnimationFrame(()=>si(field,v));}
+  },
+  h('option',{value:''},'—'),
+  opts.map(o=>h('option',{key:o,value:o},o))));
   const IN=({field,label,placeholder})=>{const inRef=useRef(null);useEffect(()=>{if(inRef.current&&document.activeElement!==inRef.current)inRef.current.value=insp[field]||'';},[insp[field]]);return h('div',{className:'insp-item insp-full'},h('label',null,label),h('input',{ref:inRef,defaultValue:insp[field]||'',placeholder:placeholder||'Notes...',onBlur:e=>si(field,e.target.value),onKeyDown:e=>{if(e.key==='Enter')e.target.blur();}}));};
   // Color scale for brake pad depth (mm): >=6 green, 3-5 yellow, <=2 red
   const brakeColor=v=>{const n=parseFloat(v);if(!v||isNaN(n))return '#2a3048';if(n>=6)return '#22c55e';if(n>=3)return '#f59e0b';return '#ef4444';};
