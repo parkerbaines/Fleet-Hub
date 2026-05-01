@@ -1300,12 +1300,13 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const[f,setF]=useState({title:'',asset_type:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
   const sf=(k,v)=>setF(x=>({...x,[k]:v}));
   const autoSaveTimer=useRef(null);
-  const autoSave=async(newInsp)=>{
+  const autoSave=(newInsp)=>{
     if(!isEdit||!id)return;
     clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current=setTimeout(async()=>{
-      await sb.from('work_orders').update({inspection_data:newInsp,updated_at:new Date().toISOString()}).eq('id',id);
-    },800);
+    autoSaveTimer.current=setTimeout(()=>{
+      // Fire-and-forget — NO setState so zero re-render, zero focus loss
+      sb.from('work_orders').update({inspection_data:newInsp,updated_at:new Date().toISOString()}).eq('id',id);
+    },2000);
   };
 
   // Inspection data — all stored as jsonb
@@ -1332,11 +1333,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   });
   const siTimer=useRef(null);
   const si=(k,v)=>{
-    setInsp(x=>{const next={...x,[k]:v};return next;});
-    clearTimeout(siTimer.current);
-    siTimer.current=setTimeout(()=>{
-      setInsp(cur=>{autoSave(cur);return cur;});
-    },400);
+    setInsp(x=>{const next={...x,[k]:v};autoSave(next);return next;});
   };
 
   // Time entry form
