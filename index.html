@@ -1404,7 +1404,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const autoSaveTimer=useRef(null);
   useEffect(()=>()=>{WO_DIRTY.current=false;window.__woDirty=false;clearTimeout(WO_DIRTY.timer);},[]);
   const autoSaveF=(newF)=>{
-    if(!isEdit||!id)return;
+    console.log("autoSaveF called",{isEdit,id,hasF:!!newF});
+    if(!isEdit||!id){console.log("autoSaveF early return - isEdit:",isEdit,"id:",id);return;}
     const ind=document.getElementById('wo-save-ind');
     if(ind){ind.textContent='Unsaved';ind.style.color='#fbbf24';ind.style.background='rgba(251,191,36,.15)';;}
     clearTimeout(autoSaveF._t);
@@ -1423,7 +1424,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     },1500);
   };
   autoSaveF._t=null;
-  const sf=(k,v)=>{window.__woDirty=true;setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});};
+  const sf=(k,v)=>{console.log("sf called",k,v);window.__woDirty=true;setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});};
   const autoSave=(newInsp)=>{
     if(!isEdit||!id)return;
     clearTimeout(autoSaveTimer.current);
