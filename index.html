@@ -1401,24 +1401,23 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
 
   // Main form fields
   const[f,setF]=useState({title:'',asset_type:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
-  const isDirty=useRef(false);
-  const fAutoTimer=useRef(null);
   const autoSaveTimer=useRef(null);
+  useEffect(()=>()=>{WO_DIRTY.current=false;clearTimeout(WO_DIRTY.timer);},[]);
   const autoSaveF=(newF)=>{
     if(!isEdit||!id)return;
-    clearTimeout(fAutoTimer.current);
-    fAutoTimer.current=setTimeout(()=>{
-      const payload={...newF,updated_at:new Date().toISOString()};
-      sb.from('work_orders').update(payload).eq('id',id).then(()=>{
-        isDirty.current=false;
-        const ind=document.getElementById('wo-save-ind');
-        if(ind){ind.textContent='Saved';ind.style.color='#4ade80';setTimeout(()=>{if(ind)ind.textContent='';},2000);}
+    WO_DIRTY.current=true;
+    const _ind=document.getElementById('wo-save-ind');
+    if(_ind){_ind.textContent='Saving...';_ind.style.color='#6b7a9f';}
+    clearTimeout(WO_DIRTY.timer);
+    WO_DIRTY.timer=setTimeout(()=>{
+      sb.from('work_orders').update({...newF,updated_at:new Date().toISOString()}).eq('id',id).then(()=>{
+        WO_DIRTY.current=false;
+        const _ind2=document.getElementById('wo-save-ind');
+        if(_ind2){_ind2.textContent='Saved';_ind2.style.color='#4ade80';setTimeout(()=>{if(_ind2)_ind2.textContent='';},2000);}
       });
     },2000);
-    isDirty.current=true;
-    const ind=document.getElementById('wo-save-ind');
-    if(ind){ind.textContent='Saving...';ind.style.color='#6b7a9f';}
   };
+  
   const sf=(k,v)=>setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});
   const autoSave=(newInsp)=>{
     if(!isEdit||!id)return;
@@ -1516,7 +1515,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
 
   const doSave=async(statusOverride)=>{
     if(!f.title.trim()){setError('Title is required');setActiveTab('info');return;}
-    setSaving(true);setError(null);
+    setSaving(true);setError(null);WO_DIRTY.current=false;clearTimeout(WO_DIRTY.timer);
     const payload={...f,order_number:undefined,status:statusOverride||f.status,asset_type:f.asset_type||null,asset_id:f.asset_id||null,technician_id:f.technician_id||null,estimated_hours:f.estimated_hours?parseFloat(f.estimated_hours):null,mileage_in:f.mileage_in?parseInt(f.mileage_in):null,mileage_out:f.mileage_out?parseInt(f.mileage_out):null,labor_cost:f.labor_cost?parseFloat(f.labor_cost):null,inspection_data:insp,updated_at:new Date().toISOString()};
     if((statusOverride||f.status)==='completed')payload.completed_at=new Date().toISOString();
     if(statusOverride)setF(x=>({...x,status:statusOverride}));
@@ -1712,15 +1711,12 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   return h('div',{className:'page'},
     // Header row
     h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      h('button',{className:'back-btn',onClick:()=>{
-          if(isDirty.current&&!confirm('You have unsaved changes. Leave without saving?'))return;
-          isDirty.current=false;clearTimeout(fAutoTimer.current);setPage('workorders');
-        }},h(IBack)),
+      h('button',{className:'back-btn',onClick:()=>setPage('workorders')},h(IBack)),
       h('div',{style:{flex:1,minWidth:0}},isEdit&&h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4}},h('span',{className:'mono',style:{fontSize:12}},wo?.order_number),h(PBadge,{cls:priorityCls[f.priority],label:f.priority}),h(PBadge,{cls:statusCls[f.status],label:statusLabel[f.status]})),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?(f.title||'Work Order'):'New Work Order')),
       h('div',{className:'btn-row no-print'},
         isEdit&&h('button',{className:'btn btn-success',onClick:handlePrint},h(IPrint),' Print / PDF'),
         h('span',{id:'wo-save-ind',style:{fontSize:11,transition:'color .3s',marginRight:4,alignSelf:'center'}}),
-        h('button',{className:'btn btn-primary',onClick:()=>{isDirty.current=false;doSave();},disabled:saving},saving?'Saving...':isEdit?'Save':'Create WO'),
+        h('button',{className:'btn btn-primary',onClick:()=>{WO_DIRTY.current=false;doSave();},disabled:saving},saving?'Saving...':isEdit?'Save':'Create WO'),
         isEdit&&h('select',{className:'btn btn-ghost',style:{cursor:'pointer',paddingRight:12},onChange:e=>{if(e.target.value)doSave(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'Change Status'),['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},statusLabel[s]))),
         isEdit&&!isTech&&h('button',{className:'btn btn-danger',onClick:async()=>{if(!confirm('Delete?'))return;await sb.from('work_orders').delete().eq('id',id);setPage('workorders');}},h(ITrash))
       )
@@ -3570,10 +3566,17 @@ function TechDashboard({setPage,myTechId=null}){
 }
 
 
+const WO_DIRTY={current:false,timer:null};
 function App(){
   const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech,myTechId}=useAuth();
   const[page,setPage_]=useState('dashboard');
-  const setPage=(p)=>setPage_(p);
+  const setPage=(p)=>{
+    if(WO_DIRTY.current&&page.startsWith('wo-')&&!p.startsWith('wo-')){
+      if(!confirm('You have unsaved changes. Leave without saving?'))return;
+      WO_DIRTY.current=false;clearTimeout(WO_DIRTY.timer);
+    }
+    setPage_(p);
+  };
   // Redirect tech to their dashboard once auth resolves
   useEffect(()=>{
     if(!authLoading&&isTech&&page==='dashboard')setPage_('tech-dashboard');
