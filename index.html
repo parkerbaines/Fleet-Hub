@@ -3570,7 +3570,6 @@ const WO_DIRTY={current:false,timer:null};
 function App(){
   const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech,myTechId}=useAuth();
   const[page,setPage_]=useState('dashboard');
-  // Store page in window so setPage can always read the current value
   window.__woPage=page;
   const setPage=(p)=>{
     if(window.__woDirty&&(window.__woPage||'').startsWith('wo-')&&!p.startsWith('wo-')){
