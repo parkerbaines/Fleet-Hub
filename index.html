@@ -3570,11 +3570,10 @@ const WO_DIRTY={current:false,timer:null};
 function App(){
   const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech,myTechId}=useAuth();
   const[page,setPage_]=useState('dashboard');
-  const pageRef=useRef('dashboard');
-  // Keep pageRef in sync so setPage closure always reads current page
-  useEffect(()=>{pageRef.current=page;},[page]);
+  // Store page in window so setPage can always read the current value
+  window.__woPage=page;
   const setPage=(p)=>{
-    if(window.__woDirty&&pageRef.current.startsWith('wo-')&&!p.startsWith('wo-')){
+    if(window.__woDirty&&(window.__woPage||'').startsWith('wo-')&&!p.startsWith('wo-')){
       if(!confirm('You have unsaved changes. Leave without saving?'))return;
       window.__woDirty=false;
     }
