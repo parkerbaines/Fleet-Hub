@@ -1401,8 +1401,25 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
 
   // Main form fields
   const[f,setF]=useState({title:'',asset_type:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
-  const sf=(k,v)=>setF(x=>({...x,[k]:v}));
+  const isDirty=useRef(false);
+  const fAutoTimer=useRef(null);
   const autoSaveTimer=useRef(null);
+  const autoSaveF=(newF)=>{
+    if(!isEdit||!id)return;
+    clearTimeout(fAutoTimer.current);
+    fAutoTimer.current=setTimeout(()=>{
+      const payload={...newF,updated_at:new Date().toISOString()};
+      sb.from('work_orders').update(payload).eq('id',id).then(()=>{
+        isDirty.current=false;
+        const ind=document.getElementById('wo-save-ind');
+        if(ind){ind.textContent='Saved';ind.style.color='#4ade80';setTimeout(()=>{if(ind)ind.textContent='';},2000);}
+      });
+    },2000);
+    isDirty.current=true;
+    const ind=document.getElementById('wo-save-ind');
+    if(ind){ind.textContent='Saving...';ind.style.color='#6b7a9f';}
+  };
+  const sf=(k,v)=>setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});
   const autoSave=(newInsp)=>{
     if(!isEdit||!id)return;
     clearTimeout(autoSaveTimer.current);
@@ -1695,11 +1712,15 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   return h('div',{className:'page'},
     // Header row
     h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      h('button',{className:'back-btn',onClick:()=>setPage('workorders')},h(IBack)),
+      h('button',{className:'back-btn',onClick:()=>{
+          if(isDirty.current&&!confirm('You have unsaved changes. Leave without saving?'))return;
+          isDirty.current=false;clearTimeout(fAutoTimer.current);setPage('workorders');
+        }},h(IBack)),
       h('div',{style:{flex:1,minWidth:0}},isEdit&&h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4}},h('span',{className:'mono',style:{fontSize:12}},wo?.order_number),h(PBadge,{cls:priorityCls[f.priority],label:f.priority}),h(PBadge,{cls:statusCls[f.status],label:statusLabel[f.status]})),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?(f.title||'Work Order'):'New Work Order')),
       h('div',{className:'btn-row no-print'},
         isEdit&&h('button',{className:'btn btn-success',onClick:handlePrint},h(IPrint),' Print / PDF'),
-        h('button',{className:'btn btn-primary',onClick:()=>doSave(),disabled:saving},saving?'Saving...':isEdit?'Save':'Create WO'),
+        h('span',{id:'wo-save-ind',style:{fontSize:11,transition:'color .3s',marginRight:4,alignSelf:'center'}}),
+        h('button',{className:'btn btn-primary',onClick:()=>{isDirty.current=false;doSave();},disabled:saving},saving?'Saving...':isEdit?'Save':'Create WO'),
         isEdit&&h('select',{className:'btn btn-ghost',style:{cursor:'pointer',paddingRight:12},onChange:e=>{if(e.target.value)doSave(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'Change Status'),['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},statusLabel[s]))),
         isEdit&&!isTech&&h('button',{className:'btn btn-danger',onClick:async()=>{if(!confirm('Delete?'))return;await sb.from('work_orders').delete().eq('id',id);setPage('workorders');}},h(ITrash))
       )
