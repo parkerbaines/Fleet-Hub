@@ -1426,11 +1426,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const sf=(k,v)=>{window.__woDirty=true;setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});};
   const autoSave=(newInsp)=>{
     if(!isEdit||!id)return;
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current=setTimeout(()=>{
-      // Fire-and-forget — NO setState so zero re-render, zero focus loss
-      sb.from('work_orders').update({inspection_data:newInsp,updated_at:new Date().toISOString()}).eq('id',id);
-    },500);
+    // Save immediately on every change - no debounce
+    sb.from('work_orders').update({inspection_data:newInsp,updated_at:new Date().toISOString()}).eq('id',id);
   };
 
   // Inspection data — all stored as jsonb
