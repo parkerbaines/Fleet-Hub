@@ -1420,18 +1420,17 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
             if(ind3){ind3.textContent='Saved';ind3.style.color='#4ade80';ind3.style.background='rgba(74,222,128,.1)';setTimeout(()=>{const _i=document.getElementById('wo-save-ind');if(_i){_i.textContent='';_i.style.background='transparent';}},3000);}
           }
         });
-    },1500);
+    },500);
   };
   autoSaveF._t=null;
   const sf=(k,v)=>{window.__woDirty=true;setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});};
   const autoSave=(newInsp)=>{
-    console.log("AUTOSAVE called isEdit:",isEdit,"id:",id);
-    if(!isEdit||!id){console.log("AUTOSAVE BLOCKED");return;}
+    if(!isEdit||!id)return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current=setTimeout(()=>{
       // Fire-and-forget — NO setState so zero re-render, zero focus loss
       sb.from('work_orders').update({inspection_data:newInsp,updated_at:new Date().toISOString()}).eq('id',id);
-    },2000);
+    },500);
   };
 
   // Inspection data — all stored as jsonb
@@ -1458,7 +1457,6 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   });
   const siTimer=useRef(null);
   const si=(k,v)=>{
-    console.log("SI CALLED",k,v,"isEdit:",isEdit,"id:",id);
     setInsp(x=>{const next={...x,[k]:v};autoSave(next);return next;});
   };
 
