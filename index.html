@@ -1405,19 +1405,24 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   useEffect(()=>()=>{WO_DIRTY.current=false;window.__woDirty=false;clearTimeout(WO_DIRTY.timer);},[]);
   const autoSaveF=(newF)=>{
     if(!isEdit||!id)return;
-    window.__woDirty=true;WO_DIRTY.current=true;
-    const _ind=document.getElementById('wo-save-ind');
-    if(_ind){_ind.textContent='Saving...';_ind.style.color='#6b7a9f';}
-    clearTimeout(WO_DIRTY.timer);
-    WO_DIRTY.timer=setTimeout(()=>{
-      sb.from('work_orders').update({...newF,updated_at:new Date().toISOString()}).eq('id',id).then(()=>{
-        WO_DIRTY.current=false;
-        const _ind2=document.getElementById('wo-save-ind');
-        if(_ind2){_ind2.textContent='Saved';_ind2.style.color='#4ade80';setTimeout(()=>{if(_ind2)_ind2.textContent='';},2000);}
-      });
-    },2000);
+    const ind=document.getElementById('wo-save-ind');
+    if(ind){ind.textContent='● Unsaved';ind.style.color='#fbbf24';}
+    clearTimeout(autoSaveF._t);
+    autoSaveF._t=setTimeout(()=>{
+      const ind2=document.getElementById('wo-save-ind');
+      if(ind2){ind2.textContent='Saving...';ind2.style.color='#6b7a9f';}
+      sb.from('work_orders').update({...newF,updated_at:new Date().toISOString()}).eq('id',id)
+        .then(({error})=>{
+          const ind3=document.getElementById('wo-save-ind');
+          if(error){
+            if(ind3){ind3.textContent='● Save failed';ind3.style.color='#f87171';}
+          } else {
+            if(ind3){ind3.textContent='✓ Saved';ind3.style.color='#4ade80';setTimeout(()=>{if(document.getElementById('wo-save-ind'))document.getElementById('wo-save-ind').textContent='';},3000);}
+          }
+        });
+    },1500);
   };
-  
+  autoSaveF._t=null;
   const sf=(k,v)=>{window.__woDirty=true;setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});};
   const autoSave=(newInsp)=>{
     if(!isEdit||!id)return;
@@ -1715,7 +1720,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
       h('div',{style:{flex:1,minWidth:0}},isEdit&&h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4}},h('span',{className:'mono',style:{fontSize:12}},wo?.order_number),h(PBadge,{cls:priorityCls[f.priority],label:f.priority}),h(PBadge,{cls:statusCls[f.status],label:statusLabel[f.status]})),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},isEdit?(f.title||'Work Order'):'New Work Order')),
       h('div',{className:'btn-row no-print'},
         isEdit&&h('button',{className:'btn btn-success',onClick:handlePrint},h(IPrint),' Print / PDF'),
-        h('span',{id:'wo-save-ind',style:{fontSize:11,transition:'color .3s',marginRight:4,alignSelf:'center'}}),
+        h('span',{id:'wo-save-ind',style:{fontSize:11,transition:'color .3s',marginRight:8,alignSelf:'center',fontWeight:500,minWidth:80,textAlign:'right'}}),
         h('button',{className:'btn btn-primary',onClick:()=>{WO_DIRTY.current=false;doSave();},disabled:saving},saving?'Saving...':isEdit?'Save':'Create WO'),
         isEdit&&h('select',{className:'btn btn-ghost',style:{cursor:'pointer',paddingRight:12},onChange:e=>{if(e.target.value)doSave(e.target.value);e.target.value='';},defaultValue:''},h('option',{value:'',disabled:true},'Change Status'),['open','in_progress','on_hold','completed','cancelled'].map(s=>h('option',{key:s,value:s},statusLabel[s]))),
         isEdit&&!isTech&&h('button',{className:'btn btn-danger',onClick:async()=>{if(!confirm('Delete?'))return;await sb.from('work_orders').delete().eq('id',id);setPage('workorders');}},h(ITrash))
@@ -3570,14 +3575,10 @@ const WO_DIRTY={current:false,timer:null};
 function App(){
   const{session,appUser,authLoading,signIn,signOut,isAdmin,isTech,myTechId}=useAuth();
   const[page,setPage_]=useState('dashboard');
-  window.__woPage=page;
-  const setPage=(p)=>{
-    if(window.__woDirty&&(window.__woPage||'').startsWith('wo-')&&!p.startsWith('wo-')){
-      if(!confirm('You have unsaved changes. Leave without saving?'))return;
-      window.__woDirty=false;
-    }
-    setPage_(p);
-  };
+  const pageRef=useRef('dashboard');
+  // Keep pageRef in sync so setPage closure always reads current page
+  useEffect(()=>{pageRef.current=page;},[page]);
+  const setPage=(p)=>{setPage_(p);};
   // Redirect tech to their dashboard once auth resolves
   useEffect(()=>{
     if(!authLoading&&isTech&&page==='dashboard')setPage_('tech-dashboard');
