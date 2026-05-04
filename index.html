@@ -1402,10 +1402,10 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   // Main form fields
   const[f,setF]=useState({title:'',asset_type:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
   const autoSaveTimer=useRef(null);
-  useEffect(()=>()=>{WO_DIRTY.current=false;clearTimeout(WO_DIRTY.timer);},[]);
+  useEffect(()=>()=>{WO_DIRTY.current=false;window.__woDirty=false;clearTimeout(WO_DIRTY.timer);},[]);
   const autoSaveF=(newF)=>{
     if(!isEdit||!id)return;
-    WO_DIRTY.current=true;
+    window.__woDirty=true;WO_DIRTY.current=true;
     const _ind=document.getElementById('wo-save-ind');
     if(_ind){_ind.textContent='Saving...';_ind.style.color='#6b7a9f';}
     clearTimeout(WO_DIRTY.timer);
@@ -1418,7 +1418,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     },2000);
   };
   
-  const sf=(k,v)=>setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});
+  const sf=(k,v)=>{window.__woDirty=true;setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});};
   const autoSave=(newInsp)=>{
     if(!isEdit||!id)return;
     clearTimeout(autoSaveTimer.current);
@@ -1515,7 +1515,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
 
   const doSave=async(statusOverride)=>{
     if(!f.title.trim()){setError('Title is required');setActiveTab('info');return;}
-    setSaving(true);setError(null);WO_DIRTY.current=false;clearTimeout(WO_DIRTY.timer);
+    setSaving(true);setError(null);WO_DIRTY.current=false;window.__woDirty=false;clearTimeout(WO_DIRTY.timer);
     const payload={...f,order_number:undefined,status:statusOverride||f.status,asset_type:f.asset_type||null,asset_id:f.asset_id||null,technician_id:f.technician_id||null,estimated_hours:f.estimated_hours?parseFloat(f.estimated_hours):null,mileage_in:f.mileage_in?parseInt(f.mileage_in):null,mileage_out:f.mileage_out?parseInt(f.mileage_out):null,labor_cost:f.labor_cost?parseFloat(f.labor_cost):null,inspection_data:insp,updated_at:new Date().toISOString()};
     if((statusOverride||f.status)==='completed')payload.completed_at=new Date().toISOString();
     if(statusOverride)setF(x=>({...x,status:statusOverride}));
@@ -3574,9 +3574,9 @@ function App(){
   // Keep pageRef in sync so setPage closure always reads current page
   useEffect(()=>{pageRef.current=page;},[page]);
   const setPage=(p)=>{
-    if(WO_DIRTY.current&&pageRef.current.startsWith('wo-')&&!p.startsWith('wo-')){
+    if(window.__woDirty&&pageRef.current.startsWith('wo-')&&!p.startsWith('wo-')){
       if(!confirm('You have unsaved changes. Leave without saving?'))return;
-      WO_DIRTY.current=false;clearTimeout(WO_DIRTY.timer);
+      window.__woDirty=false;
     }
     setPage_(p);
   };
