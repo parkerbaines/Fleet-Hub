@@ -1527,8 +1527,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     if((statusOverride||f.status)==='completed'){
       for(const p of (woParts||[])){
         if(p.part_id){
-          const{data:pr}=await sb.from('parts').select('quantity_on_hand,track_inventory').eq('id',p.part_id).single();
-          if(pr&&pr.track_inventory!==false){
+          const{data:pr}=await sb.from('parts').select('quantity_on_hand').eq('id',p.part_id).single();
+          if(pr){
             await sb.from('parts').update({quantity_on_hand:Math.max(0,(parseFloat(pr.quantity_on_hand)||0)-parseFloat(p.quantity_used||0)),updated_at:new Date().toISOString()}).eq('id',p.part_id);
           }
         }
