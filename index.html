@@ -2282,7 +2282,7 @@ function Technicians({setPage,isTech=false}){
 }
 
 
-function LogModal({onClose,assets,vendors,onSaved}){
+function LogModal({onClose,assets,vendors,onSaved,onVendorSaved}){
     const[f,setF]=useState({asset_type:'',asset_id:'',service_type:'',description:'',odometer_miles:'',engine_hours:'',cost:'',serviced_at:new Date().toISOString().slice(0,16),next_service_miles:'',next_service_date:'',vendor_id:'',vendor_name:'',invoice_name:'',invoice_data:''});
     const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);
     const s=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -2309,8 +2309,9 @@ function LogModal({onClose,assets,vendors,onSaved}){
       let finalVendorId=f.vendor_id||null;
       let finalVendorName=f.vendor_name||null;
       if(!f.vendor_id&&newVendor.trim()){
-        const{data:nv}=await sb.from('vendors').insert({name:newVendor.trim()}).select().single();
-        if(nv){finalVendorId=nv.id;finalVendorName=nv.name;}
+        const{data:nv,error:nvErr}=await sb.from('vendors').insert({name:newVendor.trim()}).select().single();
+        if(nvErr){alert("Error adding vendor: "+nvErr.message);setSaving(false);return;}
+        if(nv){finalVendorId=nv.id;finalVendorName=nv.name;if(onVendorSaved)onVendorSaved();}
       }
       const woAsset=assets?.find(a=>a.id===f.asset_id);
       const payload={asset_id:f.asset_id,asset_type:f.asset_type||woAsset?.asset_type||null,service_type:f.service_type,description:f.description||null,odometer_miles:f.odometer_miles?parseInt(f.odometer_miles):null,engine_hours:f.engine_hours?parseFloat(f.engine_hours):null,cost:f.cost?parseFloat(f.cost):null,serviced_at:f.serviced_at||new Date().toISOString(),next_service_miles:f.next_service_miles?parseInt(f.next_service_miles):null,next_service_date:f.next_service_date||null,vendor_id:finalVendorId,vendor_name:finalVendorName,invoice_name:f.invoice_name||null,invoice_data:f.invoice_data||null};
@@ -2686,7 +2687,7 @@ function ServiceLogs({isTech=false,setPage}={}){
       ))
     ),
     showReports&&h(ServiceReports,{onClose:()=>setShowReports(false)}),
-    showModal&&h(LogModal,{onClose:()=>setShowModal(false),assets,vendors,onSaved:refetch}),
+    showModal&&h(LogModal,{onClose:()=>setShowModal(false),assets,vendors,onSaved:refetch,onVendorSaved:refetchVendors}),
     detailLog&&h('div',{className:'modal-overlay'},h('div',{className:'modal mw'},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
         h('h3',{style:{marginBottom:0}},detailLog.service_type),
