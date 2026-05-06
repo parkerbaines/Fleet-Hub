@@ -2099,10 +2099,10 @@ function Parts({isTech=false}){
   const[search,setSearch]=useState('');const[catF,setCatF]=useState('');const[modal,setModal]=useState(null);
   const[addQtyId,setAddQtyId]=useState(null); // part id being quick-added
   const[addQtyVal,setAddQtyVal]=useState('');
-  const doAddQty=async(p)=>{
+  const doAddQty=async(p,dir=1)=>{
     const amt=parseFloat(addQtyVal);
-    if(!amt||isNaN(amt))return;
-    const newQty=parseFloat(p.quantity_on_hand||0)+amt;
+    if(!amt||isNaN(amt)||amt<=0)return;
+    const newQty=Math.max(0,parseFloat(p.quantity_on_hand||0)+(dir*amt));
     await sb.from('parts').update({quantity_on_hand:newQty,updated_at:new Date().toISOString()}).eq('id',p.id);
     setAddQtyId(null);setAddQtyVal('');refetch();
   };
@@ -2131,11 +2131,12 @@ function Parts({isTech=false}){
     onChange:e=>setAddQtyVal(e.target.value),
     onKeyDown:e=>{if(e.key==='Enter')doAddQty(p);if(e.key==='Escape'){setAddQtyId(null);setAddQtyVal('');}},
     style:{width:80,padding:'3px 6px',borderRadius:6,border:'.5px solid #378ADD',background:'#181c27',color:'#e2e8f0',fontSize:12}}),
-  h('button',{onClick:()=>doAddQty(p),style:{padding:'3px 8px',borderRadius:6,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:11,cursor:'pointer',fontWeight:600}},'+'),
-  h('button',{onClick:()=>{setAddQtyId(null);setAddQtyVal('');},style:{padding:'3px 6px',borderRadius:6,border:'none',background:'transparent',color:'#6b7a9f',fontSize:11,cursor:'pointer'}},'x'))
+  h('button',{onClick:()=>doAddQty(p,1),title:'Add to stock',style:{padding:'3px 10px',borderRadius:6,border:'none',background:'#185FA5',color:'#E6F1FB',fontSize:12,cursor:'pointer',fontWeight:700}},'+'),
+  h('button',{onClick:()=>doAddQty(p,-1),title:'Remove from stock',style:{padding:'3px 10px',borderRadius:6,border:'none',background:'rgba(248,113,113,.15)',color:'#f87171',fontSize:12,cursor:'pointer',fontWeight:700}},'−'),
+  h('button',{onClick:()=>{setAddQtyId(null);setAddQtyVal('');},style:{padding:'3px 6px',borderRadius:6,border:'none',background:'transparent',color:'#6b7a9f',fontSize:12,cursor:'pointer'}},'x'))
 :h('div',{style:{display:'flex',alignItems:'center',gap:6}},
   h('span',{style:{fontWeight:600,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80',minWidth:28}},p.quantity_on_hand),
-  !isTech&&h('button',{title:'Add stock',onClick:e=>{e.stopPropagation();setAddQtyId(p.id);setAddQtyVal('');},
+  !isTech&&h('button',{title:'Adjust stock',onClick:e=>{e.stopPropagation();setAddQtyId(p.id);setAddQtyVal('');},
     style:{width:18,height:18,borderRadius:'50%',border:'.5px solid #2a3048',background:'rgba(255,255,255,.06)',color:'#6b7a9f',fontSize:13,lineHeight:'16px',cursor:'pointer',padding:0,display:'inline-flex',alignItems:'center',justifyContent:'center'}},'+'))),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.reorder_point),h('td',null,fmtCur(p.unit_cost)),h('td',{style:{color:'#6b7a9f',fontSize:12}},p.supplier||'—'),h('td',{style:{color:'#6b7a9f',fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},p.location||'—'),h('td',null,h('div',{className:'btn-row'},h('button',{title:p.track_inventory===false?'Click to track inventory':'Click to stop tracking',onClick:async(e)=>{e.stopPropagation();await sb.from('parts').update({track_inventory:p.track_inventory===false,updated_at:new Date().toISOString()}).eq('id',p.id);refetch();},style:{fontSize:10,padding:'2px 8px',borderRadius:12,border:'.5px solid '+(p.track_inventory===false?'#2a3048':'rgba(34,197,94,.4)'),background:p.track_inventory===false?'transparent':'rgba(34,197,94,.1)',color:p.track_inventory===false?'#6b7a9f':'#4ade80',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}},p.track_inventory===false?'Untracked':'Tracked'),(!isTech&&h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit))),!isTech&&h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>del(p.id)},h(ITrash)))));})))),
       h('div',{className:'table-mobile'},loading?h('div',{style:{padding:24,color:'#6b7a9f',textAlign:'center'}},'Loading...'):filtered.map(p=>{const isLow=p.quantity_on_hand<=p.reorder_point;const isOut=p.quantity_on_hand===0;return h('div',{key:p.id,className:'divide-row'},h('div',{style:{flex:1}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},p.name),h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},p.part_number,' · ',p.category)),h('div',{style:{fontSize:18,fontWeight:700,color:isOut?'#f87171':isLow?'#fbbf24':'#4ade80',marginRight:8}},p.quantity_on_hand),(!isTech&&h('button',{className:'btn-icon',onClick:()=>setModal(p)},h(IEdit))));}))
     ),
