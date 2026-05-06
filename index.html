@@ -869,20 +869,389 @@ function Fleet({setPage,isTech=false,initialType,initialStatus}){
 }
 
 function AssetDetail({id,setPage,isTech=false}){
+  const[tab,setTab]=useState('overview');
   const{data:a,loading}=useQuery(()=>sb.from('assets').select('*').eq('id',id).single(),[id]);
   const{data:wos}=useQuery(()=>sb.from('work_orders').select('id,order_number,title,priority,status').eq('asset_id',id).in('status',['open','in_progress']),[id]);
-  const{data:logs}=useQuery(()=>sb.from('service_logs').select('*,technician:technicians(name)').eq('asset_id',id).order('serviced_at',{ascending:false}),[id]);
+  const{data:logs,refetch:refetchLogs}=useQuery(()=>sb.from('service_logs').select('*,technician:technicians(name)').eq('asset_id',id).order('serviced_at',{ascending:false}),[id]);
+  const{data:catalog,refetch:refetchCatalog}=useQuery(()=>sb.from('asset_parts_catalog').select('*,part:parts(id,name,part_number,quantity_on_hand,uom,unit_cost)').eq('asset_id',id).order('is_preferred',{ascending:false}).order('part_name'),[id]);
+  const{data:specs,refetch:refetchSpecs}=useQuery(()=>sb.from('asset_specifications').select('*').eq('asset_id',id).maybeSingle(),[id]);
+
+  // Previously used parts from WO history
+  const{data:usedParts}=useQuery(()=>sb.from('work_order_parts')
+    .select('part_name,part_number,uom,unit_cost,quantity_used,part_id,part:parts(id,name,quantity_on_hand)')
+    .eq('work_order_id',id) // won't work - need to join via work_orders
+    .limit(1),[]);
+  // Actually query via work_orders for this asset
+  const{data:woIds}=useQuery(()=>sb.from('work_orders').select('id').eq('asset_id',id),[id]);
+  const[usedPartsData,setUsedPartsData]=useState([]);
+  useEffect(()=>{
+    if(!woIds||!woIds.length)return;
+    const ids=woIds.map(w=>w.id);
+    sb.from('work_order_parts')
+      .select('part_name,part_number,uom,unit_cost,part_id,part:parts(id,name,quantity_on_hand,uom)')
+      .in('work_order_id',ids)
+      .then(({data})=>{
+        // Deduplicate by part_name
+        const seen=new Map();
+        (data||[]).forEach(p=>{
+          const key=p.part_id||p.part_name;
+          if(!seen.has(key))seen.set(key,p);
+        });
+        setUsedPartsData([...seen.values()]);
+      });
+  },[woIds]);
+
+  // Specs editing
+  const[editSpecs,setEditSpecs]=useState(false);
+  const[sf,setSf]=useState({});
+  const[savingSpecs,setSavingSpecs]=useState(false);
+  useEffect(()=>{if(specs)setSf(specs);},[specs?.id]);
+  const saveSpecs=async()=>{
+    setSavingSpecs(true);
+    const payload={...sf,asset_id:id,updated_at:new Date().toISOString()};
+    if(specs?.id){
+      await sb.from('asset_specifications').update(payload).eq('id',specs.id);
+    } else {
+      await sb.from('asset_specifications').insert(payload);
+    }
+    setSavingSpecs(false);setEditSpecs(false);refetchSpecs();
+  };
+
+  // Catalog management
+  const[showAddPart,setShowAddPart]=useState(false);
+  const[newPart,setNewPart]=useState({part_name:'',part_number:'',notes:'',is_preferred:false});
+  const{data:allParts}=useQuery(()=>sb.from('parts').select('id,name,part_number,unit_cost,uom').order('name'));
+  const addToCatalog=async()=>{
+    if(!newPart.part_name.trim())return;
+    await sb.from('asset_parts_catalog').insert({asset_id:id,...newPart,updated_at:new Date().toISOString()});
+    setNewPart({part_name:'',part_number:'',notes:'',is_preferred:false});
+    setShowAddPart(false);refetchCatalog();
+  };
+  const removeCatalog=async(cid)=>{
+    if(!confirm('Remove from catalog?'))return;
+    await sb.from('asset_parts_catalog').delete().eq('id',cid);
+    refetchCatalog();
+  };
+
   const del=async()=>{if(isTech||!confirm('Delete this asset?'))return;await sb.from('assets').delete().eq('id',id);setPage('fleet');};
   if(loading)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Loading...');
   if(!a)return h('div',{className:'page',style:{color:'#6b7a9f'}},'Asset not found.');
   const F=({label,value})=>h('div',{className:'detail-field'},h('label',null,label),h('p',null,value||'—'));
+
+  const TABS=[
+    {id:'overview',label:'Overview'},
+    {id:'specs',label:'⚙ Specs'},
+    {id:'catalog',label:'🔧 Parts Catalog'},
+    {id:'history',label:'📋 Service History'},
+  ];
+
   return h('div',{className:'page'},
-    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:20}},h('button',{className:'back-btn',onClick:()=>setPage('fleet-back-'+(a.asset_type||''))},h(IBack)),h('div',{style:{flex:1,minWidth:0}},h('div',{style:{display:'flex',gap:8,marginBottom:4}},h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' ')),h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type)),h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0'}},a.name)),h('div',{className:'btn-row'},h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New WO'),h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),!isTech&&h('button',{className:'btn btn-danger',onClick:del},h(ITrash)))),
-    h('div',{className:'card',style:{padding:20,marginBottom:16}},h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:16}},'Asset Details'),h('div',{className:'detail-grid'},h(F,{label:'Asset #',value:a.asset_number}),h(F,{label:'Year',value:a.year}),h(F,{label:'Make',value:a.make}),h(F,{label:'Model',value:a.model}),h(F,{label:'VIN',value:a.vin}),h(F,{label:'License Plate',value:a.license_plate}),a.asset_type!=='trailer'&&h(F,{label:'Odometer',value:a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':null}),a.asset_type==='equipment'&&h(F,{label:'Engine Hours',value:a.engine_hours?a.engine_hours+' hrs':null})),a.notes&&h('div',{style:{marginTop:16,paddingTop:16,borderTop:'0.5px solid #2a3048'}},h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),h('p',{style:{fontSize:13,color:'#e2e8f0'}},a.notes))),
-    (wos||[]).length>0&&h('div',{className:'card',style:{marginBottom:16}},h('div',{className:'card-header'},h('span',{className:'card-title'},'Open Work Orders ('+(wos||[]).length+')')),wos.map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},h('span',{className:'mono'},wo.order_number),h('span',{style:{flex:1,fontSize:13,color:'#e2e8f0'}},wo.title),h('span',{className:'badge '+priorityCls[wo.priority]},wo.priority)))),
-    h('div',{className:'card'},h('div',{className:'card-header'},h('span',{className:'card-title'},'Service History'),h('button',{className:'btn btn-ghost',style:{fontSize:11,padding:'4px 10px'},onClick:()=>setPage('servicelogs')},'Add Log')),!logs||logs.length===0?h('div',{style:{padding:24,textAlign:'center',color:'#6b7a9f',fontSize:13}},'No service records yet'):(logs||[]).map(log=>h('div',{key:log.id,style:{padding:'12px 16px',borderBottom:'0.5px solid #2a3048'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),h('div',{style:{fontSize:12,color:'#6b7a9f'}},fmtDate(log.serviced_at))),h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16}},log.technician?.name&&h('span',null,log.technician.name),log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),log.cost&&h('span',null,fmtCur(log.cost))))))
+    // Header
+    h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}},
+      h('button',{className:'back-btn',onClick:()=>setPage('fleet-back-'+(a.asset_type||''))},h(IBack)),
+      h('div',{style:{flex:1,minWidth:0}},
+        h('div',{style:{display:'flex',gap:8,marginBottom:4}},
+          h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' ')),
+          h('span',{style:{fontSize:12,color:'#6b7a9f',textTransform:'capitalize'}},a.asset_type)
+        ),
+        h('h2',{style:{fontSize:18,fontWeight:600,color:'#e2e8f0',margin:0}},a.name)
+      ),
+      h('div',{className:'btn-row'},
+        h('button',{className:'btn btn-primary',onClick:()=>setPage('wo-new')},h(IPlus),' New WO'),
+        h('button',{className:'btn btn-ghost',onClick:()=>setPage('asset-edit-'+id)},h(IEdit),' Edit'),
+        !isTech&&h('button',{className:'btn btn-danger',onClick:del},h(ITrash))
+      )
+    ),
+
+    // Tabs
+    h('div',{className:'wo-tabs',style:{marginBottom:14}},
+      TABS.map(t=>h('button',{key:t.id,
+        className:'wo-tab'+(tab===t.id?' active':''),
+        onClick:()=>setTab(t.id)
+      },t.label))
+    ),
+
+    // ── OVERVIEW TAB ──────────────────────────────────────────────────────────
+    tab==='overview'&&h('div',null,
+      h('div',{className:'card',style:{padding:20,marginBottom:16}},
+        h('div',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0',marginBottom:16}},'Asset Details'),
+        h('div',{className:'detail-grid'},
+          h(F,{label:'Asset #',value:a.asset_number}),
+          h(F,{label:'Year',value:a.year}),
+          h(F,{label:'Make',value:a.make}),
+          h(F,{label:'Model',value:a.model}),
+          h(F,{label:'VIN',value:a.vin}),
+          h(F,{label:'License Plate',value:a.license_plate}),
+          a.asset_type!=='trailer'&&h(F,{label:'Odometer',value:a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':null}),
+          a.asset_type==='equipment'&&h(F,{label:'Engine Hours',value:a.engine_hours?a.engine_hours+' hrs':null})
+        ),
+        a.notes&&h('div',{style:{marginTop:16,paddingTop:16,borderTop:'0.5px solid #2a3048'}},
+          h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:4}},'Notes'),
+          h('p',{style:{fontSize:13,color:'#e2e8f0',margin:0}},a.notes)
+        )
+      ),
+      (wos||[]).length>0&&h('div',{className:'card',style:{marginBottom:16}},
+        h('div',{className:'card-header'},h('span',{className:'card-title'},'Open Work Orders ('+(wos||[]).length+')')),
+        wos.map(wo=>h('div',{key:wo.id,className:'divide-row',onClick:()=>setPage('wo-'+wo.id)},
+          h('span',{className:'mono'},wo.order_number),
+          h('span',{style:{flex:1,fontSize:13,color:'#e2e8f0'}},wo.title),
+          h('span',{className:'badge badge-'+wo.priority},wo.priority)
+        ))
+      )
+    ),
+
+    // ── SPECS TAB ─────────────────────────────────────────────────────────────
+    tab==='specs'&&h('div',null,
+      h('div',{className:'card',style:{marginBottom:16}},
+        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'.5px solid #2a3048'}},
+          h('span',{style:{fontWeight:600,color:'#e2e8f0'}},'Vehicle Specifications'),
+          !isTech&&h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>{setSf(specs||{});setEditSpecs(!editSpecs);}},
+            editSpecs?'Cancel':'✏ Edit')
+        ),
+        h('div',{style:{padding:16}},
+          editSpecs?
+          // Edit mode
+          h('div',null,
+            // Engine
+            h('div',{style:{fontWeight:600,fontSize:12,color:'#378ADD',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8,marginTop:4}},'Engine'),
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:10,marginBottom:16}},
+              ...[
+                ['engine_make','Engine Make','e.g. Cummins'],
+                ['engine_model','Engine Model','e.g. ISX15'],
+              ].map(([k,lbl,ph])=>h('div',{key:k},
+                h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},lbl),
+                h('input',{className:'form-input',placeholder:ph,value:sf[k]||'',onChange:e=>setSf(x=>({...x,[k]:e.target.value}))})
+              ))
+            ),
+            // Oil
+            h('div',{style:{fontWeight:600,fontSize:12,color:'#378ADD',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},'Engine Oil'),
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:10,marginBottom:16}},
+              ...[
+                ['oil_type','Oil Type','e.g. 15W-40 Synthetic'],
+                ['oil_filter','Oil Filter #','e.g. LF9009'],
+              ].map(([k,lbl,ph])=>h('div',{key:k},
+                h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},lbl),
+                h('input',{className:'form-input',placeholder:ph,value:sf[k]||'',onChange:e=>setSf(x=>({...x,[k]:e.target.value}))})
+              )),
+              h('div',{key:'oil_cap'},
+                h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Capacity (qt)'),
+                h('input',{type:'number',step:0.1,className:'form-input',placeholder:'e.g. 15',value:sf.oil_capacity_qt||'',onChange:e=>setSf(x=>({...x,oil_capacity_qt:e.target.value}))})
+              )
+            ),
+            // Coolant
+            h('div',{style:{fontWeight:600,fontSize:12,color:'#378ADD',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},'Coolant'),
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:10,marginBottom:16}},
+              h('div',null,
+                h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Coolant Type'),
+                h('input',{className:'form-input',placeholder:'e.g. NOAT/OAT Green',value:sf.coolant_type||'',onChange:e=>setSf(x=>({...x,coolant_type:e.target.value}))})
+              ),
+              h('div',null,
+                h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Capacity (qt)'),
+                h('input',{type:'number',step:0.1,className:'form-input',placeholder:'e.g. 48',value:sf.coolant_capacity_qt||'',onChange:e=>setSf(x=>({...x,coolant_capacity_qt:e.target.value}))})
+              )
+            ),
+            // Transmission
+            h('div',{style:{fontWeight:600,fontSize:12,color:'#378ADD',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},'Transmission'),
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:10,marginBottom:16}},
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Fluid Type'),h('input',{className:'form-input',placeholder:'e.g. Dexron VI',value:sf.trans_fluid_type||'',onChange:e=>setSf(x=>({...x,trans_fluid_type:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Filter #'),h('input',{className:'form-input',placeholder:'e.g. 57060',value:sf.trans_filter||'',onChange:e=>setSf(x=>({...x,trans_filter:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Capacity (qt)'),h('input',{type:'number',step:0.1,className:'form-input',value:sf.trans_fluid_capacity_qt||'',onChange:e=>setSf(x=>({...x,trans_fluid_capacity_qt:e.target.value}))}))
+            ),
+            // Tires
+            h('div',{style:{fontWeight:600,fontSize:12,color:'#378ADD',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},'Tires'),
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:10,marginBottom:16}},
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Front Size'),h('input',{className:'form-input',placeholder:'e.g. 295/75R22.5',value:sf.tire_size_front||'',onChange:e=>setSf(x=>({...x,tire_size_front:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Rear Size'),h('input',{className:'form-input',placeholder:'e.g. 295/75R22.5',value:sf.tire_size_rear||'',onChange:e=>setSf(x=>({...x,tire_size_rear:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Front PSI'),h('input',{type:'number',className:'form-input',value:sf.tire_pressure_front_psi||'',onChange:e=>setSf(x=>({...x,tire_pressure_front_psi:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Rear PSI'),h('input',{type:'number',className:'form-input',value:sf.tire_pressure_rear_psi||'',onChange:e=>setSf(x=>({...x,tire_pressure_rear_psi:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Lug Torque (ft-lb)'),h('input',{type:'number',className:'form-input',value:sf.lug_nut_torque_ftlb||'',onChange:e=>setSf(x=>({...x,lug_nut_torque_ftlb:e.target.value}))}))
+            ),
+            // Other fluids
+            h('div',{style:{fontWeight:600,fontSize:12,color:'#378ADD',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},'Other Fluids'),
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:10,marginBottom:16}},
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Fuel Type'),h('input',{className:'form-input',placeholder:'e.g. Diesel',value:sf.fuel_type||'',onChange:e=>setSf(x=>({...x,fuel_type:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Fuel Tank (gal)'),h('input',{type:'number',step:1,className:'form-input',value:sf.fuel_tank_capacity_gal||'',onChange:e=>setSf(x=>({...x,fuel_tank_capacity_gal:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Brake Fluid Type'),h('input',{className:'form-input',placeholder:'e.g. DOT 4',value:sf.brake_fluid_type||'',onChange:e=>setSf(x=>({...x,brake_fluid_type:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Power Steering Fluid'),h('input',{className:'form-input',value:sf.power_steering_fluid_type||'',onChange:e=>setSf(x=>({...x,power_steering_fluid_type:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'DEF Capacity (gal)'),h('input',{type:'number',step:0.1,className:'form-input',value:sf.def_capacity_gal||'',onChange:e=>setSf(x=>({...x,def_capacity_gal:e.target.value}))})),
+              h('div',null,h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Hydraulic Fluid Type'),h('input',{className:'form-input',value:sf.hydraulic_fluid_type||'',onChange:e=>setSf(x=>({...x,hydraulic_fluid_type:e.target.value}))}))
+            ),
+            // Notes
+            h('div',{style:{marginBottom:16}},
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Additional Notes'),
+              h('textarea',{className:'form-textarea',rows:3,value:sf.notes||'',onChange:e=>setSf(x=>({...x,notes:e.target.value}))})
+            ),
+            h('button',{className:'btn btn-primary',disabled:savingSpecs,onClick:saveSpecs},savingSpecs?'Saving...':'Save Specifications')
+          )
+          :
+          // View mode
+          specs?h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:'6px 24px'}},
+            ...[
+              ['Engine','engine_make',specs.engine_make],['Engine Model','engine_model',specs.engine_model],
+              ['Oil Type','oil_type',specs.oil_type],['Oil Capacity','oil_cap',specs.oil_capacity_qt?specs.oil_capacity_qt+' qt':null],
+              ['Oil Filter #','oil_filter',specs.oil_filter],
+              ['Coolant Type','coolant_type',specs.coolant_type],['Coolant Capacity','coolant_cap',specs.coolant_capacity_qt?specs.coolant_capacity_qt+' qt':null],
+              ['Trans Fluid','trans_fluid',specs.trans_fluid_type],['Trans Filter','trans_filter',specs.trans_filter],
+              ['Trans Capacity','trans_cap',specs.trans_fluid_capacity_qt?specs.trans_fluid_capacity_qt+' qt':null],
+              ['Fuel Type','fuel_type',specs.fuel_type],['Fuel Tank','fuel_tank',specs.fuel_tank_capacity_gal?specs.fuel_tank_capacity_gal+' gal':null],
+              ['Tire Size (Front)','tire_f',specs.tire_size_front],['Tire Size (Rear)','tire_r',specs.tire_size_rear],
+              ['Tire PSI (Front)','psi_f',specs.tire_pressure_front_psi?specs.tire_pressure_front_psi+' PSI':null],
+              ['Tire PSI (Rear)','psi_r',specs.tire_pressure_rear_psi?specs.tire_pressure_rear_psi+' PSI':null],
+              ['Lug Torque','lug',specs.lug_nut_torque_ftlb?specs.lug_nut_torque_ftlb+' ft-lb':null],
+              ['Brake Fluid','brake_f',specs.brake_fluid_type],['DEF Capacity','def',specs.def_capacity_gal?specs.def_capacity_gal+' gal':null],
+              ['Hydraulic Fluid','hyd',specs.hydraulic_fluid_type],['Power Steering','ps',specs.power_steering_fluid_type],
+            ].filter(([,,v])=>v).map(([label,key,value])=>
+              h('div',{key,style:{padding:'8px 0',borderBottom:'.5px solid #1e2a3a'}},
+                h('div',{style:{fontSize:10,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:2}},label),
+                h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},value)
+              )
+            ),
+            specs.notes&&h('div',{key:'notes',style:{gridColumn:'1/-1',paddingTop:12,borderTop:'.5px solid #2a3048',marginTop:4}},
+              h('div',{style:{fontSize:10,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:4}},'Notes'),
+              h('div',{style:{fontSize:13,color:'#94a3b8',lineHeight:1.5}},specs.notes)
+            )
+          )
+          :h('div',{style:{padding:'32px',textAlign:'center',color:'#6b7a9f'}},
+            h('div',{style:{fontSize:24,marginBottom:8}},'⚙'),
+            h('div',{style:{marginBottom:12}},'No specifications saved yet.'),
+            !isTech&&h('button',{className:'btn btn-primary',onClick:()=>setEditSpecs(true)},'+ Add Specifications')
+          )
+        )
+      )
+    ),
+
+    // ── PARTS CATALOG TAB ─────────────────────────────────────────────────────
+    tab==='catalog'&&h('div',null,
+      // Previously used parts
+      usedPartsData.length>0&&h('div',{className:'card',style:{marginBottom:16}},
+        h('div',{className:'card-header'},h('span',{className:'card-title'},'Previously Used on This Asset')),
+        h('div',{style:{overflowX:'auto'}},
+          h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:13}},
+            h('thead',null,h('tr',{style:{background:'rgba(255,255,255,.03)'}},
+              ['Part Name','Part #','UOM','Cost','In Stock',''].map(c=>h('th',{key:c,style:{padding:'8px 12px',textAlign:'left',fontSize:10,fontWeight:700,color:'#6b7a9f',textTransform:'uppercase',borderBottom:'.5px solid #2a3048'}},c))
+            )),
+            h('tbody',null,usedPartsData.map(p=>
+              h('tr',{key:p.part_id||p.part_name,style:{borderBottom:'.5px solid #1e2a3a'}},
+                h('td',{style:{padding:'8px 12px',fontWeight:500,color:'#e2e8f0'}},p.part_name),
+                h('td',{style:{padding:'8px 12px',color:'#6b7a9f',fontSize:12}},p.part_number||'—'),
+                h('td',{style:{padding:'8px 12px',color:'#6b7a9f'}},p.uom||'ea'),
+                h('td',{style:{padding:'8px 12px',color:'#4ade80'}},p.unit_cost?'$'+parseFloat(p.unit_cost).toFixed(2):'—'),
+                h('td',{style:{padding:'8px 12px',color:p.part?.quantity_on_hand<=0?'#f87171':'#94a3b8'}},
+                  p.part?(p.part.quantity_on_hand||0)+' '+(p.part.uom||'ea'):'—'),
+                h('td',{style:{padding:'8px 12px'}},
+                  p.part_id&&!isTech&&h('button',{
+                    style:{fontSize:11,padding:'3px 10px',borderRadius:6,border:'.5px solid #2a3048',background:'transparent',color:'#94a3b8',cursor:'pointer'},
+                    onClick:async()=>{
+                      const exists=(catalog||[]).find(c=>c.part_id===p.part_id);
+                      if(exists){alert('Already in catalog');return;}
+                      await sb.from('asset_parts_catalog').insert({asset_id:id,part_id:p.part_id,part_name:p.part_name,part_number:p.part_number||null,updated_at:new Date().toISOString()});
+                      refetchCatalog();
+                    }
+                  },'+ Add to Catalog')
+                )
+              )
+            ))
+          )
+        )
+      ),
+
+      // Parts catalog
+      h('div',{className:'card'},
+        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'.5px solid #2a3048'}},
+          h('span',{style:{fontWeight:600,color:'#e2e8f0'}},'Parts Catalog for this Asset'),
+          !isTech&&h('button',{className:'btn btn-primary',style:{fontSize:12},onClick:()=>setShowAddPart(!showAddPart)},'+ Add Part')
+        ),
+        // Add part form
+        showAddPart&&h('div',{style:{padding:14,background:'rgba(255,255,255,.02)',borderBottom:'.5px solid #2a3048'}},
+          h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}},
+            h('div',null,
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Part Name *'),
+              h('div',{style:{position:'relative'}},
+                h('input',{className:'form-input',placeholder:'Search or type name...',value:newPart.part_name,
+                  onChange:e=>setNewPart(x=>({...x,part_name:e.target.value}))}),
+                newPart.part_name.length>1&&h('div',{style:{position:'absolute',top:'100%',left:0,right:0,background:'#181c27',border:'.5px solid #2a3048',borderRadius:6,zIndex:10,maxHeight:160,overflowY:'auto'}},
+                  (allParts||[]).filter(p=>p.name.toLowerCase().includes(newPart.part_name.toLowerCase())||( p.part_number||'').toLowerCase().includes(newPart.part_name.toLowerCase())).slice(0,8)
+                  .map(p=>h('div',{key:p.id,style:{padding:'7px 10px',cursor:'pointer',fontSize:12,color:'#e2e8f0',borderBottom:'.5px solid #1e2a3a'},
+                    onClick:()=>setNewPart(x=>({...x,part_name:p.name,part_number:p.part_number||'',part_id:p.id}))},
+                    p.name+(p.part_number?' ('+p.part_number+')':'')))
+                )
+              )
+            ),
+            h('div',null,
+              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Part Number'),
+              h('input',{className:'form-input',placeholder:'Optional',value:newPart.part_number,onChange:e=>setNewPart(x=>({...x,part_number:e.target.value}))})
+            )
+          ),
+          h('div',{style:{marginBottom:8}},
+            h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Notes'),
+            h('input',{className:'form-input',placeholder:'e.g. Preferred brand, fitment notes...',value:newPart.notes,onChange:e=>setNewPart(x=>({...x,notes:e.target.value}))})
+          ),
+          h('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#94a3b8',cursor:'pointer',marginBottom:10}},
+            h('input',{type:'checkbox',checked:newPart.is_preferred,onChange:e=>setNewPart(x=>({...x,is_preferred:e.target.checked})),style:{accentColor:'#378ADD'}}),
+            'Mark as preferred/OEM part'
+          ),
+          h('div',{className:'btn-row'},
+            h('button',{className:'btn btn-primary',style:{fontSize:12},onClick:addToCatalog},'Add to Catalog'),
+            h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>setShowAddPart(false)},'Cancel')
+          )
+        ),
+        // Catalog list
+        (catalog||[]).length===0&&!showAddPart?
+          h('div',{style:{padding:'32px',textAlign:'center',color:'#6b7a9f'}},
+            h('div',{style:{fontSize:24,marginBottom:8}},'🔧'),
+            'No parts in catalog yet. Add parts that fit this asset.'
+          )
+        :h('div',{style:{overflowX:'auto'}},
+          h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:13}},
+            h('thead',null,h('tr',{style:{background:'rgba(255,255,255,.03)'}},
+              ['','Part Name','Part #','Notes','In Stock',''].map(c=>h('th',{key:c,style:{padding:'8px 12px',textAlign:'left',fontSize:10,fontWeight:700,color:'#6b7a9f',textTransform:'uppercase',borderBottom:'.5px solid #2a3048'}},c))
+            )),
+            h('tbody',null,(catalog||[]).map(c=>
+              h('tr',{key:c.id,style:{borderBottom:'.5px solid #1e2a3a'}},
+                h('td',{style:{padding:'8px 12px'}},
+                  c.is_preferred&&h('span',{style:{fontSize:10,background:'rgba(55,138,221,.15)',color:'#378ADD',padding:'2px 6px',borderRadius:10,fontWeight:600}},'OEM')
+                ),
+                h('td',{style:{padding:'8px 12px',fontWeight:500,color:'#e2e8f0'}},c.part_name),
+                h('td',{style:{padding:'8px 12px',color:'#6b7a9f',fontSize:12}},c.part_number||'—'),
+                h('td',{style:{padding:'8px 12px',color:'#6b7a9f',fontSize:12,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},c.notes||'—'),
+                h('td',{style:{padding:'8px 12px',color:c.part?.quantity_on_hand<=0?'#f87171':'#94a3b8'}},
+                  c.part?(c.part.quantity_on_hand||0)+' '+(c.part.uom||'ea'):'—'),
+                h('td',{style:{padding:'8px 12px'}},
+                  !isTech&&h('button',{onClick:()=>removeCatalog(c.id),
+                    style:{fontSize:11,padding:'3px 8px',borderRadius:6,border:'.5px solid rgba(248,113,113,.3)',background:'transparent',color:'#f87171',cursor:'pointer'}},'Remove')
+                )
+              )
+            ))
+          )
+        )
+      )
+    ),
+
+    // ── SERVICE HISTORY TAB ───────────────────────────────────────────────────
+    tab==='history'&&h('div',null,
+      h('div',{className:'card'},
+        h('div',{className:'card-header'},h('span',{className:'card-title'},'Service Log History')),
+        (logs||[]).length===0?
+          h('div',{style:{padding:'32px',textAlign:'center',color:'#6b7a9f'}},'No service logs yet.')
+        :h('div',null,
+          (logs||[]).map(log=>h('div',{key:log.id,className:'divide-row',style:{padding:'10px 14px',alignItems:'flex-start',flexDirection:'column',gap:4}},
+            h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:2,width:'100%'}},
+              h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},log.service_type),
+              h('div',{style:{fontSize:12,color:'#6b7a9f'}},fmtDate(log.serviced_at))
+            ),
+            h('div',{style:{fontSize:12,color:'#6b7a9f',display:'flex',gap:16,flexWrap:'wrap'}},
+              log.vendor_name&&h('span',null,log.vendor_name),
+              log.technician?.name&&h('span',null,log.technician.name),
+              log.odometer_miles&&h('span',null,log.odometer_miles.toLocaleString()+' mi'),
+              log.cost&&h('span',{style:{color:'#4ade80'}},fmtCur(log.cost))
+            )
+          ))
+        )
+      )
+    )
   );
 }
+
 
 function AssetForm({id,setPage}){
   const isEdit=Boolean(id);
