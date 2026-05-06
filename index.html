@@ -1388,6 +1388,9 @@ function SectionMedia({workOrderId, section, isEdit, onSaved}){
 
 function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const isEdit=Boolean(id);
+  // Read interval prefill data if navigated from Service Intervals
+  const _pf=!isEdit&&window.__intervalPrefill?window.__intervalPrefill:null;
+  if(_pf)window.__intervalPrefill=null; // consume it
   const{data:wo,loading:loadWO,refetch:refetchWO}=useQuery(()=>id?sb.from('work_orders').select('*,asset:assets(id,name,asset_number,asset_type,year,make,model,vin,license_plate,odometer_miles,engine_hours),technician:technicians(id,name)').eq('id',id).single():{data:null},[id]);
   const{data:assets}=useQuery(()=>sb.from('assets').select('id,name,asset_number,asset_type,odometer_miles,engine_hours').order('asset_number'));
   const{data:techs}=useQuery(()=>sb.from('technicians').select('id,name,hourly_rate').eq('status','active').order('name'));
@@ -1400,7 +1403,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const[saving,setSaving]=useState(false);const[error,setError]=useState(null);
 
   // Main form fields
-  const[f,setF]=useState({title:'',asset_type:'',asset_id:'',technician_id:'',priority:'normal',status:'open',category:'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
+  const[f,setF]=useState({title:_pf?.title||'',asset_type:_pf?.asset_type||'',asset_id:_pf?.asset_id||'',technician_id:'',priority:'normal',status:'open',category:_pf?.category||'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:_pf?.odometer_miles?String(_pf.odometer_miles):'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
   const autoSaveTimer=useRef(null);
   useEffect(()=>()=>{WO_DIRTY.current=false;window.__woDirty=false;clearTimeout(WO_DIRTY.timer);},[]);
   const autoSaveF=(newF)=>{
@@ -2304,7 +2307,9 @@ function Technicians({setPage,isTech=false}){
 
 
 function LogModal({onClose,assets,vendors,onSaved,onVendorSaved}){
-    const[f,setF]=useState({asset_type:'',asset_id:'',service_type:'',description:'',odometer_miles:'',engine_hours:'',cost:'',serviced_at:new Date().toISOString().slice(0,16),next_service_miles:'',next_service_date:'',vendor_id:'',vendor_name:'',invoice_name:'',invoice_data:''});
+    const _lpf=window.__intervalPrefill||null;
+    if(_lpf)window.__intervalPrefill=null;
+    const[f,setF]=useState({asset_type:_lpf?.asset_type||'',asset_id:_lpf?.asset_id||'',service_type:_lpf?.service_type||'',description:'',odometer_miles:_lpf?.odometer_miles?String(_lpf.odometer_miles):'',engine_hours:'',cost:'',serviced_at:new Date().toISOString().slice(0,16),next_service_miles:'',next_service_date:'',vendor_id:'',vendor_name:'',invoice_name:'',invoice_data:''});
     const[saving,setSaving]=useState(false);const[err,setErr]=useState(null);
     const s=(k,v)=>setF(p=>({...p,[k]:v}));
     const[newVendor,setNewVendor]=useState('');
@@ -3035,28 +3040,77 @@ function ServiceIntervals({setPage,isTech=false}){
 
   const ResolveModal=({item,setPage,onClose})=>{
     const[choice,setChoice]=useState('wo');
-    return h('div',{className:'modal-overlay'},h('div',{className:'modal'},
-      h('h3',null,'Resolve: '+item.interval_type?.name),
-      h('p',{style:{fontSize:13,color:'#6b7a9f',marginBottom:16}},'Mark this interval as serviced by creating a record.'),
-      h('div',{className:'form-grid form-grid-2',style:{marginBottom:20}},
-        h('button',{className:'btn '+(choice==='wo'?'btn-primary':'btn-ghost'),onClick:()=>setChoice('wo')},'📋 Work Order'),
-        h('button',{className:'btn '+(choice==='log'?'btn-primary':'btn-ghost'),onClick:()=>setChoice('log')},'🔧 Service Log')
-      ),
-      h('p',{style:{fontSize:12,color:'#6b7a9f',marginBottom:16}},choice==='wo'?'Opens a new work order pre-filled for this asset and service.':'Opens a new service log pre-filled for this asset.'),
-      h('div',{className:'btn-row'},
-        h('button',{className:'btn btn-success',onClick:async()=>{
-          // Update last_service to current
-          const cur=item.asset?.odometer_miles||0;
-          const it=item.interval_type;
-          const newNextMiles=it?.interval_miles?cur+it.interval_miles:null;
-          const newNextDate=it?.interval_days?new Date(Date.now()+it.interval_days*86400000).toISOString().slice(0,10):null;
-          await sb.from('asset_intervals').update({last_service_miles:cur,last_service_date:new Date().toISOString().slice(0,10),next_service_miles:newNextMiles,next_service_date:newNextDate,snoozed_until:null,snoozed_until_miles:null,updated_at:new Date().toISOString()}).eq('id',item.id);
-          refetchAssign();onClose();
-          if(choice==='wo')setPage('wo-new');else setPage('servicelogs');
-        }},'✓ Mark Serviced & '+(choice==='wo'?'Open Work Order':'Open Service Log')),
-        h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel')
+    const[doResolve,setDoResolve]=useState(true);
+    const asset=item.asset;
+    const it=item.interval_type;
+
+    const go=async()=>{
+      if(doResolve){
+        const cur=asset?.odometer_miles||0;
+        const newNextMiles=it?.interval_miles?cur+it.interval_miles:null;
+        const newNextDate=it?.interval_days?new Date(Date.now()+it.interval_days*86400000).toISOString().slice(0,10):null;
+        await sb.from('asset_intervals').update({
+          last_service_miles:cur,last_service_date:new Date().toISOString().slice(0,10),
+          next_service_miles:newNextMiles,next_service_date:newNextDate,
+          snoozed_until:null,snoozed_until_miles:null,updated_at:new Date().toISOString()
+        }).eq('id',item.id);
+        refetchAssign();
+      }
+      // Pre-fill data for the destination page
+      window.__intervalPrefill={
+        asset_id:asset?.id||'',
+        asset_type:asset?.asset_type||'',
+        asset_name:asset?.name||'',
+        asset_number:asset?.asset_number||'',
+        title:it?.name||'',
+        category:it?.category||'',
+        odometer_miles:asset?.odometer_miles||'',
+        service_type:it?.name||'',
+      };
+      onClose();
+      if(choice==='wo')setPage('wo-new');else setPage('servicelogs');
+    };
+
+    return h('div',{className:'modal-overlay'},
+      h('div',{className:'modal'},
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+          h('h3',{style:{margin:0}},'Service Interval: '+( it?.name||'')),
+          h('button',{onClick:onClose,style:{background:'none',border:'none',color:'#6b7a9f',cursor:'pointer',fontSize:20,lineHeight:1}},'×')
+        ),
+        // Asset info
+        h('div',{style:{background:'rgba(255,255,255,.04)',borderRadius:8,padding:'8px 12px',marginBottom:14,fontSize:12,color:'#94a3b8'}},
+          h('span',{style:{fontWeight:600,color:'#e2e8f0'}},asset?.name||'Unknown asset'),
+          asset?.asset_number&&h('span',{style:{marginLeft:6,color:'#6b7a9f'}},'#'+asset.asset_number),
+          asset?.odometer_miles&&h('span',{style:{marginLeft:10}},'· '+asset.odometer_miles.toLocaleString()+' mi')
+        ),
+        // Destination choice
+        h('div',{style:{marginBottom:14}},
+          h('label',{style:{fontSize:11,fontWeight:600,color:'#6b7a9f',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:6}},'Create'),
+          h('div',{style:{display:'flex',gap:6}},
+            h('button',{className:'btn '+(choice==='wo'?'btn-primary':'btn-ghost'),style:{flex:1},onClick:()=>setChoice('wo')},'📋 Work Order'),
+            h('button',{className:'btn '+(choice==='log'?'btn-primary':'btn-ghost'),style:{flex:1},onClick:()=>setChoice('log')},'🔧 Service Log')
+          )
+        ),
+        // Resolve toggle
+        h('label',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',background:'rgba(34,197,94,.07)',border:'.5px solid rgba(34,197,94,.2)',borderRadius:8,cursor:'pointer',marginBottom:16}},
+          h('input',{type:'checkbox',checked:doResolve,onChange:e=>setDoResolve(e.target.checked),style:{width:16,height:16,accentColor:'#4ade80',cursor:'pointer'}}),
+          h('div',null,
+            h('div',{style:{fontSize:13,fontWeight:500,color:'#4ade80'}},'Mark interval as resolved'),
+            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:1}},'Resets the service clock and schedules next due date')
+          )
+        ),
+        // Prefill note
+        h('p',{style:{fontSize:11,color:'#6b7a9f',marginBottom:14,lineHeight:1.4}},
+          'The '+( choice==='wo'?'work order':'service log')+' will open pre-filled with this asset, '+it?.name+', and current mileage.'
+        ),
+        h('div',{className:'btn-row'},
+          h('button',{className:'btn btn-primary',onClick:go},
+            (doResolve?'✓ Resolve & ':'')+'Open '+(choice==='wo'?'Work Order':'Service Log')
+          ),
+          h('button',{className:'btn btn-ghost',onClick:onClose},'Cancel')
+        )
       )
-    ));
+    );
   };
 
   return h('div',{className:'page'},
