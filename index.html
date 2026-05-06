@@ -1797,68 +1797,81 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     ),
 
     // ── SERVICE INTERVALS PANEL ──────────────────────────────────────────
-    activeTab==='info'&&assetIntervals.length>0&&h('div',{className:'wo-section',style:{padding:0,overflow:'hidden'}},
-      // Header
-      h('div',{style:{padding:'10px 14px',borderBottom:'.5px solid #2a3048',display:'flex',alignItems:'center',justifyContent:'space-between'}},
-        h('div',{style:{display:'flex',alignItems:'center',gap:6}},
-          h('span',{style:{fontSize:13,fontWeight:600,color:'#e2e8f0'}},'🔄 Service Intervals'),
-          h('span',{style:{fontSize:11,color:'#6b7a9f',fontWeight:400}},'for this asset')
-        ),
-        h('span',{style:{fontSize:10,color:'#6b7a9f',fontWeight:400}},'Check to resolve when saving')
+    activeTab==='info'&&assetIntervals.length>0&&h('div',{className:'wo-section',style:{padding:0,overflow:'hidden',marginTop:0}},
+      h('div',{style:{
+        padding:'12px 16px',borderBottom:'.5px solid #2a3048',
+        display:'flex',alignItems:'center',gap:8,background:'rgba(55,138,221,.05)'
+      }},
+        h('span',{style:{fontSize:14,fontWeight:700,color:'#e2e8f0'}},'🔄 Service Intervals'),
+        h('span',{style:{fontSize:12,color:'#6b7a9f'}},
+          '— check any to resolve when saving this WO')
       ),
-      // Interval rows
       assetIntervals.map((ai,idx)=>{
         const it=ai.interval_type;
         const cur=parseInt(f.mileage_out||f.mileage_in||0)||0;
         const milesUntil=ai.next_service_miles&&cur?ai.next_service_miles-cur:null;
-        const daysUntil=ai.next_service_date?Math.ceil((new Date(ai.next_service_date+'T12:00:00')-new Date())/(1000*60*60*24)):null;
+        const daysUntil=ai.next_service_date
+          ?Math.ceil((new Date(ai.next_service_date+'T12:00:00')-new Date())/(1000*60*60*24))
+          :null;
         const isOverdue=(milesUntil!=null&&milesUntil<=0)||(daysUntil!=null&&daysUntil<=0);
         const isDueSoon=!isOverdue&&((milesUntil!=null&&milesUntil<=500)||(daysUntil!=null&&daysUntil<=14));
-        // Match intervals page colors exactly
+        // Match intervals page colors: red=overdue, amber=due soon, green=ok
         const statusColor=isOverdue?'#f87171':isDueSoon?'#f59e0b':'#4ade80';
-        const statusBg=isOverdue?'rgba(248,113,113,.12)':isDueSoon?'rgba(245,158,11,.12)':'rgba(74,222,128,.1)';
-        const statusLabel=isOverdue?'OVERDUE':isDueSoon?'Due Soon':'OK';
+        const statusBg=isOverdue?'rgba(248,113,113,.15)':isDueSoon?'rgba(245,158,11,.15)':'rgba(74,222,128,.12)';
+        const statusLabel=isOverdue?'OVERDUE':isDueSoon?'DUE SOON':'OK';
         const isResolving=resolvingIds.has(ai.id);
-        return h('div',{key:ai.id,
+        const toggle=()=>setResolvingIds(prev=>{
+          const n=new Set(prev);
+          if(n.has(ai.id))n.delete(ai.id);else n.add(ai.id);
+          return n;
+        });
+        const subColor=isOverdue?'#f87171':isDueSoon?'#f59e0b':'#6b7a9f';
+        const subText=milesUntil!=null
+          ?(milesUntil<=0?Math.abs(milesUntil).toLocaleString()+' mi overdue':milesUntil.toLocaleString()+' mi remaining')
+          :daysUntil!=null
+            ?(daysUntil<=0?Math.abs(daysUntil)+' days overdue':daysUntil+' days remaining')
+            :'No schedule data';
+        return h('div',{key:ai.id,onClick:toggle,
           style:{
-            display:'grid',
-            gridTemplateColumns:'1fr auto auto',
-            alignItems:'center',
-            gap:12,
-            padding:'10px 14px',
+            display:'flex',alignItems:'center',gap:16,
+            padding:'12px 16px',cursor:'pointer',
             borderBottom:idx<assetIntervals.length-1?'.5px solid #1e2a3a':'none',
-            background:isResolving?'rgba(34,197,94,.06)':'transparent',
-            transition:'background .15s',
-            cursor:'pointer',
-          },
-          onClick:()=>setResolvingIds(prev=>{const n=new Set(prev);if(n.has(ai.id))n.delete(ai.id);else n.add(ai.id);return n;})
-        },
-          // Left: name + subtitle
-          h('div',{style:{minWidth:0}},
-            h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},it?.name||'Interval'),
-            h('div',{style:{fontSize:11,color:isOverdue?'#f87171':isDueSoon?'#f59e0b':'#6b7a9f',marginTop:2}},
-              milesUntil!=null
-                ?(milesUntil<=0?Math.abs(milesUntil).toLocaleString()+' mi overdue':'+'+milesUntil.toLocaleString()+' mi remaining')
-                :daysUntil!=null?(daysUntil<=0?Math.abs(daysUntil)+' days overdue':daysUntil+' days remaining'):'No schedule set'
-            )
+            background:isResolving?'rgba(74,222,128,.06)':'transparent',
+            transition:'background .15s',userSelect:'none'
+          }},
+          // Status colored left bar
+          h('div',{style:{width:4,height:36,borderRadius:2,flexShrink:0,background:statusColor}}),
+          // Name + subtitle
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{style:{fontSize:14,fontWeight:600,color:'#e2e8f0',
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},
+              it?.name||'Interval'),
+            h('div',{style:{fontSize:12,color:subColor,marginTop:2}},subText)
           ),
-          // Center: status badge
+          // Status pill
           h('span',{style:{
-            fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,
+            fontSize:11,fontWeight:700,letterSpacing:'.04em',
+            padding:'4px 12px',borderRadius:20,flexShrink:0,
             color:statusColor,background:statusBg,
-            whiteSpace:'nowrap',flexShrink:0
+            border:'.5px solid '+statusColor+'44'
           }},statusLabel),
-          // Right: resolve toggle
-          h('label',{style:{display:'flex',alignItems:'center',gap:6,cursor:'pointer',flexShrink:0},
-            onClick:e=>e.stopPropagation()},
-            h('input',{type:'checkbox',checked:isResolving,
-              onChange:()=>setResolvingIds(prev=>{const n=new Set(prev);if(n.has(ai.id))n.delete(ai.id);else n.add(ai.id);return n;}),
-              style:{width:15,height:15,accentColor:'#4ade80',cursor:'pointer'}}),
-            h('span',{style:{
-              fontSize:12,fontWeight:isResolving?600:400,
-              color:isResolving?'#4ade80':'#6b7a9f',
-              whiteSpace:'nowrap'
-            }},isResolving?'✓ Resolving':'Resolve on save')
+          // Resolve toggle — big friendly button
+          h('div',{onClick:e=>e.stopPropagation(),
+            style:{display:'flex',alignItems:'center',gap:0,flexShrink:0}},
+            h('label',{style:{
+              display:'flex',alignItems:'center',gap:8,cursor:'pointer',
+              padding:'6px 14px',borderRadius:8,
+              background:isResolving?'rgba(74,222,128,.12)':'rgba(255,255,255,.05)',
+              border:'.5px solid '+(isResolving?'rgba(74,222,128,.4)':'#2a3048'),
+              transition:'all .15s'
+            }},
+              h('input',{type:'checkbox',checked:isResolving,onChange:toggle,
+                style:{width:16,height:16,accentColor:'#4ade80',cursor:'pointer',flexShrink:0}}),
+              h('span',{style:{
+                fontSize:13,fontWeight:600,whiteSpace:'nowrap',
+                color:isResolving?'#4ade80':'#94a3b8'
+              }},isResolving?'✓ Resolving on Save':'Resolve on Save')
+            )
           )
         );
       })
