@@ -1406,6 +1406,15 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const[f,setF]=useState({title:_pf?.title||'',asset_type:_pf?.asset_type||'',asset_id:_pf?.asset_id||'',technician_id:'',priority:'normal',status:'open',category:_pf?.category||'',start_date:'',need_by_date:'',due_date:'',estimated_hours:'',mileage_in:_pf?.odometer_miles?String(_pf.odometer_miles):'',mileage_out:'',labor_cost:'',complaint:'',findings:'',work_performed:'',recommendations:''});
   const autoSaveTimer=useRef(null);
   useEffect(()=>()=>{WO_DIRTY.current=false;window.__woDirty=false;clearTimeout(WO_DIRTY.timer);},[]);
+  const[assetIntervals,setAssetIntervals]=useState([]);
+  const[resolvingIds,setResolvingIds]=useState(new Set());
+  useEffect(()=>{
+    if(!f.asset_id){setAssetIntervals([]);return;}
+    sb.from('asset_intervals')
+      .select('*,interval_type:interval_types(name,category,interval_miles,interval_days)')
+      .eq('asset_id',f.asset_id).order('next_service_miles')
+      .then(({data})=>setAssetIntervals(data||[]));
+  },[f.asset_id]);
   const autoSaveF=(newF)=>{
     if(!isEdit||!id)return;
     const ind=document.getElementById('wo-save-ind');
@@ -1554,6 +1563,24 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
           serviced_at:saved.completed_at||new Date().toISOString(),
         });
       }catch(logErr){console.warn('Service log creation failed:',logErr);}
+    }
+    // Resolve any toggled service intervals
+    if(resolvingIds.size>0&&saved){
+      const cur=parseInt(saved.mileage_out||saved.mileage_in||0)||0;
+      for(const ai of assetIntervals.filter(a=>resolvingIds.has(a.id))){
+        const it=ai.interval_type;
+        const newNextMiles=it?.interval_miles&&cur?cur+it.interval_miles:ai.next_service_miles;
+        const newNextDate=it?.interval_days?new Date(Date.now()+it.interval_days*86400000).toISOString().slice(0,10):ai.next_service_date;
+        await sb.from('asset_intervals').update({
+          last_service_miles:cur||null,
+          last_service_date:new Date().toISOString().slice(0,10),
+          next_service_miles:newNextMiles,
+          next_service_date:newNextDate,
+          snoozed_until:null,snoozed_until_miles:null,
+          updated_at:new Date().toISOString()
+        }).eq('id',ai.id);
+      }
+      setResolvingIds(new Set());
     }
     setPage('wo-'+saved.id);
   };
@@ -1767,6 +1794,57 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
         h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},'Complaint / Requested Work')),
         h('textarea',{className:'form-textarea',rows:4,placeholder:'Describe what the driver/customer reported or what service is needed...',value:f.complaint,onChange:e=>sf('complaint',e.target.value)})
       )
+    ),
+
+    // ── SERVICE INTERVALS PANEL ──────────────────────────────────────────
+    activeTab==='info'&&assetIntervals.length>0&&h('div',{className:'wo-section'},
+      h('div',{style:{fontWeight:600,fontSize:13,marginBottom:10,display:'flex',alignItems:'center',gap:6}},
+        h('span',null,'🔄 Service Intervals'),
+        h('span',{style:{fontSize:11,color:'#6b7a9f',fontWeight:400}},
+          '— toggle to resolve when saving this WO')
+      ),
+      assetIntervals.map(ai=>{
+        const it=ai.interval_type;
+        const cur=parseInt(f.mileage_out||f.mileage_in||0)||0;
+        const milesUntil=ai.next_service_miles&&cur?ai.next_service_miles-cur:null;
+        const daysUntil=ai.next_service_date?Math.ceil((new Date(ai.next_service_date+'T12:00:00')-new Date())/(1000*60*60*24)):null;
+        const isOverdue=(milesUntil!=null&&milesUntil<=0)||(daysUntil!=null&&daysUntil<=0);
+        const isDueSoon=(milesUntil!=null&&milesUntil<=500)||(daysUntil!=null&&daysUntil<=14);
+        const statusColor=isOverdue?'#f87171':isDueSoon?'#fbbf24':'#4ade80';
+        const statusLabel=isOverdue?'OVERDUE':isDueSoon?'Due Soon':'OK';
+        const isResolving=resolvingIds.has(ai.id);
+        return h('div',{key:ai.id,
+          style:{display:'flex',alignItems:'center',justifyContent:'space-between',
+            padding:'8px 10px',borderRadius:8,marginBottom:6,
+            background:isResolving?'rgba(34,197,94,.08)':'rgba(255,255,255,.03)',
+            border:'.5px solid '+(isResolving?'rgba(34,197,94,.3)':'#2a3048'),
+            transition:'all .15s'}},
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{style:{fontSize:13,fontWeight:500,color:'#e2e8f0'}},it?.name||'Interval'),
+            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},
+              milesUntil!=null
+                ?( milesUntil<=0?Math.abs(milesUntil).toLocaleString()+' mi overdue':'+'+milesUntil.toLocaleString()+' mi remaining')
+                :daysUntil!=null?(daysUntil<=0?Math.abs(daysUntil)+' days overdue':daysUntil+' days remaining'):''
+            )
+          ),
+          h('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
+            h('span',{style:{fontSize:10,fontWeight:700,color:statusColor,padding:'2px 8px',
+              borderRadius:10,background:statusColor+'22'}},statusLabel),
+            h('label',{style:{display:'flex',alignItems:'center',gap:5,cursor:'pointer',
+              fontSize:11,color:isResolving?'#4ade80':'#6b7a9f',fontWeight:isResolving?600:400,
+              whiteSpace:'nowrap'}},
+              h('input',{type:'checkbox',checked:isResolving,
+                onChange:()=>setResolvingIds(prev=>{
+                  const n=new Set(prev);
+                  if(n.has(ai.id))n.delete(ai.id);else n.add(ai.id);
+                  return n;
+                }),
+                style:{width:14,height:14,accentColor:'#4ade80',cursor:'pointer'}}),
+              isResolving?'Resolving on save':'Resolve on save'
+            )
+          )
+        );
+      })
     ),
 
     // ── TIME tab ─────────────────────────────────────────────────────────────
