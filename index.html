@@ -1564,8 +1564,8 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
         });
       }catch(logErr){console.warn('Service log creation failed:',logErr);}
     }
-    // Resolve any toggled service intervals
-    if(resolvingIds.size>0&&saved){
+    // Resolve any toggled service intervals (only on completion)
+    if(resolvingIds.size>0&&saved&&(statusOverride||f.status||saved.status)==="completed"){
       const cur=parseInt(saved.mileage_out||saved.mileage_in||0)||0;
       for(const ai of assetIntervals.filter(a=>resolvingIds.has(a.id))){
         const it=ai.interval_type;
@@ -1804,7 +1804,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
       }},
         h('span',{style:{fontSize:14,fontWeight:700,color:'#e2e8f0'}},'🔄 Service Intervals'),
         h('span',{style:{fontSize:12,color:'#6b7a9f'}},
-          '— check any to resolve when saving this WO')
+          '— check any to resolve when marking WO complete')
       ),
       assetIntervals.map((ai,idx)=>{
         const it=ai.interval_type;
@@ -1870,7 +1870,7 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
               h('span',{style:{
                 fontSize:13,fontWeight:600,whiteSpace:'nowrap',
                 color:isResolving?'#4ade80':'#94a3b8'
-              }},isResolving?'✓ Resolving on Save':'Resolve on Save')
+              }},isResolving?'✓ Resolve on Complete':'Resolve on Complete')
             )
           )
         );
