@@ -919,13 +919,20 @@ function AssetDetail({id,setPage,isTech=false}){
 
   // Catalog management
   const[showAddPart,setShowAddPart]=useState(false);
-  const[newPart,setNewPart]=useState({part_name:'',part_number:'',notes:'',is_preferred:false});
-  const{data:allParts}=useQuery(()=>sb.from('parts').select('id,name,part_number,unit_cost,uom').order('name'));
+  const[addPartTab,setAddPartTab]=useState('inventory');
+  const[newPart,setNewPart]=useState({part_name:'',part_number:'',notes:'',is_preferred:false,capacity:'',capacity_uom:''});
+  const[editingCatalogId,setEditingCatalogId]=useState(null);
+  const[editCatalogData,setEditCatalogData]=useState({});
+  const{data:allParts}=useQuery(()=>sb.from('parts').select('id,name,part_number,unit_cost,uom,quantity_on_hand').order('name'));
   const addToCatalog=async()=>{
     if(!newPart.part_name.trim())return;
-    await sb.from('asset_parts_catalog').insert({asset_id:id,...newPart,updated_at:new Date().toISOString()});
-    setNewPart({part_name:'',part_number:'',notes:'',is_preferred:false});
+    await sb.from('asset_parts_catalog').insert({asset_id:id,part_id:newPart.part_id||null,part_name:newPart.part_name,part_number:newPart.part_number||null,notes:newPart.notes||null,is_preferred:newPart.is_preferred,typical_qty:newPart.capacity?parseFloat(newPart.capacity)||null:null,uom:newPart.capacity_uom||null,updated_at:new Date().toISOString()});
+    setNewPart({part_name:'',part_number:'',notes:'',is_preferred:false,capacity:'',capacity_uom:'',part_id:null});
     setShowAddPart(false);refetchCatalog();
+  };
+  const saveCatalogEdit=async(cid)=>{
+    await sb.from('asset_parts_catalog').update({part_name:editCatalogData.part_name,part_number:editCatalogData.part_number||null,notes:editCatalogData.notes||null,typical_qty:editCatalogData.capacity?parseFloat(editCatalogData.capacity)||null:null,uom:editCatalogData.capacity_uom||null,is_preferred:editCatalogData.is_preferred,updated_at:new Date().toISOString()}).eq('id',cid);
+    setEditingCatalogId(null);refetchCatalog();
   };
   const removeCatalog=async(cid)=>{
     if(!confirm('Remove from catalog?'))return;
@@ -1141,11 +1148,11 @@ function AssetDetail({id,setPage,isTech=false}){
                 h('td',{style:{padding:'8px 12px'}},
                   p.part_id&&!isTech&&h('button',{
                     style:{fontSize:11,padding:'3px 10px',borderRadius:6,border:'.5px solid #2a3048',background:'transparent',color:'#94a3b8',cursor:'pointer'},
-                    onClick:async()=>{
+                    onClick:()=>{
                       const exists=(catalog||[]).find(c=>c.part_id===p.part_id);
                       if(exists){alert('Already in catalog');return;}
-                      await sb.from('asset_parts_catalog').insert({asset_id:id,part_id:p.part_id,part_name:p.part_name,part_number:p.part_number||null,updated_at:new Date().toISOString()});
-                      refetchCatalog();
+                      setNewPart(x=>({...x,part_name:p.part_name,part_number:p.part_number||'',part_id:p.part_id,capacity_uom:p.uom||'',capacity:''}));
+                      setAddPartTab('history');setShowAddPart(true);
                     }
                   },'+ Add to Catalog')
                 )
@@ -1159,44 +1166,149 @@ function AssetDetail({id,setPage,isTech=false}){
       h('div',{className:'card'},
         h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'.5px solid #2a3048'}},
           h('span',{style:{fontWeight:600,color:'#e2e8f0'}},'Parts Catalog for this Asset'),
-          !isTech&&h('button',{className:'btn btn-primary',style:{fontSize:12},onClick:()=>setShowAddPart(!showAddPart)},'+ Add Part')
+          !isTech&&h('button',{className:'btn btn-primary',style:{fontSize:12},onClick:()=>{setAddPartTab('inventory');setShowAddPart(true)}},'+ Add Part')
         ),
-        // Add part form
-        showAddPart&&h('div',{style:{padding:14,background:'rgba(255,255,255,.02)',borderBottom:'.5px solid #2a3048'}},
-          h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}},
-            h('div',null,
-              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Part Name *'),
-              h('div',{style:{position:'relative'}},
-                h('input',{className:'form-input',placeholder:'Search or type name...',value:newPart.part_name,
-                  onChange:e=>setNewPart(x=>({...x,part_name:e.target.value}))}),
-                newPart.part_name.length>1&&h('div',{style:{position:'absolute',top:'100%',left:0,right:0,background:'#181c27',border:'.5px solid #2a3048',borderRadius:6,zIndex:10,maxHeight:160,overflowY:'auto'}},
-                  (allParts||[]).filter(p=>p.name.toLowerCase().includes(newPart.part_name.toLowerCase())||( p.part_number||'').toLowerCase().includes(newPart.part_name.toLowerCase())).slice(0,8)
-                  .map(p=>h('div',{key:p.id,style:{padding:'7px 10px',cursor:'pointer',fontSize:12,color:'#e2e8f0',borderBottom:'.5px solid #1e2a3a'},
-                    onClick:()=>setNewPart(x=>({...x,part_name:p.name,part_number:p.part_number||'',part_id:p.id}))},
-                    p.name+(p.part_number?' ('+p.part_number+')':'')))
+
+        // ── 3-TAB ADD PART MODAL ──────────────────────────────────────────────
+        showAddPart&&h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center'}},
+          h('div',{style:{background:'#161922',border:'.5px solid #2a3048',borderRadius:12,width:480,maxHeight:'85vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,0,0,.6)'}},
+            // Modal header
+            h('div',{style:{padding:'14px 18px',borderBottom:'.5px solid #2a3048',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+              h('span',{style:{fontWeight:600,fontSize:14,color:'#e2e8f0'}},'Add Part to Asset Catalog'),
+              h('button',{onClick:()=>{setShowAddPart(false);setNewPart({part_name:'',part_number:'',notes:'',is_preferred:false,capacity:'',capacity_uom:'',part_id:null});},style:{background:'none',border:'none',color:'#6b7a9f',fontSize:20,cursor:'pointer',lineHeight:1}},'×')
+            ),
+            // Tabs
+            h('div',{style:{display:'flex',borderBottom:'.5px solid #2a3048'}},
+              [['inventory','From Inventory'],['create','Create New'],['history','Asset History']].map(([tid,tlbl])=>
+                h('div',{key:tid,onClick:()=>setAddPartTab(tid),style:{flex:1,padding:'10px 8px',fontSize:12,textAlign:'center',cursor:'pointer',color:addPartTab===tid?'#378ADD':'#6b7a9f',borderBottom:addPartTab===tid?'2px solid #378ADD':'2px solid transparent',background:addPartTab===tid?'rgba(55,138,221,.06)':'none'}},tlbl)
+              )
+            ),
+            // Tab body
+            h('div',{style:{padding:16}},
+              // ── FROM INVENTORY TAB ──
+              addPartTab==='inventory'&&h('div',null,
+                h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10}},'Select a part from your parts inventory'),
+                h('div',{style:{position:'relative',marginBottom:12}},
+                  h('input',{className:'form-input',placeholder:'Search parts...',value:newPart.part_name,
+                    onChange:e=>setNewPart(x=>({...x,part_name:e.target.value,part_id:null}))}),
+                ),
+                h('div',{style:{maxHeight:180,overflowY:'auto',border:'.5px solid #2a3048',borderRadius:8,marginBottom:12}},
+                  (allParts||[]).filter(p=>!newPart.part_name||p.name.toLowerCase().includes(newPart.part_name.toLowerCase())||(p.part_number||'').toLowerCase().includes(newPart.part_name.toLowerCase())).slice(0,12)
+                  .map(p=>h('div',{key:p.id,
+                    onClick:()=>setNewPart(x=>({...x,part_name:p.name,part_number:p.part_number||'',part_id:p.id,capacity_uom:p.uom||''})),
+                    style:{padding:'9px 12px',cursor:'pointer',fontSize:12,borderBottom:'.5px solid #1e2a3a',display:'flex',justifyContent:'space-between',alignItems:'center',
+                      background:newPart.part_id===p.id?'rgba(55,138,221,.12)':'transparent',
+                      color:newPart.part_id===p.id?'#378ADD':'#e2e8f0'}},
+                    h('div',null,
+                      h('div',{style:{fontWeight:500}},p.name),
+                      p.part_number&&h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},p.part_number)
+                    ),
+                    h('div',{style:{textAlign:'right'}},
+                      h('div',{style:{color:(p.quantity_on_hand||0)<=0?'#f87171':'#4ade80',fontSize:11}},(p.quantity_on_hand||0)+' '+(p.uom||'ea')),
+                      p.unit_cost&&h('div',{style:{color:'#6b7a9f',fontSize:11}},'$'+parseFloat(p.unit_cost).toFixed(2))
+                    )
+                  ))
+                ),
+                h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}},
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Capacity Qty'),
+                    h('input',{className:'form-input',placeholder:'e.g. 6',value:newPart.capacity,onChange:e=>setNewPart(x=>({...x,capacity:e.target.value}))})
+                  ),
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Unit'),
+                    h('input',{className:'form-input',placeholder:'e.g. qt, gal, ea',value:newPart.capacity_uom,onChange:e=>setNewPart(x=>({...x,capacity_uom:e.target.value}))})
+                  )
+                ),
+                h('div',{style:{marginBottom:10}},
+                  h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Notes'),
+                  h('input',{className:'form-input',placeholder:'e.g. Preferred brand, fitment notes...',value:newPart.notes,onChange:e=>setNewPart(x=>({...x,notes:e.target.value}))})
+                ),
+                h('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#94a3b8',cursor:'pointer'}},
+                  h('input',{type:'checkbox',checked:newPart.is_preferred,onChange:e=>setNewPart(x=>({...x,is_preferred:e.target.checked})),style:{accentColor:'#378ADD'}}),
+                  'Mark as preferred/OEM part'
+                )
+              ),
+              // ── CREATE NEW TAB ──
+              addPartTab==='create'&&h('div',null,
+                h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}},
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Part Name *'),
+                    h('input',{className:'form-input',placeholder:'e.g. Serpentine Belt',value:newPart.part_name,onChange:e=>setNewPart(x=>({...x,part_name:e.target.value}))})
+                  ),
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Part Number'),
+                    h('input',{className:'form-input',placeholder:'e.g. SB-5070',value:newPart.part_number,onChange:e=>setNewPart(x=>({...x,part_number:e.target.value}))})
+                  )
+                ),
+                h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}},
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Capacity Qty'),
+                    h('input',{className:'form-input',placeholder:'e.g. 6',value:newPart.capacity,onChange:e=>setNewPart(x=>({...x,capacity:e.target.value}))})
+                  ),
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Unit (qt, gal, ea...)'),
+                    h('input',{className:'form-input',placeholder:'e.g. qt',value:newPart.capacity_uom,onChange:e=>setNewPart(x=>({...x,capacity_uom:e.target.value}))})
+                  )
+                ),
+                h('div',{style:{marginBottom:8}},
+                  h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Notes'),
+                  h('input',{className:'form-input',placeholder:'e.g. Preferred brand, fitment notes...',value:newPart.notes,onChange:e=>setNewPart(x=>({...x,notes:e.target.value}))})
+                ),
+                h('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#94a3b8',cursor:'pointer'}},
+                  h('input',{type:'checkbox',checked:newPart.is_preferred,onChange:e=>setNewPart(x=>({...x,is_preferred:e.target.checked})),style:{accentColor:'#378ADD'}}),
+                  'Mark as preferred/OEM part'
+                )
+              ),
+              // ── ASSET HISTORY TAB ──
+              addPartTab==='history'&&h('div',null,
+                h('div',{style:{fontSize:11,color:'#6b7a9f',marginBottom:10}},'Parts previously used on this vehicle'),
+                usedPartsData.length===0?h('div',{style:{padding:'24px',textAlign:'center',color:'#6b7a9f'}},'No service history yet.')
+                :h('div',{style:{maxHeight:200,overflowY:'auto',border:'.5px solid #2a3048',borderRadius:8,marginBottom:12}},
+                  usedPartsData.map(p=>h('div',{key:p.part_id||p.part_name,
+                    onClick:()=>setNewPart(x=>({...x,part_name:p.part_name,part_number:p.part_number||'',part_id:p.part_id||null,capacity_uom:p.uom||''})),
+                    style:{padding:'9px 12px',cursor:'pointer',fontSize:12,borderBottom:'.5px solid #1e2a3a',display:'flex',justifyContent:'space-between',alignItems:'center',
+                      background:newPart.part_name===p.part_name&&newPart.part_number===(p.part_number||'')?'rgba(55,138,221,.12)':'transparent',
+                      color:newPart.part_name===p.part_name?'#378ADD':'#e2e8f0'}},
+                    h('div',null,
+                      h('div',{style:{fontWeight:500}},p.part_name),
+                      h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},'Part # '+(p.part_number||'—'))
+                    ),
+                    h('div',{style:{textAlign:'right'}},
+                      h('div',{style:{color:p.part?.quantity_on_hand<=0?'#f87171':'#4ade80',fontSize:11}},p.part?(p.part.quantity_on_hand||0)+' '+(p.uom||'ea'):'—'),
+                      p.unit_cost&&h('div',{style:{color:'#6b7a9f',fontSize:11}},'$'+parseFloat(p.unit_cost).toFixed(2))
+                    )
+                  ))
+                ),
+                h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}},
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Capacity Qty'),
+                    h('input',{className:'form-input',placeholder:'e.g. 6',value:newPart.capacity,onChange:e=>setNewPart(x=>({...x,capacity:e.target.value}))})
+                  ),
+                  h('div',null,
+                    h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Unit'),
+                    h('input',{className:'form-input',placeholder:'e.g. qt, gal, ea',value:newPart.capacity_uom,onChange:e=>setNewPart(x=>({...x,capacity_uom:e.target.value}))})
+                  )
+                ),
+                h('div',{style:{marginBottom:10}},
+                  h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Notes'),
+                  h('input',{className:'form-input',placeholder:'e.g. Check level cold',value:newPart.notes,onChange:e=>setNewPart(x=>({...x,notes:e.target.value}))})
+                ),
+                h('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#94a3b8',cursor:'pointer'}},
+                  h('input',{type:'checkbox',checked:newPart.is_preferred,onChange:e=>setNewPart(x=>({...x,is_preferred:e.target.checked})),style:{accentColor:'#378ADD'}}),
+                  'Mark as preferred/OEM part'
                 )
               )
             ),
-            h('div',null,
-              h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Part Number'),
-              h('input',{className:'form-input',placeholder:'Optional',value:newPart.part_number,onChange:e=>setNewPart(x=>({...x,part_number:e.target.value}))})
+            // Modal footer
+            h('div',{style:{padding:'12px 16px',borderTop:'.5px solid #2a3048',display:'flex',justifyContent:'flex-end',gap:8}},
+              h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>{setShowAddPart(false);setNewPart({part_name:'',part_number:'',notes:'',is_preferred:false,capacity:'',capacity_uom:'',part_id:null});}},'Cancel'),
+              h('button',{className:'btn btn-primary',style:{fontSize:12},onClick:addToCatalog},'Add to Catalog')
             )
-          ),
-          h('div',{style:{marginBottom:8}},
-            h('label',{style:{fontSize:11,color:'#6b7a9f',display:'block',marginBottom:3}},'Notes'),
-            h('input',{className:'form-input',placeholder:'e.g. Preferred brand, fitment notes...',value:newPart.notes,onChange:e=>setNewPart(x=>({...x,notes:e.target.value}))})
-          ),
-          h('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#94a3b8',cursor:'pointer',marginBottom:10}},
-            h('input',{type:'checkbox',checked:newPart.is_preferred,onChange:e=>setNewPart(x=>({...x,is_preferred:e.target.checked})),style:{accentColor:'#378ADD'}}),
-            'Mark as preferred/OEM part'
-          ),
-          h('div',{className:'btn-row'},
-            h('button',{className:'btn btn-primary',style:{fontSize:12},onClick:addToCatalog},'Add to Catalog'),
-            h('button',{className:'btn btn-ghost',style:{fontSize:12},onClick:()=>setShowAddPart(false)},'Cancel')
           )
         ),
+
         // Catalog list
-        (catalog||[]).length===0&&!showAddPart?
+        (catalog||[]).length===0?
           h('div',{style:{padding:'32px',textAlign:'center',color:'#6b7a9f'}},
             h('div',{style:{fontSize:24,marginBottom:8}},'🔧'),
             'No parts in catalog yet. Add parts that fit this asset.'
@@ -1204,19 +1316,54 @@ function AssetDetail({id,setPage,isTech=false}){
         :h('div',{style:{overflowX:'auto'}},
           h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:13}},
             h('thead',null,h('tr',{style:{background:'rgba(255,255,255,.03)'}},
-              ['','Part Name','Part #','Notes','In Stock',''].map(c=>h('th',{key:c,style:{padding:'8px 12px',textAlign:'left',fontSize:10,fontWeight:700,color:'#6b7a9f',textTransform:'uppercase',borderBottom:'.5px solid #2a3048'}},c))
+              ['','Part Name','Part #','Capacity','Notes','In Stock',''].map(c=>h('th',{key:c,style:{padding:'8px 12px',textAlign:'left',fontSize:10,fontWeight:700,color:'#6b7a9f',textTransform:'uppercase',borderBottom:'.5px solid #2a3048'}},c))
             )),
             h('tbody',null,(catalog||[]).map(c=>
+              editingCatalogId===c.id?
+              // ── INLINE EDIT ROW ──
+              h('tr',{key:c.id,style:{background:'rgba(55,138,221,.05)',borderBottom:'.5px solid #2a3048'}},
+                h('td',{style:{padding:'6px 8px'}}),
+                h('td',{style:{padding:'6px 8px'}},
+                  h('input',{className:'form-input',style:{fontSize:12},value:editCatalogData.part_name||'',onChange:e=>setEditCatalogData(x=>({...x,part_name:e.target.value}))})
+                ),
+                h('td',{style:{padding:'6px 8px'}},
+                  h('input',{className:'form-input',style:{fontSize:12,width:110},value:editCatalogData.part_number||'',onChange:e=>setEditCatalogData(x=>({...x,part_number:e.target.value}))})
+                ),
+                h('td',{style:{padding:'6px 8px'}},
+                  h('div',{style:{display:'flex',gap:4}},
+                    h('input',{className:'form-input',style:{fontSize:12,width:60},placeholder:'Qty',value:editCatalogData.capacity||'',onChange:e=>setEditCatalogData(x=>({...x,capacity:e.target.value}))}),
+                    h('input',{className:'form-input',style:{fontSize:12,width:60},placeholder:'uom',value:editCatalogData.capacity_uom||'',onChange:e=>setEditCatalogData(x=>({...x,capacity_uom:e.target.value}))})
+                  )
+                ),
+                h('td',{style:{padding:'6px 8px'}},
+                  h('input',{className:'form-input',style:{fontSize:12},value:editCatalogData.notes||'',onChange:e=>setEditCatalogData(x=>({...x,notes:e.target.value}))})
+                ),
+                h('td',{style:{padding:'6px 12px',color:'#6b7a9f',fontSize:12}},'—'),
+                h('td',{style:{padding:'6px 8px',whiteSpace:'nowrap'}},
+                  h('button',{onClick:()=>saveCatalogEdit(c.id),style:{fontSize:11,padding:'3px 10px',borderRadius:6,border:'.5px solid rgba(74,222,128,.3)',background:'transparent',color:'#4ade80',cursor:'pointer',marginRight:4}},'Save'),
+                  h('button',{onClick:()=>setEditingCatalogId(null),style:{fontSize:11,padding:'3px 8px',borderRadius:6,border:'.5px solid #2a3048',background:'transparent',color:'#6b7a9f',cursor:'pointer'}},'Cancel')
+                )
+              )
+              :
+              // ── NORMAL ROW ──
               h('tr',{key:c.id,style:{borderBottom:'.5px solid #1e2a3a'}},
                 h('td',{style:{padding:'8px 12px'}},
                   c.is_preferred&&h('span',{style:{fontSize:10,background:'rgba(55,138,221,.15)',color:'#378ADD',padding:'2px 6px',borderRadius:10,fontWeight:600}},'OEM')
                 ),
                 h('td',{style:{padding:'8px 12px',fontWeight:500,color:'#e2e8f0'}},c.part_name),
                 h('td',{style:{padding:'8px 12px',color:'#6b7a9f',fontSize:12}},c.part_number||'—'),
-                h('td',{style:{padding:'8px 12px',color:'#6b7a9f',fontSize:12,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},c.notes||'—'),
+                h('td',{style:{padding:'8px 12px'}},
+                  c.typical_qty?h('span',{style:{fontSize:11,background:'rgba(74,222,128,.1)',color:'#4ade80',padding:'2px 8px',borderRadius:6}},c.typical_qty+' '+(c.uom||''))
+                  :h('span',{style:{color:'#3d4557'}},'—')
+                ),
+                h('td',{style:{padding:'8px 12px',color:'#6b7a9f',fontSize:12,maxWidth:180,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},c.notes||'—'),
                 h('td',{style:{padding:'8px 12px',color:c.part?.quantity_on_hand<=0?'#f87171':'#94a3b8'}},
                   c.part?(c.part.quantity_on_hand||0)+' '+(c.part.uom||'ea'):'—'),
-                h('td',{style:{padding:'8px 12px'}},
+                h('td',{style:{padding:'8px 12px',whiteSpace:'nowrap'}},
+                  !isTech&&h('button',{onClick:()=>{
+                    setEditCatalogData({part_name:c.part_name,part_number:c.part_number||'',notes:c.notes||'',is_preferred:!!c.is_preferred,capacity:c.typical_qty||'',capacity_uom:c.uom||''});
+                    setEditingCatalogId(c.id);
+                  },style:{fontSize:11,padding:'3px 8px',borderRadius:6,border:'.5px solid #2a3048',background:'transparent',color:'#94a3b8',cursor:'pointer',marginRight:4}},'Edit'),
                   !isTech&&h('button',{onClick:()=>removeCatalog(c.id),
                     style:{fontSize:11,padding:'3px 8px',borderRadius:6,border:'.5px solid rgba(248,113,113,.3)',background:'transparent',color:'#f87171',cursor:'pointer'}},'Remove')
                 )
