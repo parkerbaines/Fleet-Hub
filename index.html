@@ -843,7 +843,7 @@ function Fleet({setPage,isTech=false,initialType,initialStatus}){
       h(Fragment,null,
         h('div',{className:'table-wrap'},h('table',null,
           h('thead',null,h('tr',null,
-            ['Asset #','Name','Type','Year','Make / Model','Odometer / Hrs','Status',''].map(c=>h('th',{key:c},c))
+            ['Asset #','Name','Type','Year','Make / Model','VIN','Plate','Odometer / Hrs','Status',''].map(c=>h('th',{key:c},c))
           )),
           h('tbody',null,[...filtered].sort((a,b)=>{
             if(sortF==='odometer_miles')return(b.odometer_miles||b.engine_hours||0)-(a.odometer_miles||a.engine_hours||0);
@@ -854,6 +854,8 @@ function Fleet({setPage,isTech=false,initialType,initialStatus}){
             h('td',{style:{textTransform:'capitalize',color:'#6b7a9f',fontSize:12}},a.asset_type),
             h('td',{style:{color:'#94a3b8',fontSize:12}},a.year||'—'),
             h('td',{style:{color:'#94a3b8',fontSize:12}},[a.make,a.model].filter(Boolean).join(' ')||'—'),
+            h('td',{style:{color:'#94a3b8',fontSize:11,fontFamily:'monospace'}},a.vin||'—'),
+            h('td',{style:{color:'#94a3b8',fontSize:12}},a.license_plate||'—'),
             h('td',{style:{color:'#94a3b8',fontSize:12}},a.asset_type==='equipment'?(a.engine_hours?a.engine_hours+' hrs':'—'):(a.asset_type==='trailer'?'—':(a.odometer_miles?a.odometer_miles.toLocaleString()+' mi':'—'))),
             h('td',null,h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))),
             h('td',null,!isTech&&h('button',{className:'icon-btn',onClick:e=>{e.stopPropagation();setPage('asset-edit-'+a.id);}},h(IEdit)))
@@ -862,7 +864,10 @@ function Fleet({setPage,isTech=false,initialType,initialStatus}){
         h('div',{className:'table-mobile'},filtered.map(a=>h('div',{key:a.id,className:'row',onClick:()=>setPage('asset-'+a.id)},
           h('div',{style:{flex:1,minWidth:0}},
             h('div',{style:{fontSize:13,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name),
-            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},(a.asset_number||'No ID')+' · '+a.asset_type+(a.year?' · '+a.year:''))
+            h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},(a.asset_number||'No ID')+' · '+a.asset_type+(a.year?' · '+a.year:'')),
+            (a.vin||a.license_plate)&&h('div',{style:{fontSize:10,color:'#4a5568',marginTop:2,fontFamily:'monospace'}},
+              [a.vin?'VIN: '+a.vin:null, a.license_plate?'Plate: '+a.license_plate:null].filter(Boolean).join(' · ')
+            )
           ),
           h('span',{className:'badge '+assetStatusCls[a.status]},a.status.replace('_',' '))
         )))
@@ -1939,21 +1944,26 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
   const autoSaveF=(newF)=>{
     if(!isEdit||!id)return;
     const ind=document.getElementById('wo-save-ind');
-    if(ind){ind.textContent='Unsaved';ind.style.color='#fbbf24';ind.style.background='rgba(251,191,36,.15)';;}
+    if(ind){ind.textContent='Unsaved';ind.style.color='#fbbf24';ind.style.background='rgba(251,191,36,.15)';}
     clearTimeout(autoSaveF._t);
     autoSaveF._t=setTimeout(()=>{
       const ind2=document.getElementById('wo-save-ind');
-      if(ind2){ind2.textContent='Saving...';ind2.style.color='#6b7a9f';}
+      if(ind2){ind2.textContent='Saving...';ind2.style.color='#6b7a9f';ind2.style.background='transparent';}
       sb.from('work_orders').update({...newF,updated_at:new Date().toISOString()}).eq('id',id)
-        .then(({error})=>{
+        .then((res)=>{
           const ind3=document.getElementById('wo-save-ind');
-          if(error){
-            if(ind3){ind3.textContent='Save failed';ind3.style.color='#f87171';}
+          // Only show failed if there's a real error with a message
+          if(res?.error?.message){
+            if(ind3){ind3.textContent='Save failed';ind3.style.color='#f87171';ind3.style.background='rgba(248,113,113,.1)';}
           } else {
-            if(ind3){ind3.textContent='Saved';ind3.style.color='#4ade80';ind3.style.background='rgba(74,222,128,.1)';setTimeout(()=>{const _i=document.getElementById('wo-save-ind');if(_i){_i.textContent='';_i.style.background='transparent';}},3000);}
+            if(ind3){ind3.textContent='Saved ✓';ind3.style.color='#4ade80';ind3.style.background='rgba(74,222,128,.1)';setTimeout(()=>{const _i=document.getElementById('wo-save-ind');if(_i){_i.textContent='';_i.style.background='transparent';}},2500);}
           }
+        })
+        .catch(()=>{
+          const ind3=document.getElementById('wo-save-ind');
+          if(ind3){ind3.textContent='Save failed';ind3.style.color='#f87171';ind3.style.background='rgba(248,113,113,.1)';}
         });
-    },500);
+    },600);
   };
   autoSaveF._t=null;
   const sf=(k,v)=>{window.__woDirty=true;setF(x=>{const next={...x,[k]:v};autoSaveF(next);return next;});};
@@ -2144,6 +2154,14 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
     setShowPf(false);setAddingPart(false);refetchParts();
   };
   const rmPart=async pid=>{if(isTech)return;await sb.from('work_order_parts').delete().eq('id',pid);refetchParts();};
+  const[editingPartId,setEditingPartId]=useState(null);
+  const[editPartQty,setEditPartQty]=useState('');
+  const updatePartQty=async(pid)=>{
+    const qty=parseFloat(editPartQty);
+    if(!qty||qty<=0)return;
+    await sb.from('work_order_parts').update({quantity_used:qty,updated_at:new Date().toISOString()}).eq('id',pid);
+    setEditingPartId(null);setEditPartQty('');refetchParts();
+  };
 
   const totalHrs=(timeEntries||[]).reduce((s,e)=>s+parseFloat(e.hours||0),0);
   const partsSubtotal=(woParts||[]).reduce((s,p)=>s+(parseFloat(p.quantity_used||0)*parseFloat(p.unit_cost||0)),0);
@@ -2443,7 +2461,28 @@ function WOForm({id,setPage,isAdmin=true,isTech=false,myTechId=null}){
         h('div',{className:'wo-section'},
           h('div',{className:'wo-section-header'},h('span',{className:'wo-section-title'},h(IParts),'  Parts Used'),h('span',{className:'wo-section-sub'},'$'+partsTotal.toFixed(2)+' total')),
           (woParts||[]).length>0&&h('div',{style:{marginBottom:12}},(woParts||[]).map(p=>h('div',{key:p.id,style:{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'0.5px solid #2a3048'}},
-            h('div',{style:{flex:1}},h('div',{style:{fontSize:13,color:'#e2e8f0',fontWeight:500}},p.part_name||'—'),h('div',{style:{fontSize:11,color:'#6b7a9f'}},(p.part_number?p.part_number+' · ':'')+p.quantity_used+(p.uom&&p.uom!=='ea'?' '+p.uom:'')+(p.unit_cost?' · $'+parseFloat(p.unit_cost).toFixed(2)+'/'+( p.uom||'ea'):''))),
+            h('div',{style:{flex:1}},
+              h('div',{style:{fontSize:13,color:'#e2e8f0',fontWeight:500}},p.part_name||'—'),
+              h('div',{style:{fontSize:11,color:'#6b7a9f',marginTop:2}},
+                (p.part_number?p.part_number+' · ':'')+
+                (editingPartId===p.id
+                  ? h('span',null,
+                      h('input',{type:'number',min:0.001,step:0.001,autoFocus:true,
+                        value:editPartQty,
+                        onChange:e=>setEditPartQty(e.target.value),
+                        onKeyDown:e=>{if(e.key==='Enter')updatePartQty(p.id);if(e.key==='Escape'){setEditingPartId(null);setEditPartQty('');}},
+                        style:{width:60,background:'#0f1117',border:'.5px solid #378ADD',borderRadius:4,color:'#e2e8f0',padding:'1px 4px',fontSize:11}}),
+                      ' '+(p.uom||'ea'),
+                      h('button',{onClick:()=>updatePartQty(p.id),style:{marginLeft:6,fontSize:10,padding:'1px 6px',borderRadius:4,border:'none',background:'#378ADD',color:'#fff',cursor:'pointer'}},'✓'),
+                      h('button',{onClick:()=>{setEditingPartId(null);setEditPartQty('');},style:{marginLeft:3,fontSize:10,padding:'1px 6px',borderRadius:4,border:'.5px solid #2a3048',background:'transparent',color:'#6b7a9f',cursor:'pointer'}},'✕')
+                    )
+                  : h('span',{style:{cursor:'pointer',borderBottom:'.5px dashed #3a4560'},
+                      onClick:()=>{setEditingPartId(p.id);setEditPartQty(String(p.quantity_used||1));}},
+                      p.quantity_used+(p.uom&&p.uom!=='ea'?' '+p.uom:''))
+                )+
+                (p.unit_cost?' · $'+parseFloat(p.unit_cost).toFixed(2)+'/'+(p.uom||'ea'):'')
+              )
+            ),
             p.unit_cost&&h('div',{style:{fontSize:14,fontWeight:700,color:'#e2e8f0',minWidth:70,textAlign:'right'}},'$'+(parseFloat(p.quantity_used)*parseFloat(p.unit_cost)).toFixed(2)),
             h('button',{className:'btn-icon',style:{color:'#f87171'},onClick:()=>{if(!isTech)rmPart(p.id);}},h(ITrash))
           ))),
